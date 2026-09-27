@@ -93,6 +93,21 @@ export function porBanco(movs) {
   return [...m.values()].sort((a, b) => b.gastos + b.ingresos - (a.gastos + a.ingresos))
 }
 
+/* De quién vino o a quién se fue, para el detalle de una tarjeta del
+   resumen. Sin contraparte, cae en el nombre del tipo: así «Ingreso» junta
+   los abonos que el banco no nombra en vez de dejarlos en una fila vacía. */
+export function porContraparte(movs, tipo) {
+  const m = new Map()
+  for (const x of movs) {
+    if (x.tipo !== tipo) continue
+    const k = String(x.contraparte || '').trim() || TIPOS[tipo]
+    const e = m.get(k) || { nombre: k, monto: 0, n: 0 }
+    e.monto += Number(x.monto) || 0; e.n++
+    m.set(k, e)
+  }
+  return [...m.values()].sort((a, b) => b.monto - a.monto)
+}
+
 /* Serie para el gráfico: los 12 meses del año o los días del mes. */
 export function serie(movs, escala, ref) {
   const [a, m] = ref.split('-').map(Number)

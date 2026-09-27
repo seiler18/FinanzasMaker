@@ -1,6 +1,7 @@
 // Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
 import assert from 'node:assert/strict'
-import { rango, mover, enRango, totales, porCategoria, serie, suscripciones, consejos } from '../src/lib/analisis.js'
+import { rango, mover, enRango, totales, porCategoria, porContraparte, serie, suscripciones, consejos } from '../src/lib/analisis.js'
+import { conSigno, sentidoDe, SENTIDO } from '../src/lib/formato.js'
 
 let ok = 0
 const fallos = []
@@ -25,6 +26,21 @@ prueba('totales: internas y pago de tarjeta no suman', () => {
   assert.equal(t.ahorro, 700000)
   assert.equal(t.tasa, 0.7)
   assert.equal(t.inversionNeta, 60000)
+})
+
+prueba('porContraparte agrupa por nombre y nombra lo anónimo por su tipo', () => {
+  const g = porContraparte([m('2026-09-01', 'ingreso', 1000, { contraparte: 'Empresa' }), m('2026-09-02', 'ingreso', 500, { contraparte: 'Empresa ' }),
+    m('2026-09-03', 'ingreso', 2000), m('2026-09-04', 'gasto', 999, { contraparte: 'Empresa' })], 'ingreso')
+  assert.deepEqual(g, [{ nombre: 'Ingreso', monto: 2000, n: 1 }, { nombre: 'Empresa', monto: 1500, n: 2 }])
+})
+
+prueba('conSigno: + lo que entra, − lo que sale, nada lo que no suma', () => {
+  const sin = (x) => x.replace(/\s/g, ' ')
+  assert.equal(sin(conSigno(12000, SENTIDO.ingreso)), '+$12.000')
+  assert.equal(sin(conSigno(8500, SENTIDO.gasto)), '−$8.500')
+  assert.equal(sin(conSigno(-8500, sentidoDe(-8500))), '−$8.500')
+  assert.equal(SENTIDO.interna, undefined)
+  assert.equal(sin(conSigno(3000, SENTIDO.interna)), '$3.000')
 })
 
 prueba('enRango incluye los extremos del día', () => {

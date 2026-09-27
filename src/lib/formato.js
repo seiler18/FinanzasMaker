@@ -25,3 +25,18 @@ export function fechaCorta(f) {
   const hora = s.slice(11, 16)
   return `${dia} ${d} ${MESES[m - 1]}${hora && hora !== '00:00' ? ' · ' + hora : ''}`
 }
+
+/* Hacia dónde va la plata de cada tipo. Lo que no está (interna,
+   pago_tarjeta) no suma, y por eso no lleva signo ni color. */
+export const SENTIDO = { ingreso: 'mas', rescate: 'mas', gasto: 'menos', inversion: 'menos' }
+
+// +$12.000 · −$8.500 · $3.000 (sin sentido, el número tal cual). El signo va aparte del número: Intl pone un
+// guion corto para los negativos, y aquí el signo lo decide el tipo.
+export function conSigno(n, sentido) {
+  if (!sentido) return clp(n)
+  const v = clp(Math.abs(Number(n) || 0))
+  return sentido === 'mas' ? `+${v}` : `−${v}`
+}
+
+// El ahorro decide su signo por el valor, no por un tipo.
+export const sentidoDe = (n) => (n > 0 ? 'mas' : n < 0 ? 'menos' : '')

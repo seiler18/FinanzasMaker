@@ -1,12 +1,10 @@
 import { html, pintar, $, aviso } from '../lib/dom.js'
-import { clp, fechaCorta } from '../lib/formato.js'
+import { clp, fechaCorta, conSigno, SENTIDO } from '../lib/formato.js'
 import { rango, enRango, TIPOS } from '../lib/analisis.js'
 
 /* Lista del periodo, agrupada por día, con filtros y edición.
    Editar la categoría con «aplicar a todos» guarda una regla en la hoja: la
    próxima compra en ese comercio ya llega bien clasificada. */
-
-const SIGNO = { ingreso: '+', rescate: '+', gasto: '−', inversion: '−', interna: '', pago_tarjeta: '' }
 
 export function movimientos(el, app, filtros = {}) {
   const r = rango(app.periodo.escala, app.periodo.ref)
@@ -44,7 +42,7 @@ export function movimientos(el, app, filtros = {}) {
         <li><button class="mov mov-${m.tipo}" data-id="${m.id}">
           <span class="mov-txt"><b>${m.contraparte || TIPOS[m.tipo]}</b>
             <small>${m.categoria || 'Otros'} · ${m.banco}${m.producto && m.producto !== 'Cuenta' ? ' · ' + m.producto : ''}${Number(m.cuotas) > 1 ? ` · ${m.cuotas} cuotas` : ''}${m.origen === 'manual' ? ' · manual' : ''}${m.nota ? ' · ' + m.nota : ''}</small></span>
-          <span class="mov-monto"><b>${SIGNO[m.tipo]}${clp(m.monto)}</b>${m.tipo === 'interna' || m.tipo === 'pago_tarjeta' ? html`<small>no suma</small>` : ''}</span>
+          <span class="mov-monto"><b class="${SENTIDO[m.tipo] ? 'monto-' + SENTIDO[m.tipo] : ''}">${conSigno(m.monto, SENTIDO[m.tipo])}</b>${m.tipo === 'interna' || m.tipo === 'pago_tarjeta' ? html`<small>no suma</small>` : ''}</span>
         </button></li>`)}</ul>`)}`)
   }
   form.addEventListener('input', pintarLista)

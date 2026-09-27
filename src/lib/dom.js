@@ -40,6 +40,27 @@ export function pintar(el, contenido) {
   el.innerHTML = valor(contenido)
 }
 
+/* Cierra un <dialog> dejando correr su animación de salida (.saliendo en
+   movimiento.css). Sin movimiento, o si la animación no llega a correr, cierra
+   igual: el temporizador es la red para que el diálogo nunca quede abierto. */
+export function cerrarDialogo(dlg) {
+  if (!dlg.open) return
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return dlg.close()
+  // El listener se quita al cerrar: si quedara colgado, la animación de
+  // ENTRADA de la próxima apertura dispararía su animationend y cerraría el
+  // diálogo apenas abierto.
+  const alTerminar = (e) => { if (e.target === dlg) fin() }
+  const fin = () => {
+    clearTimeout(red)
+    dlg.removeEventListener('animationend', alTerminar)
+    dlg.classList.remove('saliendo')
+    dlg.close()
+  }
+  const red = setTimeout(fin, 400)
+  dlg.classList.add('saliendo')
+  dlg.addEventListener('animationend', alTerminar)
+}
+
 /* Aviso breve abajo de la pantalla. textContent, nunca innerHTML: los
    mensajes de error pueden traer texto del servidor. */
 export function aviso(msg, tipo = 'ok') {

@@ -7,13 +7,31 @@
 .etiqueta-demo { font-size: var(--txt-micro); padding: 2px 10px; border-radius: var(--radio-pildora); background: var(--aviso-tenue); color: var(--aviso); font-weight: 600; }
 .pestanas { width: min(100% - 32px, var(--ancho-max)); margin-inline: auto; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .pestana {
-  display: inline-flex; align-items: center; gap: 6px;
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
   min-height: var(--toque-min); padding: 0 14px;
-  border: 0; border-bottom: 2px solid transparent; background: none;
+  border: 0; background: none;
   color: var(--texto-tenue); font-weight: 600; font-size: var(--txt-ui); cursor: pointer; white-space: nowrap;
+  transition: color var(--rapido) var(--curva);
 }
-.pestana[aria-current="page"] { color: var(--primario); border-bottom-color: var(--primario); }
-.contador:not(:empty) { min-width: 20px; padding: 0 6px; border-radius: var(--radio-pildora); background: var(--aviso); color: var(--texto-sobre-primario); font-size: var(--txt-micro); line-height: 20px; text-align: center; }
+.pestana[aria-current="page"] { color: var(--primario); }
+.pestana-icono { position: relative; display: inline-grid; place-items: center; }
+.pestana-corto { display: none; }
+/* La raya de la pestaña activa es un elemento propio, no un borde: con nombre
+   de transición (movimiento.css) se desliza de una pestaña a la otra. */
+.pestana-linea { position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; background: var(--primario); opacity: 0; }
+.pestana[aria-current="page"] .pestana-linea { opacity: 1; }
+.contador:not(:empty) {
+  position: absolute; top: -7px; left: 9px;
+  min-width: 16px; padding: 0 4px; border-radius: var(--radio-pildora);
+  background: var(--aviso); color: var(--texto-sobre-primario); font-size: var(--txt-grafico); font-weight: 700; line-height: 16px; text-align: center;
+}
+
+/* Íconos de trazo propios (pestañas, tema, flecha de las tarjetas). */
+.pestana-icono svg, .boton-tema svg, .kpi-flecha svg {
+  width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.boton-tema { flex: none; }
 
 /* ----- Periodo ----- */
 .periodo { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; padding: 20px 0 12px; }
@@ -35,12 +53,35 @@
 .intro { color: var(--texto-tenue); }
 .sub { margin: 20px 0 8px; }
 
-/* ----- KPIs ----- */
+/* ----- Montos: + verde lo que entra, − rojo lo que sale ----- */
+.monto-mas, .monto-menos { font-weight: 700; }
+.monto-mas { color: var(--mas); }
+.monto-menos { color: var(--menos); }
+
+/* ----- KPIs: cada tarjeta es un botón que abre su detalle ----- */
 .kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
-.kpi { background: var(--surface); border: 1px solid var(--borde); border-radius: var(--radio); padding: 16px 18px; box-shadow: var(--sombra); }
-.kpi h3 { color: var(--texto-tenue); font-weight: 500; font-size: var(--txt-menudo); }
+.kpi {
+  display: grid; gap: 2px; align-content: start;
+  width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--borde); border-radius: var(--radio); padding: 16px 18px; box-shadow: var(--sombra);
+  transition: transform var(--medio) var(--curva), border-color var(--medio) var(--curva), box-shadow var(--medio) var(--curva);
+}
+.kpi-titulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--texto-tenue); font-weight: 500; font-size: var(--txt-menudo); }
+.kpi-flecha { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); color: var(--texto-tenue); transition: transform var(--medio) var(--curva), background var(--medio) var(--curva); }
+.kpi-flecha svg { width: 14px; height: 14px; }
+.kpi-ingresos { border-top: 3px solid var(--mas); }
+.kpi-gastos { border-top: 3px solid var(--menos); }
+.kpi:active { transform: scale(0.98); }
+@media (hover: hover) {
+  .kpi:hover { transform: translateY(-3px); border-color: var(--primario); }
+  .kpi:hover .kpi-flecha { transform: translateX(3px); background: var(--primario-tenue); color: var(--primario); }
+}
 .cifra { font-size: var(--txt-cifra); font-weight: 700; color: var(--texto-fuerte); letter-spacing: -0.01em; margin-top: 2px; }
 .cifra.negativo { color: var(--error); }
+/* .cifra fija --texto-fuerte y va después: sin esto las cifras de las
+   tarjetas y del detalle saldrían negras aunque lleven su clase de color. */
+.cifra.monto-mas { color: var(--mas); }
+.cifra.monto-menos { color: var(--menos); }
 .kpi-nota { font-size: var(--txt-micro); color: var(--texto-tenue); margin-top: 2px; }
 
 /* ----- Gráfico ----- */
@@ -88,10 +129,11 @@ tbody th { font-weight: 500; }
   width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline;
   padding: 8px 6px; border: 0; border-radius: var(--radio-sm); background: none; text-align: left; cursor: pointer;
 }
-.cat:hover { background: var(--surface-2); }
+@media (hover: hover) { .cat:hover { background: var(--surface-2); } }
 .cat-nombre { font-weight: 500; }
 .cat-monto { font-weight: 600; color: var(--texto-fuerte); text-align: right; }
 .cat-monto small { font-weight: 500; color: var(--texto-tenue); }
+.cat-monto b { font-weight: 700; }
 .cat-monto small.cerca { color: var(--aviso); }
 .cat-monto small.excedido { color: var(--error); }
 .cat-pista { grid-column: 1 / -1; position: relative; height: 8px; border-radius: var(--radio-pildora); background: var(--surface-2); }
@@ -113,12 +155,14 @@ tbody th { font-weight: 500; }
   width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 10px 8px; border: 0; border-bottom: 1px solid var(--borde); background: none; text-align: left; cursor: pointer;
 }
-.mov:hover { background: var(--surface-2); }
+@media (hover: hover) { .mov:hover { background: var(--surface-2); } }
 .mov-txt { min-width: 0; }
 .mov-txt b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mov-txt small, .mov-monto small { display: block; color: var(--texto-tenue); font-size: var(--txt-micro); }
 .mov-monto { text-align: right; white-space: nowrap; }
 .mov-monto b { font-weight: 600; color: var(--texto-fuerte); }
+.mov-monto b.monto-mas { color: var(--mas); font-weight: 700; }
+.mov-monto b.monto-menos { color: var(--menos); font-weight: 700; }
 .mov-interna .mov-monto b, .mov-pago_tarjeta .mov-monto b { color: var(--texto-tenue); font-weight: 500; }
 
 /* ----- Diálogo ----- */
@@ -126,6 +170,31 @@ tbody th { font-weight: 500; }
 .dialogo::backdrop { background: var(--velo-modal); }
 .form-dialogo { display: grid; gap: 14px; padding: 22px; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+
+/* ----- Detalle de una tarjeta (hoja) ----- */
+.hoja { width: min(100% - 32px, 560px); max-height: min(86vh, 760px); overflow: auto; overscroll-behavior: contain; }
+.hoja-cuerpo { display: grid; gap: 6px; padding: 18px 22px 22px; }
+.hoja-asa { display: none; }
+.hoja-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.hoja-cab h2 { font-size: var(--txt-t2); }
+.hoja-total { display: grid; gap: 2px; margin: 6px 0 4px; }
+.hoja-total .cifra { font-size: var(--txt-marca); line-height: 1.1; }
+.hoja-ir { margin-top: 16px; }
+.reparto { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.reparto li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
+.reparto-nombre { min-width: 0; overflow-wrap: anywhere; }
+.reparto-nombre small { display: block; color: var(--texto-tenue); font-size: var(--txt-micro); }
+.reparto-pista { grid-column: 1 / -1; height: 6px; border-radius: var(--radio-pildora); background: var(--surface-2); overflow: hidden; }
+.reparto-barra { display: block; height: 100%; width: calc(var(--p, 0) * 1%); border-radius: var(--radio-pildora); }
+.reparto-mas { background: var(--mas); }
+.reparto-menos { background: var(--menos); }
+.cuenta-ahorro { display: grid; gap: 0; margin: 8px 0; }
+.cuenta-ahorro div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--borde); }
+.cuenta-ahorro dt { color: var(--texto-tenue); }
+.cuenta-ahorro dd { margin: 0; }
+.cuenta-total { border-bottom: 0; font-weight: 700; }
+.cuenta-total dt { color: var(--texto-fuerte); }
+.comparacion { margin: 8px 0; }
 
 /* ----- Revisar ----- */
 .tarjeta-revisar { display: grid; gap: 14px; }

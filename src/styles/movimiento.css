@@ -1,0 +1,107 @@
+/* ============================================================
+   MOVIMIENTO — transiciones entre vistas y animaciones de entrada.
+
+   Dos caminos para el cambio de vista (main.js, conTransicion):
+   1. View Transitions: main.js pone data-dir en <html> mientras dura. Solo
+      entonces #vista toma nombre propio y sale/entra deslizándose; sin
+      data-dir (p. ej. al cambiar de tema) todo funde junto.
+   2. Sin View Transitions: la vista nueva lleva data-entra="<dir>" y entra
+      sola, sin salida de la vieja.
+   En los dos casos la vista nueva lleva data-entra, que es lo que dispara el
+   escalonado de tarjetas y el crecer de las barras. Al recargar datos tras
+   editar no se pone: la vista no cambió y no debe volver a «saltar».
+   ============================================================ */
+
+/* ---------- 1. View Transitions ---------- */
+:root[data-dir] #vista { view-transition-name: vista; }
+:root[data-dir] .barra { view-transition-name: barra; }
+:root[data-dir] .pestanas { view-transition-name: pestanas; }
+.pestana[aria-current="page"] .pestana-linea { view-transition-name: pestana-linea; }
+
+/* La barra y las pestañas no se mueven: se pintan encima de la vista que se
+   desliza, o el contenido pasaría por delante de la cabecera fija. */
+::view-transition-group(barra),
+::view-transition-group(pestanas) { z-index: 2; }
+::view-transition-old(barra), ::view-transition-new(barra),
+::view-transition-old(pestanas), ::view-transition-new(pestanas) { animation: none; }
+::view-transition-group(pestana-linea) { z-index: 3; animation-duration: var(--lento); animation-timing-function: var(--resorte); }
+
+::view-transition-group(vista) { animation-duration: var(--lento); animation-timing-function: var(--curva); }
+::view-transition-old(vista) { animation: vt-sale-izq var(--lento) var(--curva) both; }
+::view-transition-new(vista) { animation: vt-entra-der var(--lento) var(--curva) both; }
+:root[data-dir="atras"]::view-transition-old(vista) { animation-name: vt-sale-der; }
+:root[data-dir="atras"]::view-transition-new(vista) { animation-name: vt-entra-izq; }
+:root[data-dir="adentro"]::view-transition-old(vista) { animation-name: vt-sale-lejos; }
+:root[data-dir="adentro"]::view-transition-new(vista) { animation-name: vt-entra-cerca; }
+:root[data-dir="suave"]::view-transition-old(vista) { animation-name: funde-sale; }
+:root[data-dir="suave"]::view-transition-new(vista) { animation-name: funde-entra; }
+
+@keyframes vt-sale-izq  { to   { opacity: 0; transform: translateX(-32px); } }
+@keyframes vt-sale-der  { to   { opacity: 0; transform: translateX(32px); } }
+@keyframes vt-entra-der { from { opacity: 0; transform: translateX(32px); } }
+@keyframes vt-entra-izq { from { opacity: 0; transform: translateX(-32px); } }
+@keyframes vt-sale-lejos  { to   { opacity: 0; transform: scale(0.96); } }
+@keyframes vt-entra-cerca { from { opacity: 0; transform: scale(1.04); } }
+@keyframes funde-sale  { to   { opacity: 0; } }
+@keyframes funde-entra { from { opacity: 0; } }
+
+/* ---------- 2. Sin View Transitions: solo entra la nueva ---------- */
+.vista[data-entra="adelante"] { animation: vt-entra-der var(--lento) var(--curva) both; }
+.vista[data-entra="atras"]    { animation: vt-entra-izq var(--lento) var(--curva) both; }
+.vista[data-entra="adentro"]  { animation: vt-entra-cerca var(--lento) var(--curva) both; }
+.vista[data-entra="suave"]    { animation: funde-entra var(--lento) var(--curva) both; }
+
+/* ---------- Escalonado de lo que entra ---------- */
+@keyframes sube { from { opacity: 0; transform: translateY(12px); } }
+
+.vista[data-entra] .kpi,
+.vista[data-entra] > .panel,
+.vista[data-entra] .columnas > .panel,
+.vista[data-entra] .movs li { animation: sube var(--lento) var(--curva) both; }
+
+.vista[data-entra] .kpi:nth-child(2) { animation-delay: var(--escalon); }
+.vista[data-entra] .kpi:nth-child(3) { animation-delay: calc(var(--escalon) * 2); }
+.vista[data-entra] .kpi:nth-child(4) { animation-delay: calc(var(--escalon) * 3); }
+.vista[data-entra] > .panel:nth-child(2) { animation-delay: calc(var(--escalon) * 3); }
+.vista[data-entra] .columnas > .panel:nth-child(1) { animation-delay: calc(var(--escalon) * 4); }
+.vista[data-entra] .columnas > .panel:nth-child(2) { animation-delay: calc(var(--escalon) * 5); }
+/* Solo las primeras filas de la lista: escalonar 200 movimientos haría
+   esperar un segundo a quien busca el último. */
+.vista[data-entra] .movs li:nth-child(2) { animation-delay: calc(var(--escalon) * 0.5); }
+.vista[data-entra] .movs li:nth-child(3) { animation-delay: var(--escalon); }
+.vista[data-entra] .movs li:nth-child(4) { animation-delay: calc(var(--escalon) * 1.5); }
+.vista[data-entra] .movs li:nth-child(n+5) { animation-delay: calc(var(--escalon) * 2); }
+
+/* ---------- Barras que crecen ---------- */
+@keyframes crece-x { from { transform: scaleX(0); } }
+@keyframes crece-y { from { transform: scaleY(0); } }
+
+.vista[data-entra] .cat-barra,
+.hoja[open] .reparto-barra { transform-origin: left center; animation: crece-x var(--crece) var(--curva) both; }
+.hoja[open] .reparto-barra { animation-delay: var(--escalon); }
+.vista[data-entra] .g-s1,
+.vista[data-entra] .g-s2 { transform-box: fill-box; transform-origin: 50% 100%; animation: crece-y var(--crece) var(--curva) both; }
+.vista[data-entra] .g-s2 { animation-delay: var(--escalon); }
+
+/* ---------- Diálogos ---------- */
+@keyframes dialogo-entra { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+@keyframes dialogo-sale  { to   { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes hoja-sube  { from { transform: translateY(100%); } }
+@keyframes hoja-baja  { to   { transform: translateY(100%); } }
+
+.dialogo[open] { animation: dialogo-entra var(--lento) var(--resorte) both; }
+.dialogo[open]::backdrop { animation: funde-entra var(--lento) var(--curva) both; }
+.dialogo.saliendo { animation: dialogo-sale var(--medio) var(--curva) both; }
+.dialogo.saliendo::backdrop { animation: funde-sale var(--medio) var(--curva) both; }
+.hoja[open] .hoja-cuerpo > * { animation: sube var(--lento) var(--curva) both; animation-delay: var(--escalon); }
+
+/* ---------- Pulsar ---------- */
+.pestana:active .pestana-icono { transform: scale(0.9); }
+.pestana-icono { transition: transform var(--rapido) var(--curva); }
+.boton-tema svg { transition: transform var(--lento) var(--resorte); }
+.boton-tema:active svg { transform: rotate(40deg) scale(0.9); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop { animation: none !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}

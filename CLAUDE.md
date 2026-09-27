@@ -20,6 +20,8 @@ Seguridad: `SECURITY.md`.
 | Totales, series y consejos | `src/lib/analisis.js` |
 | Vistas | `src/vistas/{resumen,movimientos,revisar,agregar,consejos,ajustes}.js` |
 | Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
+| Transiciones entre vistas; celular; tema | `src/styles/movimiento.css`, `src/styles/movil.css`, `src/lib/tema.js` |
+| Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |
 | Backend de mentira del modo demo | `src/demo.js` — debe contestar igual que `Code.gs` |
 | Inicio de sesión con Google | `src/lib/sesion.js` |
 | CSP | `vite.config.js` (solo en build) |

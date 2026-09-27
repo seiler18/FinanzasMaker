@@ -29,6 +29,12 @@
   --aviso:     #b45309;
   --error:     #b91c1c;
 
+  /* Montos: + verde lo que entra, − rojo lo que sale. Tonos propios, no los
+     de estado (--ok/--error), para poder afinar su contraste sin tocar los
+     avisos: ambos pasan 4,5:1 sobre --surface y sobre --surface-2. */
+  --mas:       #13773a;
+  --menos:     #c0262d;
+
   /* Gráficos */
   --serie-1:   #2a78d6;        /* ingresos */
   --serie-2:   #eb6834;        /* gastos */
@@ -39,7 +45,11 @@
   --ok-tenue:       color-mix(in srgb, var(--ok) 12%, transparent);
   --aviso-tenue:    color-mix(in srgb, var(--aviso) 14%, transparent);
   --error-tenue:    color-mix(in srgb, var(--error) 12%, transparent);
-  --velo-modal:     color-mix(in srgb, var(--texto-fuerte) 55%, transparent);
+  --mas-tenue:      color-mix(in srgb, var(--mas) 12%, transparent);
+  --menos-tenue:    color-mix(in srgb, var(--menos) 11%, transparent);
+  /* Negro fijo y no --texto-fuerte: en oscuro ese token es blanco y el velo
+     del diálogo aclaraba la página en vez de oscurecerla. */
+  --velo-modal:     rgba(0, 0, 0, 0.55);
   --barra-fondo:    color-mix(in srgb, var(--surface) 90%, transparent);
 
   --fuente: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -57,6 +67,10 @@
   --rapido: 120ms;
   --medio:  220ms;
   --curva:  cubic-bezier(0.22, 0.61, 0.36, 1);
+  --lento:  380ms;             /* cambio de vista, apertura del detalle */
+  --escalon: 45ms;             /* retraso entre tarjetas que entran en fila */
+  --cuenta: 700ms;             /* las cifras de las tarjetas «cuentan» hasta su valor */
+  --resorte: cubic-bezier(0.34, 1.4, 0.64, 1);
 
   --radio:    14px;
   --radio-sm: 9px;
@@ -66,6 +80,7 @@
   --sombra: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
   --z-barra: 100;
   --z-avisos: 200;
+  --alto-nav: 64px;            /* barra de pestañas inferior en el celular */
 
   /* ----- Pantalla de ingreso: siempre oscura, con luz de aurora -----
      No sigue el tema claro/oscuro: es la portada, y el fondo nocturno es lo
@@ -94,6 +109,11 @@
   --crece:          900ms;
 }
 
+/* Oscuro: por preferencia del sistema, salvo que el usuario haya elegido
+   claro con el botón (data-theme="light"), o por elección explícita
+   (data-theme="dark"). Son el mismo bloque dos veces: CSS no deja compartir
+   un bloque entre una media query y un selector suelto. src/lib/tema.js
+   pone el atributo. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
@@ -110,10 +130,36 @@
     --ok:        #4ade80;
     --aviso:     #f59e0b;
     --error:     #f87171;
+    --mas:       #4ade80;
+    --menos:     #f87171;
     --serie-1:   #3987e5;
     --serie-2:   #d95926;
     --rejilla:   #2a2d2c;
     --eje:       #9aa19d;
     --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:          #121413;
+  --surface:     #1a1c1b;
+  --surface-2:   #232625;
+  --primario:       #3fb3a6;
+  --primario-claro: #5cc9bc;
+  --texto-sobre-primario: #0b0d0c;
+  --texto:        #e7eae8;
+  --texto-tenue:  #a4aba7;
+  --texto-fuerte: #ffffff;
+  --borde:      #2e3230;
+  --ok:        #4ade80;
+  --aviso:     #f59e0b;
+  --error:     #f87171;
+  --mas:       #4ade80;
+  --menos:     #f87171;
+  --serie-1:   #3987e5;
+  --serie-2:   #d95926;
+  --rejilla:   #2a2d2c;
+  --eje:       #9aa19d;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

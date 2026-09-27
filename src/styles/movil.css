@@ -1,0 +1,87 @@
+/* ============================================================
+   CELULAR — hasta 720 px.
+
+   Las pestañas bajan a una barra fija inferior (al alcance del pulgar, y ya
+   no se esconden de lado como pasaba con seis en fila). Todo lo demás se
+   aprieta: tarjetas de a dos, periodo en dos filas, detalle como hoja que
+   sube desde abajo.
+   ============================================================ */
+
+@media (max-width: 720px) {
+  /* backdrop-filter crea un bloque contenedor para los hijos `fixed`: con él,
+     la barra inferior quedaría pegada a la cabecera y no a la pantalla. */
+  .barra { backdrop-filter: none; background: var(--surface); }
+  .barra-in { min-height: 52px; gap: 8px; }
+  .solo-ancho { display: none; }
+
+  .pestanas {
+    position: fixed; inset: auto 0 0 0; z-index: var(--z-barra);
+    width: 100%; margin: 0;
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: var(--barra-fondo); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--borde);
+    overflow: visible;
+  }
+  .pestana {
+    flex-direction: column; justify-content: center; gap: 3px;
+    min-height: 56px; padding: 0 2px;
+    font-size: var(--txt-micro); font-weight: 600;
+    -webkit-tap-highlight-color: transparent;
+    isolation: isolate; /* la píldora (z-index -1) va detrás del ícono, no del fondo de la barra */
+  }
+  .pestana-largo { display: none; }
+  .pestana-corto { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .pestana-icono svg { width: 22px; height: 22px; }
+  /* La raya pasa a ser una píldora detrás del ícono (y se desliza igual). */
+  .pestana-linea {
+    left: 50%; right: auto; top: 6px; bottom: auto;
+    width: 56px; height: 30px; margin-left: -28px;
+    border-radius: var(--radio-pildora); background: var(--primario-tenue);
+    z-index: -1;
+  }
+  .contador:not(:empty) { top: -6px; left: 14px; }
+
+  body.con-nav { padding-bottom: calc(var(--alto-nav) + env(safe-area-inset-bottom)); }
+  #avisos { bottom: calc(var(--alto-nav) + 12px + env(safe-area-inset-bottom)); }
+
+  .contenedor { width: min(100% - 24px, var(--ancho-max)); }
+  .vista { gap: 12px; }
+
+  .periodo { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 0 8px; }
+  .escalas { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .navegar { justify-content: space-between; }
+  .periodo-etiqueta { flex: 1; min-width: 0; font-size: var(--txt-t3); }
+
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi { padding: 12px 14px; }
+  .kpi .cifra { font-size: var(--txt-t2); overflow-wrap: anywhere; }
+
+  /* Con 30 días el gráfico no cabe a lo ancho sin que el texto quede de
+     5 px: se desliza de lado y conserva su tamaño. */
+  .grafico { overflow-x: auto; margin-inline: -16px; padding-inline: 16px; scrollbar-width: thin; }
+  .g-lienzo { min-width: 560px; }
+
+  .panel { padding: 16px; }
+  .mov { padding: 12px 4px; }
+
+  /* Detalle: hoja que sube desde abajo, a lo ancho, con asa. */
+  .hoja {
+    width: 100%; max-width: none; max-height: 88vh;
+    margin: auto 0 0; border-radius: var(--radio) var(--radio) 0 0;
+  }
+  .hoja[open] { animation-name: hoja-sube; }
+  .hoja.saliendo { animation-name: hoja-baja; }
+  .hoja-cuerpo { padding: 8px 18px calc(22px + env(safe-area-inset-bottom)); }
+  .hoja-asa { display: block; justify-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--borde); margin-bottom: 6px; }
+  .hoja-total .cifra { font-size: var(--txt-cifra); }
+  .hoja-ir { width: 100%; }
+
+  .dialogo:not(.hoja) { width: calc(100% - 24px); }
+  .acciones .btn { flex: 1 1 auto; }
+}
+
+@media (max-width: 360px) {
+  .kpis { grid-template-columns: 1fr; }
+  .marca-nombre { display: none; }
+}
