@@ -1,0 +1,12 @@
+{
+  "from": "info@mercadopago.com",
+  "subject": "Se acreditó tu pago",
+  "date": "2024-08-28T02:31:43Z",
+  "body": "Jesus Enrique,\nSe acreditó tu pago por: Ingreso de dinero $ 100.000 con Ten en cuenta que, si corresponde, el banco puede aplicar intereses sobre el monto. En tu resumen verás el cargo como MERCPAGO Número de operación: 00000000000\nMercado Pago\nNo respondas este e-mail. Ayuda",
+  "nota": "Sin parte text/plain: body es el texto del HTML, un bloque por línea. Mismo asunto que mercadopago-pago-acreditado: distinguir por \"Ingreso de dinero\".",
+  "esperado": "transferencia propia: carga (\"Ingreso de dinero\") de $100.000 a Mercado Pago cobrada a una tarjeta del titular (glosa MERCPAGO); no es ingreso real",
+  "espera": {
+    "tipo": "interna",
+    "monto": 100000
+  }
+}

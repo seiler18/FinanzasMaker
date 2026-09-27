@@ -1,0 +1,99 @@
+// Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
+import assert from 'node:assert/strict'
+import { rango, mover, enRango, totales, porCategoria, serie, suscripciones, consejos } from '../src/lib/analisis.js'
+
+let ok = 0
+const fallos = []
+function prueba(nombre, fn) { try { fn(); ok++ } catch (e) { fallos.push(`✗ ${nombre}\n    ${e.message}`) } }
+
+const m = (fecha, tipo, monto, extra = {}) => ({ fecha: fecha.length === 10 ? fecha + ' 12:00' : fecha, tipo, monto, banco: 'Tenpo', categoria: 'Otros', contraparte: '', ...extra })
+
+prueba('rango y mover', () => {
+  assert.deepEqual(rango('mes', '2026-02-10'), { desde: '2026-02-01', hasta: '2026-02-28', etiqueta: 'febrero 2026' })
+  assert.equal(rango('año', '2026-02-10').hasta, '2026-12-31')
+  assert.equal(rango('dia', '2026-02-10').desde, '2026-02-10')
+  assert.equal(mover('mes', '2026-01-31', 1), '2026-02-01')
+  assert.equal(mover('dia', '2026-03-01', -1), '2026-02-28')
+  assert.equal(mover('año', '2026-05-05', -1), '2025-01-01')
+})
+
+prueba('totales: internas y pago de tarjeta no suman', () => {
+  const t = totales([m('2026-09-01', 'ingreso', 1000000), m('2026-09-02', 'gasto', 300000), m('2026-09-03', 'interna', 500000),
+    m('2026-09-04', 'pago_tarjeta', 200000), m('2026-09-05', 'inversion', 100000), m('2026-09-06', 'rescate', 40000)])
+  assert.equal(t.ingresos, 1000000)
+  assert.equal(t.gastos, 300000)
+  assert.equal(t.ahorro, 700000)
+  assert.equal(t.tasa, 0.7)
+  assert.equal(t.inversionNeta, 60000)
+})
+
+prueba('enRango incluye los extremos del día', () => {
+  const r = rango('mes', '2026-09-01')
+  const movs = [m('2026-08-31 23:59', 'gasto', 1), m('2026-09-01 00:00', 'gasto', 2), m('2026-09-30 23:59', 'gasto', 3), m('2026-10-01 00:00', 'gasto', 4)]
+  assert.deepEqual(enRango(movs, r).map((x) => x.monto), [2, 3])
+})
+
+prueba('porCategoria ordena de mayor a menor y solo gastos', () => {
+  const c = porCategoria([m('2026-09-01', 'gasto', 10, { categoria: 'A' }), m('2026-09-01', 'gasto', 30, { categoria: 'B' }), m('2026-09-01', 'ingreso', 99, { categoria: 'A' })])
+  assert.deepEqual(c.map((x) => [x.categoria, x.monto]), [['B', 30], ['A', 10]])
+})
+
+prueba('serie del año tiene 12 meses y la del mes sus días', () => {
+  const movs = [m('2026-02-03', 'gasto', 100), m('2026-02-03', 'ingreso', 50), m('2026-11-20', 'gasto', 7)]
+  const a = serie(movs, 'año', '2026-06-01')
+  assert.equal(a.length, 12)
+  assert.equal(a[1].gastos, 100)
+  assert.equal(a[10].gastos, 7)
+  const d = serie(movs, 'mes', '2026-02-01')
+  assert.equal(d.length, 28)
+  assert.equal(d[2].ingresos, 50)
+})
+
+prueba('suscripciones: mismo comercio y monto parecido en 2+ meses', () => {
+  const movs = [
+    m('2026-07-06', 'gasto', 7990, { contraparte: 'NETFLIX.COM' }), m('2026-08-06', 'gasto', 7990, { contraparte: 'NETFLIX.COM' }),
+    m('2026-09-06', 'gasto', 8290, { contraparte: 'Netflix.com' }),
+    m('2026-08-10', 'gasto', 5000, { contraparte: 'TIENDA X' }), m('2026-09-10', 'gasto', 25000, { contraparte: 'TIENDA X' }),
+    m('2026-08-01', 'gasto', 20000, { contraparte: 'Pedro', categoria: 'Transferencias a personas' }), m('2026-09-01', 'gasto', 20000, { contraparte: 'Pedro', categoria: 'Transferencias a personas' }),
+  ]
+  const s = suscripciones(movs, '2026-09')
+  assert.equal(s.length, 1)
+  assert.equal(s[0].meses, 3)
+  assert.equal(s[0].monto, 8290)
+})
+
+prueba('consejos: presupuesto excedido primero, y ahorro bajo', () => {
+  const movs = [m('2026-09-01', 'ingreso', 1000000), m('2026-09-03', 'gasto', 950000, { categoria: 'Comida' })]
+  const c = consejos(movs, [{ categoria: 'Comida', monto_mensual: 100000 }], '2026-09', '2026-09-30')
+  assert.equal(c[0].nivel, 'alerta')
+  assert.match(c[0].titulo, /Comida/)
+  assert.ok(c.some((x) => /ahorrando el 5 %/.test(x.titulo)))
+})
+
+prueba('consejos: categoría que sube frente a los 3 meses anteriores', () => {
+  const movs = []
+  for (const mes of ['06', '07', '08']) movs.push(m(`2026-${mes}-10`, 'gasto', 50000, { categoria: 'Comida' }))
+  movs.push(m('2026-09-10', 'gasto', 90000, { categoria: 'Comida' }))
+  const c = consejos(movs, [], '2026-09', '2026-09-30')
+  assert.ok(c.some((x) => x.titulo === 'Comida subió 80 %'))
+})
+
+prueba('consejos: gastos hormiga, cuotas y efectivo', () => {
+  const movs = []
+  for (let i = 1; i <= 12; i++) movs.push(m(`2026-09-${String(i).padStart(2, '0')}`, 'gasto', 2500))
+  movs.push(m('2026-09-15', 'gasto', 90000, { cuotas: 3 }))
+  movs.push(m('2026-09-16', 'gasto', 20000, { categoria: 'Efectivo' }))
+  const t = consejos(movs, [], '2026-09', '2026-09-30').map((x) => x.titulo)
+  assert.ok(t.includes('12 compras chicas'))
+  assert.ok(t.some((x) => /en cuotas/.test(x)))
+  assert.ok(t.some((x) => /efectivo/.test(x)))
+})
+
+prueba('consejos: proyección solo para el mes en curso', () => {
+  const movs = [m('2026-09-02', 'gasto', 100000)]
+  assert.ok(consejos(movs, [], '2026-09', '2026-09-10').some((x) => x.titulo === 'Proyección del mes'))
+  assert.ok(!consejos(movs, [], '2026-09', '2026-10-10').some((x) => x.titulo === 'Proyección del mes'))
+})
+
+console.log(`analisis: ${ok} pruebas ok`)
+if (fallos.length) { console.error(fallos.join('\n')); process.exit(1) }

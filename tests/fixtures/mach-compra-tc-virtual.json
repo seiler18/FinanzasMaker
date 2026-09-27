@@ -1,0 +1,14 @@
+{
+  "from": "contacto@mail.machbank.cl",
+  "subject": "Has hecho una compra con tu Tarjeta de Crédito MACHBANK",
+  "date": "2026-09-19T02:19:27Z",
+  "body": "MACH\nComprobante de compra con tu Tarjeta de Crédito MACHBANK\n\nDetalle\n\nComercio MP *MERCADO LIBRE Monto pagado $49.468\nCantidad de cuotas 3 Tipo de tarjeta de crédito\nVirtual Últimos 4 dígitos de la tarjeta 6251 Fecha\ny hora 18/09/2026 - 23:19 Nr. identificador de la\ncompra Lx2wE7nB Beneficio JetSmart 40% dcto\nAcerca de este cargo\n\nEste comprobante no es una boleta ni una factura. Puedes\nusar este comprobante en la aduana si te lo solicitan.",
+  "esperado": "gasto: compra con tarjeta de crédito MACHBANK Virtual ****6251 por $49.468 en MP *MERCADO LIBRE, 3 cuotas, 18/09/2026 23:19 (ojo: \"Fecha\\ny hora\" partido entre líneas)",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 49468,
+    "contraparte": "MP *MERCADO LIBRE",
+    "cuotas": 3,
+    "categoria": "Compras"
+  }
+}

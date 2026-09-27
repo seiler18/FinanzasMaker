@@ -1,0 +1,15 @@
+{
+  "from": "hola@fintual.com",
+  "subject": "Vendiste 2,000000000 acciones de Vanguard Total International Stock ETF",
+  "date": "2026-09-04T16:22:29Z",
+  "body": "Vendiste 2,000000000 acciones de Vanguard Total International Stock ETF\nHola Jesus\nVendiste 2,000000000 acciones de Vanguard Total International Stock ETF\nCantidad de acciones\n2,000000000\nPrecio por acción\nUS $ 88,45\nTotal\nUS $ 184,24\nComisión\nUS $ 0,00\nRecibiste\nUS $ 184,24\nSi tienes dudas responde este correo y te ayudamos.\nFintual ©️ 2026\nUna máquina para hacer crecer tu patrimonio",
+  "nota": "Sin parte text/plain: body es el texto del HTML (tabla etiqueta/valor), un bloque por línea.",
+  "esperado": "inversión: venta de 2,000000000 acciones de Vanguard Total International Stock ETF, recibe US $184,24 en el saldo en dólares de Fintual (movimiento interno de la inversión)",
+  "espera": {
+    "inv": {
+      "operacion": "venta",
+      "monto": 184.24,
+      "moneda": "USD"
+    }
+  }
+}

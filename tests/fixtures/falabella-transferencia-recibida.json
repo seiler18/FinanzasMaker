@@ -1,0 +1,12 @@
+{
+  "from": "notificaciones@cl.bancofalabella.com",
+  "subject": "Aviso de transferencia de fondos recibida",
+  "date": "2026-09-14T12:28:55Z",
+  "body": " Jesus enrique seiler velasquez\n\n Le informamos que hoy, 14-09-2026, nuestro(a) cliente MARIO ANDRES SOTO ha instruido una transferencia de fondos a su cuenta con el siguiente detalle:\n\nDetalleBanco de destinoTenpo Prepago\nCuenta de destinoCuenta Vista 000000000000\nRut destinatario000000000\nAsuntoTransferencia realizada\nMonto transferencia$5.520\n\nFecha14-09-2026\nHora09:28\nNumero de operacion000000000000\n\n Consejos para evitar fraudes:\n\n\t-\n Evita abrir y/o descargar archivos de remitentes desconocidos.",
+  "esperado": "ingreso: transferencia recibida de $5.520 de tercero MARIO ANDRES SOTO (cliente Banco Falabella) en la Cuenta Vista Tenpo del titular, 14-09-2026 09:28 (etiquetas y valores pegados sin espacio)",
+  "espera": {
+    "tipo": "ingreso",
+    "monto": 5520,
+    "contraparte": "MARIO ANDRES SOTO"
+  }
+}

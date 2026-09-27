@@ -1,0 +1,13 @@
+{
+  "from": "contacto@mail.machbank.cl",
+  "subject": "Has hecho una compra con tu Tarjeta de Crédito MACHBANK",
+  "date": "2026-01-07T23:39:59Z",
+  "body": "MACH\nComprobante de compra con tu Tarjeta de Crédito MACHBANK\n\nDetalle\n\nComercio www.aliexpress.com Monto pagado\n$16.475 Cantidad de cuotas 0 Tipo de tarjeta de\ncrédito Virtual Últimos 4 dígitos de la tarjeta 6251\nFecha y hora 07/01/2026 - 23:39 Nr. identificador de la\ncompra Hp3sN8vQ Acerca de este cargo\n\nEste comprobante no es una boleta ni una factura. Puedes\nusar este comprobante en la aduana si te lo solicitan.",
+  "esperado": "gasto: compra con tarjeta de crédito MACHBANK Virtual ****6251 por $16.475 en www.aliexpress.com, 0 cuotas, 07/01/2026 23:39 (variante sin \"Beneficio JetSmart\": el monto cae en la línea siguiente a \"Monto pagado\" y \"Tipo de tarjeta de\\ncrédito\" se parte)",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 16475,
+    "contraparte": "www.aliexpress.com",
+    "categoria": "Compras"
+  }
+}

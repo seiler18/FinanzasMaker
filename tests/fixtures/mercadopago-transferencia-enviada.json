@@ -1,0 +1,12 @@
+{
+  "from": "info@mercadopago.cl",
+  "subject": "¡Enviamos tu transferencia!",
+  "date": "2026-09-17T09:51:01Z",
+  "body": "¡Enviamos tu transferencia!\nYa enviamos tu transferencia de $ 17.684\nDatos del beneficiario\nNombre y apellido: Jesus Seiler Velasquez Entidad: Copec Pay Número de cuenta: 00000000000\nSi no hiciste esta transferencia, avisanos para tomar medidas de seguridad sobre tu cuenta.\nSeguí todos tus gastos y movimientos estés donde estés.",
+  "nota": "Sin parte text/plain: body es el texto del HTML, un bloque por línea. Dentro de \"Datos del beneficiario\" los campos pueden venir en líneas separadas en getPlainBody(); usar \\s+ entre etiqueta y valor.",
+  "esperado": "transferencia propia: $17.684 desde Mercado Pago a Copec Pay del titular (Jesus Seiler Velasquez)",
+  "espera": {
+    "tipo": "interna",
+    "monto": 17684
+  }
+}

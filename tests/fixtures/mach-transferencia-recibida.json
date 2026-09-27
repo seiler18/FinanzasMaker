@@ -1,0 +1,11 @@
+{
+  "from": "noreply@somosmach.com",
+  "subject": "Recibiste una transferencia de Jesus Enrique Seiler Velasquez",
+  "date": "2026-09-20T16:32:23Z",
+  "body": "Recibiste una transferencia Hola Jesús. Acabas de recibir una transferencia de Jesus Enrique Seiler Velasquez sin costo desde MACHBANK. Detalle\nFecha\n20/09/2026 - 13:32:21\nNombre destinatario\nJesús Seiler Velasquez\nID\n11.111.111-1\nBanco destino\nCOPEC PAY\nCuenta destino\n00000000000\nMonto\n$48.746\nCódigo de confirmación\n000000000000\n\nTe recomendamos no ingresar a tu cuenta desde redes públicas de internet. Prefiere siempre conectarte desde tu hogar, oficina o bajo redes seguras y de confianza.\nEnviado con 💜 desde MACHBANK Centro de ayuda",
+  "esperado": "transferencia propia: $48.746 de MACHBANK (Jesus Enrique Seiler Velasquez) a Copec Pay del mismo titular, 20/09/2026 13:32:21. Pese al asunto \"Recibiste\", es la copia al destinatario de una transferencia que el titular se hizo a sí mismo",
+  "espera": {
+    "tipo": "interna",
+    "monto": 48746
+  }
+}

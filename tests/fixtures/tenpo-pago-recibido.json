@@ -1,0 +1,12 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "PABLO ANDRES MORALES VEGA te ha enviado un pago por $34.319",
+  "date": "2026-09-03T15:43:50Z",
+  "body": "Pago exitoso\n\nComprobante de pago exitoso\n\nEl pago de PABLO ANDRES MORALES VEGA por $34.319 a tu cuenta Tenpo fue exitoso\n\nEnviado por:\n PABLO ANDRES MORALES VEGA\n\nMonto pagado:\n $34.319\n\nMensaje:\n Diferencia pago agua\n\nFecha:\n 03/09/2026\n\nHora:\n 11:43\n\nCódigo de transferencia:\n T00000000000000000\n\nComprometidos con tu seguridad",
+  "esperado": "ingreso: pago recibido en Tenpo por $34.319 de tercero PABLO ANDRES MORALES VEGA, mensaje \"Diferencia pago agua\", 03/09/2026 11:43",
+  "espera": {
+    "tipo": "ingreso",
+    "monto": 34319,
+    "contraparte": "PABLO ANDRES MORALES VEGA"
+  }
+}

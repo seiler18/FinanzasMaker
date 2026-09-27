@@ -1,0 +1,13 @@
+{
+  "from": "notificaciones@correo.bancoestado.cl",
+  "subject": "Notificación de compra - BancoEstado",
+  "date": "2024-04-08T21:12:10Z",
+  "body": "JESUS ENRIQUE\nSEILER\n\nSe ha realizado compra e-commerce por $\n5.850\n en\nSII 11001SANTIAGOCL\nasociado a su tarjeta de Debito terminada en **** 5317\n el día\n08/04/2024\n a las\n17:12\nhrs.",
+  "esperado": "gasto: compra e-commerce con tarjeta de débito BancoEstado **** 5317 por $5.850 en SII 11001SANTIAGOCL, 08/04/2024 17:12 (ojo: \"$\" y el monto en líneas distintas)",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 5850,
+    "contraparte": "SII",
+    "categoria": "Impuestos"
+  }
+}

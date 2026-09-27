@@ -1,0 +1,13 @@
+{
+  "from": "no-reply@mail.machbank.cl",
+  "subject": "Realizaste una transferencia a Fintual",
+  "date": "2026-09-21T10:43:00Z",
+  "body": "MACH ( https://example.com )\nRealizaste una transferencia\n\nHola Jesus. Acabas de hacer una transferencia desde tu cuenta\nprincipal MACHBANK.\n\nDetalle\n\nFecha 21/09/2026 - 07:42:58 Nombre destinatario\nFintual RUT 11.111.111-1 Banco destino FINTUAL\nCuenta destino 00000000 Monto $40.000 Mensaje\nahorros Código de confirmación 000000000000 Te\nrecomendamos no ingresar a tu cuenta MACHBANK desde redes\npúblicas de internet. Prefiere siempre conectarte desde tu hogar,\noficina o bajo redes seguras y de confianza. beneficios\n( https://example.com )\nEnviado con 💜 desde MACHBANK Centro de ayuda",
+  "esperado": "inversión: transferencia desde MACHBANK por $40.000 a Fintual (cuenta del titular en Fintual), mensaje \"ahorros\", 21/09/2026 07:42:58; se corresponde con fintual-invertimos",
+  "espera": {
+    "tipo": "inversion",
+    "monto": 40000,
+    "contraparte": "Fintual",
+    "categoria": "Inversiones"
+  }
+}

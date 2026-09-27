@@ -1,0 +1,19 @@
+{
+  "name": "finanzasmaker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "check": "node scripts/check.js",
+    "build": "npm run check && npm test && vite build",
+    "preview": "vite preview",
+    "test": "node tests/lectores.test.mjs && node tests/backend.test.mjs && node tests/analisis.test.mjs"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.1"
+  }
+}

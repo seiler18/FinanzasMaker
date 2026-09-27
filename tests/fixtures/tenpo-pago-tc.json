@@ -1,0 +1,11 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Recibimos con éxito el pago de tu Tarjeta de Crédito",
+  "date": "2026-09-04T12:19:12Z",
+  "body": "Comprobante pago de tarjeta de crédito\n\nComprobante pago de tarjeta de crédito\n\nEl pago que realizaste por $782.336 a tu tarjeta de crédito Tenpo el mes de septiembre fue exitoso.\n\nMonto transacción:\n $782.336\n\nTipo de tarjeta:\n Crédito\n\nMedio de pago:\n Cuenta Vista Tenpo\n\nFecha:\n 04-09-2026\n\nHora:\n 08:19:11\n\nCódigo de transacción:\n 3f8a2c1e-7b4d-4e9a-9c2f-5d6e7a8b9c01\n\nTu pago puede tardar unos minutos en reflejarse. Puedes verificar en tu cuenta Tenpo en el \"Historial de movimientos\"\n\nComprometidos con tu seguridad",
+  "esperado": "transferencia propia (pago de tarjeta): $782.336 desde Cuenta Vista Tenpo a la tarjeta de crédito Tenpo, 04-09-2026 08:19:11; no es gasto nuevo (los gastos ya se registraron en cada compra)",
+  "espera": {
+    "tipo": "pago_tarjeta",
+    "monto": 782336
+  }
+}

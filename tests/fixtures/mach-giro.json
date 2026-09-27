@@ -1,0 +1,12 @@
+{
+  "from": "noreply@somosmach.com",
+  "subject": "Realizaste un giro con tarjeta",
+  "date": "2026-09-06T10:22:21Z",
+  "body": "Realizaste un giro con tarjeta Hola Jesus. Acabas de realizar un giro con tarjeta en un cajero Redbanc, con cargo a tu cuenta principal MACH. Detalle\nMonto\n$10000\nFecha\n06/09/2026 - 07:21:54\nID de cajero\n04721\nCódigo de retiro\n0000000000\n\nTe recomendamos no ingresar a tu cuenta MACH desde redes públicas de internet. Prefiere siempre conectarte desde tu hogar, oficina o bajo redes seguras y de confianza.\nEnviado con 💜 desde MACH Centro de ayuda",
+  "esperado": "gasto (retiro de efectivo): giro en cajero Redbanc por $10000 (sin separador de miles) desde cuenta MACH, 06/09/2026 07:21:54",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 10000,
+    "categoria": "Efectivo"
+  }
+}

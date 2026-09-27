@@ -1,0 +1,13 @@
+{
+  "from": "mensajeria@copecpay.cl",
+  "subject": "Cargaste dinero en tu cuenta",
+  "date": "2026-09-01T20:37:15Z",
+  "body": "Cargaste dinero con éxito en tu cuenta\nMonto\n$12.500\nCuenta origen:\nTarjeta Bancaria\nVISA\n****6251\nN° transacción:\n725193\nFecha y hora:\n2026-09-01 16:37:08\nInfórmate sobre las entidades autorizadas para emitir tarjetas de pago en el país inscritas en los Registros de emisores de Tarjetas que lleva la CMF en: www.cmfchile.cl",
+  "plainBodyReal": "Cargaste dinero en tu cuenta",
+  "nota": "Copec Pay no trae cuerpo text/plain útil: su parte text/plain es solo el asunto (ver plainBodyReal). \"body\" es el texto del HTML, un bloque por línea; el parser debe usar getBody() y quitar etiquetas.",
+  "esperado": "transferencia propia: carga de $12.500 a Copec Pay con tarjeta VISA ****6251 (la tarjeta de crédito virtual MACHBANK del titular: el mismo minuto llega un aviso MACH \"Has hecho una compra\" Comercio COPEC PAY $12.500), 2026-09-01 16:37:08. El gasto real ya lo cuenta MACH: no sumar dos veces",
+  "espera": {
+    "tipo": "interna",
+    "monto": 12500
+  }
+}

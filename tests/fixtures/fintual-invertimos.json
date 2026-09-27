@@ -1,0 +1,14 @@
+{
+  "from": "hola@fintual.com",
+  "subject": "Invertimos tu plata en 👵 Objetivo de APV-EMPRESA SA APV-A",
+  "date": "2026-09-22T00:19:50Z",
+  "body": "Hola Jesus Invertimos tus $40.000\nEl lunes 21 de septiembre a las 20:19 tus $40.000 pesos chilenos se invirtieron de la siguiente forma: 👵 Objetivo de APV-EMPRESA SA APV-A $17.200 al Fondo Mutuo Risky Norris Serie APV: 3,8223 cuotas. $22.800 al Fondo Mutuo Moderate Pitt Serie APV: 7,9603 cuotas. Todo esto corresponde a Jesus Enrique Seiler Velasquez, rut 00000000-1 Cristóbal Aravena Munoz Gerente General Fintual A.G.F. Rut 11.111.111-1 Conoce los folletos informativos de tus fondos, sus costos, sus estados financieros, el reglamento interno y el reglamento general de fondos aquí.\nPrueba nuestra app\nFintual Rut: 00000000-1 Todos los derechos reservados",
+  "nota": "Sin parte text/plain: body es el texto del HTML, un bloque por línea. Trae adjunto formulario.pdf.",
+  "esperado": "inversión: $40.000 invertidos en Fintual, objetivo APV-EMPRESA SA APV-A ($17.200 Risky Norris + $22.800 Moderate Pitt), lunes 21 de septiembre 20:19; el dinero vino de mach-transferencia-enviada",
+  "espera": {
+    "inv": {
+      "operacion": "aporte",
+      "monto": 40000
+    }
+  }
+}

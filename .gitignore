@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.vscode/
+*.log
+
+# Nunca: exportaciones de la planilla (traen tus movimientos) ni correos
+# sin anonimizar. Los fixtures anonimizados van en tests/fixtures/ y
+# `npm run check` revisa que no traigan números de cuenta.
+*.xlsx
+*.csv
+*.eml
+.env*
+correos-crudos/
+
+# Ajustes de Claude Code de esta máquina (los del repo van en .claude/settings.json)
+.claude/settings.local.json

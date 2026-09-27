@@ -1,0 +1,11 @@
+{
+  "from": "hola@fintual.com",
+  "subject": "Recibirás 55.478 pesos chilenos por la venta de tus 62,79 dólares",
+  "date": "2026-01-12T12:32:07Z",
+  "body": "Hola Jesus\nConvertimos los US $ 62,79 que nos pediste vender a $55.478\n\nLa conversión fue a una tasa de $883,55 CLP/USD.\n\nTe transferiremos los $55.478 a la cuenta 0000000000 del Mercado Pago el miércoles 14 antes de las 18:00.\n\nSi tu cuenta no acepta la transferencia, intentaremos con otra que tengas registrada.\nTodo esto corresponde a Jesus Enrique Seiler Velasquez, RUT 00000000-1\n\nFintual\nRut: 00000000-1\nTodos los derechos reservados",
+  "esperado": "retiro de inversión: venta de US $62,79 en Fintual a $883,55 CLP/USD → $55.478 que se transferirán a Mercado Pago del titular (transferencia propia inversión → cuenta)",
+  "espera": {
+    "tipo": "rescate",
+    "monto": 55478
+  }
+}

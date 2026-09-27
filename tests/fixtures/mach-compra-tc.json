@@ -1,0 +1,15 @@
+{
+  "from": "contacto@mail.machbank.cl",
+  "subject": "Has hecho una compra con tu Tarjeta de Crédito MACHBANK",
+  "date": "2026-09-27T16:10:14Z",
+  "body": "MACH\nComprobante de compra con tu Tarjeta de Crédito MACHBANK\n\nDetalle\n\nComercio UNIMARC PALOMA Monto pagado $20.056\nCantidad de cuotas 0 Tipo de tarjeta de crédito Física\nÚltimos 4 dígitos de la tarjeta 3817 Fecha y hora\n27/09/2026 - 13:10 Nr. identificador de la compra\nQa4kR9mT Beneficio JetSmart 40% dcto Acerca de\neste cargo\n\nEste comprobante no es una boleta ni una factura. Puedes\nusar este comprobante en la aduana si te lo solicitan.",
+  "esperado": "gasto: compra con tarjeta de crédito MACHBANK Física ****3817 por $20.056 en UNIMARC PALOMA, 0 cuotas, 27/09/2026 13:10",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 20056,
+    "contraparte": "UNIMARC PALOMA",
+    "cuotas": 1,
+    "categoria": "Supermercado",
+    "fecha": "2026-09-27 13:10"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "from": "hola@fintual.com",
+  "subject": "Pagamos tu retiro de 👵 Objetivo de APV-EMPRESA SA APV-A",
+  "date": "2025-12-24T14:52:02Z",
+  "body": "El martes 23 de diciembre a las 11:41 nos pediste un retiro desde tu objetivo 👵 Objetivo de APV-EMPRESA SA APV-A.\n\nEl retiro se realizó de la siguiente forma:\n\nFondo Mutuo Moderate Pitt Serie APV, equivalentes a 73.9451 cuotas.\nFondo Mutuo Risky Norris Serie APV, equivalentes a 39.7813 cuotas.\n\nLa transferencia se hizo a la cuenta 0000000000 del Mercado Pago .\n\nSi tienes cualquier duda responde este correo.\n\nTodo esto corresponde a Jesus Enrique Seiler Velasquez, rut 00000000-1",
+  "nota": "OJO: el monto NO está en el text/plain. Solo aparece en el HTML/snippet como encabezado: \"Hola Jesus Te transferimos $321.091\". Ni el asunto ni getPlainBody() lo traen: hay que leer getBody().",
+  "htmlEncabezado": "Hola Jesus Te transferimos $321.091",
+  "esperado": "retiro de inversión: Fintual paga $321.091 del objetivo APV-EMPRESA SA APV-A a la cuenta Mercado Pago del titular (transferencia propia inversión → cuenta)",
+  "espera": {
+    "tipo": "rescate",
+    "monto": 321091
+  }
+}

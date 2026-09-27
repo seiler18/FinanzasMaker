@@ -1,0 +1,93 @@
+/* ============================================================
+   TOKENS — misma estructura y nombres que WebMaker/VentasMaker.
+   REGLA: fuera de este archivo no hay colores ni duraciones literales.
+   `npm run check` lo comprueba.
+
+   Series de los gráficos: slots 1 (azul) y 2 (naranja) del orden
+   categórico validado de la guía de visualización, con sus pasos propios
+   para el fondo oscuro (no es una inversión automática).
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  --bg:          #f5f6f4;
+  --surface:     #ffffff;
+  --surface-2:   #f0f2ef;
+
+  --primario:       #0f5c55;   /* verde petróleo; blanco encima = 7,6:1 */
+  --primario-claro: #178a7f;
+  --texto-sobre-primario: #ffffff;
+
+  --texto:        #1c1f1e;
+  --texto-tenue:  #5a605d;     /* 6,1:1 sobre --surface */
+  --texto-fuerte: #0b0d0c;
+
+  --borde:      #dfe3df;
+
+  /* Estados: reservados para avisos y consejos, nunca para series. */
+  --ok:        #15803d;
+  --aviso:     #b45309;
+  --error:     #b91c1c;
+
+  /* Gráficos */
+  --serie-1:   #2a78d6;        /* ingresos */
+  --serie-2:   #eb6834;        /* gastos */
+  --rejilla:   #e6e8e4;
+  --eje:       #6b716e;
+
+  --primario-tenue: color-mix(in srgb, var(--primario) 10%, transparent);
+  --ok-tenue:       color-mix(in srgb, var(--ok) 12%, transparent);
+  --aviso-tenue:    color-mix(in srgb, var(--aviso) 14%, transparent);
+  --error-tenue:    color-mix(in srgb, var(--error) 12%, transparent);
+  --velo-modal:     color-mix(in srgb, var(--texto-fuerte) 55%, transparent);
+  --barra-fondo:    color-mix(in srgb, var(--surface) 90%, transparent);
+
+  --fuente: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --txt-grafico: 0.6875rem;
+  --txt-micro:  0.75rem;
+  --txt-menudo: 0.8125rem;
+  --txt-ui:     0.9375rem;
+  --txt-cuerpo: 1rem;
+  --txt-t3:     1.125rem;
+  --txt-t2:     1.375rem;
+  --txt-cifra:  clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+  --txt-marca:  2.5rem;
+  --interlinea: 1.5;
+
+  --rapido: 120ms;
+  --medio:  220ms;
+  --curva:  cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --radio:    14px;
+  --radio-sm: 9px;
+  --radio-pildora: 999px;
+  --toque-min: 44px;
+  --ancho-max: 1100px;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
+  --z-barra: 100;
+  --z-avisos: 200;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg:          #121413;
+    --surface:     #1a1c1b;
+    --surface-2:   #232625;
+    --primario:       #3fb3a6;
+    --primario-claro: #5cc9bc;
+    --texto-sobre-primario: #0b0d0c;
+    --texto:        #e7eae8;
+    --texto-tenue:  #a4aba7;
+    --texto-fuerte: #ffffff;
+    --borde:      #2e3230;
+    --ok:        #4ade80;
+    --aviso:     #f59e0b;
+    --error:     #f87171;
+    --serie-1:   #3987e5;
+    --serie-2:   #d95926;
+    --rejilla:   #2a2d2c;
+    --eje:       #9aa19d;
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "from": "info@mercadopago.com",
+  "subject": "Tu transferencia fue enviada",
+  "date": "2025-12-26T17:42:04Z",
+  "body": "Ya enviamos tu transferencia de $ 661.806\nDatos del beneficiario\nNombre y apellido: Jesus Seiler Entidad: MACHBANK/BCI Número de cuenta: 000000000000\nSi no hiciste esta transferencia, avísanos para tomar medidas de seguridad sobre tu cuenta.\nSigue todos tus gastos y movimientos estés donde estés.",
+  "nota": "Sin parte text/plain: body es el texto del HTML, un bloque por línea. Remitente .com y asunto distinto al formato nuevo.",
+  "esperado": "transferencia propia: $661.806 desde Mercado Pago a MACHBANK/BCI del titular (Jesus Seiler)",
+  "espera": {
+    "tipo": "interna",
+    "monto": 661806
+  }
+}

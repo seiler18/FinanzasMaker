@@ -1,0 +1,12 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Enviaste un pago a RICARDO ANTONIO FUENTES MUNOZ por $15.000",
+  "date": "2026-05-09T12:39:10Z",
+  "body": "Pago exitoso\n\nComprobante de pago exitoso\n\nEl pago por $15.000 a RICARDO ANTONIO FUENTES MUNOZ desde tu cuenta Tenpo fue exitoso\n\nEnviado a:\n RICARDO ANTONIO FUENTES MUNOZ\n\nMonto pagado:\n $15.000\n\nMensaje:\n Pago\n\nFecha:\n 09/05/2026\n\nHora:\n 08:39\n\nCódigo de transferencia:\n T00000000000000000\n\nComprometidos con tu seguridad",
+  "esperado": "gasto: pago \"Entre Amigos\" enviado desde Tenpo por $15.000 a tercero RICARDO ANTONIO FUENTES MUNOZ, mensaje \"Pago\", 09/05/2026 08:39",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 15000,
+    "contraparte": "RICARDO ANTONIO FUENTES MUNOZ"
+  }
+}

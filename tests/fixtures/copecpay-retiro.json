@@ -1,0 +1,14 @@
+{
+  "from": "mensajeria@copecpay.cl",
+  "subject": "Tu retiro se realizó con éxito",
+  "date": "2026-09-19T15:40:51Z",
+  "body": "¡Listo! Tu retiro se realizó con éxito\nMonto\n$30.000\nCuenta destino:\nJesus Seiler\nCuenta Vista ****8124\nMercado Pago\nN° transacción:\n402957\nFecha y hora:\n2026-09-19 12:40:46\nInfórmate sobre las entidades autorizadas para emitir tarjetas de pago en el país inscritas en los Registros de emisores de Tarjetas que lleva la CMF en: www.cmfchile.cl",
+  "plainBodyReal": "Tu retiro se realizó con éxito",
+  "nota": "Copec Pay no trae cuerpo text/plain útil: su parte text/plain es solo el asunto (ver plainBodyReal). \"body\" es el texto del HTML, un bloque por línea; el parser debe usar getBody() y quitar etiquetas.",
+  "esperado": "transferencia propia: retiro de $30.000 desde Copec Pay a Cuenta Vista Mercado Pago ****8124 del titular (Jesus Seiler), 2026-09-19 12:40:46",
+  "espera": {
+    "tipo": "interna",
+    "monto": 30000,
+    "contraparte": "Jesus Seiler"
+  }
+}

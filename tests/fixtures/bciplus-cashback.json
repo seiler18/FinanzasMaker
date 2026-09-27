@@ -1,0 +1,12 @@
+{
+  "from": "notificaciones@bciplus.cl",
+  "subject": "Has pedido el abono de tu cashback",
+  "date": "2026-09-26T01:27:22Z",
+  "body": "Hola\nJESUS ENRIQUE SEILER VELASQUEZ\n¡Retiraste $446 de cashback acumulado!\nMonto:\n$446\nID de retiro:\nKXTR42LM\nFecha:\n25/09/2026\nHora:\n22:27:21\nEste retiro se verá reflejado en tu cuenta MACH durante las próximas 48 horas.\nRevisa más detalle de tu cashback y retiros, ingresando a \"Beneficios\" desde tu Banco en Línea o App Bci.\nConoce las diferentes alternativas donde puedes invertir tu cashback y alcanzar tus metas:",
+  "esperado": "ingreso (cashback): $446 de cashback Bci Plus abonado a la cuenta MACH, 25/09/2026 22:27:21",
+  "espera": {
+    "tipo": "ingreso",
+    "monto": 446,
+    "categoria": "Cashback"
+  }
+}

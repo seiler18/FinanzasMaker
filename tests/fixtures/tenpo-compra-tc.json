@@ -1,0 +1,13 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Comprobante de compra con tu tarjeta de crédito 🛍🍟",
+  "date": "2025-10-11T23:06:41Z",
+  "body": "Comprobante de Compra exitosa\n\nComprobante de Compra exitosa\n\nLa compra por $93.180 con tu tarjeta de crédito Tenpo fue exitosa.\n\nMonto transacción:\n $93.180\n\nComercio:\n PUERTO MONTT PUERTO MONTT CHL\n\nCuotas:\n 3\n\nFecha:\n 11-10-2025\n\nHora:\n 20:07:00\n\nCódigo de transacción:\n 537104\n\nTu saldo puede tardar unos minutos en reflejarse. Puedes\n verificar en tu cuenta Tenpo en el \"Historial de movimientos\"\n\nComprometidos con tu seguridad",
+  "esperado": "gasto: compra con tarjeta de crédito Tenpo por $93.180 en PUERTO MONTT PUERTO MONTT CHL, 3 cuotas, 11-10-2025 20:07",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 93180,
+    "cuotas": 3,
+    "contraparte": "PUERTO MONTT PUERTO MONTT"
+  }
+}

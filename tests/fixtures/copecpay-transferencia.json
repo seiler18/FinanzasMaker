@@ -1,0 +1,15 @@
+{
+  "from": "mensajeria@copecpay.cl",
+  "subject": "Tu transferencia se realizó con éxito",
+  "date": "2026-09-06T12:25:59Z",
+  "body": "¡Listo! Tu transferencia se envió con éxito\nMonto\n$1.500\nCuenta destino:\ndaniela fuentes\nCuenta Vista ****7714\nBanco Estado\nN° transacción:\n318846\nFecha y hora:\n2026-09-06 09:25:55\nComentario:\npago\nInfórmate sobre las entidades autorizadas para emitir tarjetas de pago en el país inscritas en los Registros de emisores de Tarjetas que lleva la CMF en: www.cmfchile.cl",
+  "plainBodyReal": "Tu transferencia se realizó con éxito",
+  "nota": "Copec Pay no trae cuerpo text/plain útil: su parte text/plain es solo el asunto (ver plainBodyReal). \"body\" es el texto del HTML, un bloque por línea; el parser debe usar getBody() y quitar etiquetas.",
+  "esperado": "gasto: transferencia desde Copec Pay por $1.500 a tercero \"daniela fuentes\" (Cuenta Vista Banco Estado ****7714), comentario \"pago\", 2026-09-06 09:25:55",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 1500,
+    "contraparte": "daniela fuentes",
+    "categoria": "Transferencias a personas"
+  }
+}

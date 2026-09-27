@@ -1,0 +1,12 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Comprobante de transferencia - Tenpo",
+  "date": "2026-09-18T00:56:51Z",
+  "body": "Tenpo\n\nComprobante de recibo transferencia\n\nLa transferencia de Jesus Seiler por 20.000 a tu cuenta Tenpo fue exitosa\n\nMonto transferencia:\n\n$20.000\n\nOrigen transferencia:\n\nJesus Seiler\n\nBanco de origen:\n\nCopec Pay\n\nNº cuenta de origen:\n\n00000000000\n\nRUT:\n\n11.111.111-1\n\nFecha:\n\n17-09-2026\n\nHora:\n\n21:56:50\n\nCódigo de transferencia:\n\n000000000000\n\nTu saldo puede tardar unos minutos en reflejarse. Puedes\n verificar en tu cuenta Tenpo en el “Historial de movimientos”\n\nComprometidos con tu seguridad",
+  "esperado": "transferencia propia: entran $20.000 a Tenpo desde Copec Pay del propio titular (Jesus Seiler), 17-09-2026 21:56:50",
+  "espera": {
+    "tipo": "interna",
+    "monto": 20000,
+    "contraparte": "Jesus Seiler"
+  }
+}

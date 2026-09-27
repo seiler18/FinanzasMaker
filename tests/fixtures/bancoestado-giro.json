@@ -1,0 +1,12 @@
+{
+  "from": "notificaciones@correo.bancoestado.cl",
+  "subject": "Notificación de giro - BancoEstado",
+  "date": "2024-04-20T17:20:57Z",
+  "body": "JESUS ENRIQUE\nSEILER\n\nSe ha realizado un giro en CAJERO REDBANC por $20.000\n asociado a su tarjeta\n terminada en ****5317\n el día\n20/04/2024\n a las\n13:20\nhrs.",
+  "esperado": "gasto (retiro de efectivo): giro en CAJERO REDBANC por $20.000 con tarjeta BancoEstado ****5317, 20/04/2024 13:20",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 20000,
+    "categoria": "Efectivo"
+  }
+}

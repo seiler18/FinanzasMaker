@@ -1,0 +1,13 @@
+{
+  "from": "transferencias@bci.cl",
+  "subject": "Notificación de abono",
+  "date": "2026-05-11T16:20:24Z",
+  "body": " Estimado(a)\nDe acuerdo a lo instruido por nuestro cliente EMPRESA DEMO S A, rut 11.111.111-1, le informamos que con fecha 11/05/2026 se ha realizado una transferencia de fondos hacia la cuenta 000000000000 del banco Mach.\nEl detalle de esta operación es el siguiente:\nMonto transferido: 320.014\nTitular de la cuenta de origen:\nEMPRESA DEMO S A\nBanco de origen:\nBCI\nNombre destinatario:\nJesus Enrique Seiler Velasquez\nCuenta destinatario:\n000000000000\nNúmero de la operación:\n0007261\nFecha de pago:\n11/05/2026\nComentario para el destinatario:\nVariables Abril 2026",
+  "esperado": "ingreso (remuneración variable): $320.014 del empleador EMPRESA DEMO S A (desde BCI) a la cuenta MACH del titular, comentario \"Variables Abril 2026\", 11/05/2026 (ojo: el monto va SIN signo $)",
+  "espera": {
+    "tipo": "ingreso",
+    "monto": 320014,
+    "contraparte": "EMPRESA DEMO S A",
+    "banco": "MACH"
+  }
+}

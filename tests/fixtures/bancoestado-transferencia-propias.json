@@ -1,0 +1,11 @@
+{
+  "from": "notificaciones@correo.bancoestado.cl",
+  "subject": "Aviso de transferencia de fondos entre mis cuentas",
+  "date": "2024-06-04T02:17:40Z",
+  "body": " Hola Jesus Enrique:\n\nJesus, el pago se ha realizado correctamente\nDatos del pago que realizaste\nMonto Total$2220\nOrigen:\nProducto:PLAZO VIVIENDA GIRO\nN de Cuenta:00000000000\nN de Transacción:00000000\n\nDestino:\nProducto:CUENTA RUT\nN de Cuenta:0000000000\nComentario:\n\nFecha y hora2024-06-03-22.17.38\n\n Informese sobre la garantia estatal de los depositos en su banco o en www.cmfchile.cl",
+  "esperado": "transferencia propia: $2220 (sin separador de miles, pegado a la etiqueta \"Monto Total\") desde PLAZO VIVIENDA GIRO a CUENTA RUT del titular, 2024-06-03 22:17:38",
+  "espera": {
+    "tipo": "interna",
+    "monto": 2220
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "from": "hola@fintual.com",
+  "subject": "Recibiste un dividendo de VXUS",
+  "date": "2026-09-23T02:08:08Z",
+  "body": "Recibiste un dividendo de VXUS\nRecibiste un dividendo de Vanguard Total International Stock ETF.\nHola Jesus\nRecibiste un dividendo de VXUS por US $0,29 y lo asignamos a tu cuenta\nEl dividendo quedó asignado a tus dólares. Puedes juntarlo para invertir en esa u otra acción o bien retirarlo a tu cuenta bancaria.\nRecuerda que en la app puedes configurar si quieres que reinvirtamos tus dividendos de manera automática.\nTodo esto corresponde a Jesus Enrique Seiler Velasquez, RUT 00000000-1\nFintual ©️ 2026\nUna máquina para hacer crecer tu patrimonio",
+  "nota": "Sin parte text/plain útil: body es el texto del HTML, un bloque por línea (se quitaron los caracteres invisibles U+034F del preheader).",
+  "esperado": "ingreso de inversión: dividendo de VXUS por US $0,29 que queda en el saldo en dólares de Fintual",
+  "espera": {
+    "inv": {
+      "operacion": "dividendo",
+      "monto": 0.29,
+      "moneda": "USD",
+      "instrumento": "VXUS"
+    }
+  }
+}

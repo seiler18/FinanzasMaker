@@ -1,0 +1,14 @@
+{
+  "from": "notificaciones@correo.bancoestado.cl",
+  "subject": "Notificación de compra con Rutpay de BancoEstado",
+  "date": "2025-11-07T22:02:11Z",
+  "body": "Notificación de compra con Rutpay\n\nEstimado(a) JESUS ENRIQUE SEILER VELASQUEZ\n\nSe ha realizado una compra por $34.538 en Cugat asociado a su CuentaRUT ****8742, el día 07-11-2025 a las 19:02:08 hrs.\n\nSi tienes dudas, comunícate al 600 123 4567.\n\nAtentamente,\nBancoEstado",
+  "esperado": "gasto: compra con Rutpay (CuentaRUT ****8742) por $34.538 en Cugat, 07-11-2025 19:02:08",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 34538,
+    "contraparte": "Cugat",
+    "producto": "Rutpay",
+    "categoria": "Supermercado"
+  }
+}

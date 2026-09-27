@@ -1,0 +1,13 @@
+{
+  "from": "no-reply@tenpobank.cl",
+  "subject": "Comprobante de compra con tu tarjeta de crédito 🛍🍟",
+  "date": "2025-08-03T00:22:06Z",
+  "body": "Comprobante de Compra exitosa\n\nComprobante de Compra exitosa\n\nLa compra por $190.433 con tu tarjeta de crédito Tenpo fue exitosa.\n\nMonto transacción:\n $190.433\n\nComercio:\n CENCOPAY-SUPERMERCADOS SANTIAGO CHL\n\nCuotas:\n 3\n\nFecha:\n 02-08-2025\n\nHora:\n 20:22:00\n\nCódigo de transacción:\n 648290\n\nTu saldo puede tardar unos minutos en reflejarse. Puedes\n verificar en tu cuenta Tenpo en el \"Historial de movimientos\"\n\nComprometidos con tu seguridad",
+  "esperado": "gasto: compra con tarjeta de crédito Tenpo por $190.433 en CENCOPAY-SUPERMERCADOS SANTIAGO CHL, 3 cuotas, 02-08-2025 20:22 (mismo formato que tenpo.cl, remitente antiguo tenpobank.cl)",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 190433,
+    "contraparte": "CENCOPAY-SUPERMERCADOS SANTIAGO",
+    "categoria": "Supermercado"
+  }
+}

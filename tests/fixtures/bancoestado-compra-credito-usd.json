@@ -1,0 +1,14 @@
+{
+  "from": "notificaciones@correo.bancoestado.cl",
+  "subject": "Notificación de compra - BancoEstado",
+  "date": "2024-03-09T18:40:22Z",
+  "body": "JESUS ENRIQUE\nSEILER\n\nSe ha realizado una compra por USD\n745,30\n en\nCOPA\nasociado a su tarjeta de credito terminada en **** 2864\n el día\n09/03/2024\n a las\n15:40\nhrs.",
+  "esperado": "gasto en dólares: compra con tarjeta de crédito BancoEstado **** 2864 por USD 745,30 en COPA, 09/03/2024 15:40",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 708035,
+    "moneda": "USD",
+    "contraparte": "COPA",
+    "producto": "Tarjeta de crédito"
+  }
+}

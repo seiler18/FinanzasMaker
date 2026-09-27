@@ -1,0 +1,10 @@
+{
+  "from": "noreply@somosmach.com",
+  "subject": "Recibiste una transferencia de Jesus Enrique Seiler Velasquez",
+  "date": "2026-09-21T10:42:59Z",
+  "body": "Recibiste una transferencia Hola Fintual. Acabas de recibir una transferencia de Jesus Enrique Seiler Velasquez sin costo desde MACHBANK. Detalle\nFecha\n21/09/2026 - 07:42:58\nNombre destinatario\nFintual\nID\n11.111.111-1\nBanco destino\nFINTUAL\nCuenta destino\n00000000\nMonto\n$40.000\nCódigo de confirmación\n000000000000\n\nTe recomendamos no ingresar a tu cuenta desde redes públicas de internet. Prefiere siempre conectarte desde tu hogar, oficina o bajo redes seguras y de confianza.\nEnviado con 💜 desde MACHBANK Centro de ayuda",
+  "esperado": "duplicado (ignorar): copia \"Hola Fintual\" enviada al titular de la MISMA transferencia de mach-transferencia-enviada ($40.000 a Fintual, mismo código 000000000000); no es un ingreso",
+  "espera": {
+    "estado": "ignorar"
+  }
+}

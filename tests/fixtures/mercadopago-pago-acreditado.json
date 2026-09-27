@@ -1,0 +1,14 @@
+{
+  "from": "info@mercadopago.com",
+  "subject": "Se acreditó tu pago",
+  "date": "2024-09-02T11:18:00Z",
+  "body": "Jesus Enrique Seiler Velasquez\nSencillito Servicios ya recibió tu pago\nSencillito Servicios ya recibió tu pago\nJesus Enrique, te compartimos los detalles:\nDinero en mi cuenta de MercadoPago Total: $ 14.990\nReferencia de pago: 00000000000\nEl dinero fue recibido por: Sencillito Servicios RUT: 000000000\nFecha: 02/09/2024 08:17:59 Válido como boleta\nVálido como boleta\n¡La próxima paga más rápido!\nBaja la app de Mercado Pago a tu celular escaneando el código QR.\nPago procesado por Mercado Pago\nNo respondas este e-mail. ¿Tienes dudas? Consulta nuestro centro de ayuda.",
+  "nota": "Sin parte text/plain: body es el texto del HTML, un bloque por línea.",
+  "esperado": "gasto: pago de $14.990 con dinero en cuenta Mercado Pago a Sencillito Servicios, 02/09/2024 08:17:59",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 14990,
+    "contraparte": "Sencillito Servicios",
+    "categoria": "Servicios"
+  }
+}

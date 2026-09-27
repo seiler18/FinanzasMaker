@@ -1,0 +1,12 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Comprobante de transferencia exitoso - Tenpo",
+  "date": "2026-09-18T00:57:41Z",
+  "body": "Transferencia exitosa\n\nTransferencia exitosa\n\nHas realizado una transferencia por $20.000 desde tu cuenta Tenpo.\n\nMonto transferencia:\n $ 20.000\n\nNombre del destinatario:\n Manuel\n\nBanco de destino:\n BANCO ESTADO\n\nNº cuenta de destino:\n 00000000\n\nRUT:\n 11.111.111-1\n\nFecha:\n 17-09-2026\n\nMensaje:\n Pago\n\nHora:\n 21:57:40\n\nCódigo de transferencia:\n 000000000000\n\nTu saldo puede tardar unos minutos en reflejarse. Puedes verificar en tu cuenta Tenpo en el \"Historial de movimientos\"\n\nTransfiere fácilmente con Entre Amigos",
+  "esperado": "gasto: transferencia enviada desde Tenpo por $20.000 a tercero \"Manuel\" (BANCO ESTADO), 17-09-2026 21:57:40, código 000000000000",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 20000,
+    "contraparte": "Manuel"
+  }
+}

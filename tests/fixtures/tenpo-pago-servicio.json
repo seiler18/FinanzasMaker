@@ -1,0 +1,13 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Comprobante de pago exitoso",
+  "date": "2026-01-01T14:33:31Z",
+  "body": "Tenpo\n\nComprobante de pago exitoso\n\nTu cuenta Suralis está pagada.\n\nMonto:\n\n$ 55.150\n\nServicio:\n\nSuralis\n\nMétodo de pago:\n\nTarjeta de Crédito Tenpo\n\nIdentificador:\n\n1038452\n\nFecha:\n\n01/01/2026\n\nHora:\n\n10:33\n\nCódigo de transacción:\n\nU00000000000000000\n\nComprometidos con tu seguridad",
+  "esperado": "gasto: pago de cuenta de servicio Suralis por $55.150 con Tarjeta de Crédito Tenpo, 01/01/2026 10:33 (no llega aviso de \"compra\" aparte: este es el único registro)",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 55150,
+    "contraparte": "Suralis",
+    "categoria": "Servicios"
+  }
+}

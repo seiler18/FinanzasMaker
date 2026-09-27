@@ -1,0 +1,10 @@
+{
+  "from": "no-reply@tenpo.cl",
+  "subject": "Comprobante de transferencia - Tenpo",
+  "date": "2026-09-18T00:57:41Z",
+  "body": "Comprobante de transferencia exitosa\n\nComprobante de transferencia exitosa\n\nLa transferencia de JESUS ENRIQUE SEILER VELASQUEZ por $20.000 a tu cuenta fue exitosa.\n\nMonto transferencia:\n $ 20.000\n\nNombre del destinatario:\n JESUS ENRIQUE SEILER VELASQUEZ\n\nBanco de destino:\n BANCO ESTADO\n\nNº cuenta de destino:\n 00000000\n\nRUT:\n 11.111.111-1\n\nFecha:\n 17-09-2026\n\nMensaje:\n Pago\n\nHora:\n 21:57:40\n\nCódigo de transferencia:\n 000000000000\n\nTu saldo puede tardar unos minutos en reflejarse. Puedes verificar en tu cuenta Tenpo en el \"Historial de movimientos\"\n\nComprometidos con tu seguridad",
+  "esperado": "duplicado (ignorar): segundo aviso de Tenpo de la MISMA transferencia saliente de $20.000 de tenpo-transferencia-enviada (mismo código 000000000000, misma cuenta destino BANCO ESTADO); el texto dice \"a tu cuenta\" pero no es un ingreso",
+  "espera": {
+    "estado": "ignorar"
+  }
+}
