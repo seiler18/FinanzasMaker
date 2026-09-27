@@ -178,7 +178,7 @@ function shell() {
 
   document.body.classList.add('con-nav')
   pintarBotonTema()
-  $('#tema').addEventListener('click', () => { alternarTema(); pintarBotonTema() })
+  $('#tema').addEventListener('click', () => pintarBotonTema(alternarTema()))
 
   $('.pestanas').addEventListener('click', (e) => {
     const b = e.target.closest('[data-vista]')
@@ -196,10 +196,10 @@ function shell() {
 
 // El botón muestra el tema al que se pasa, no el actual: es lo que hace el clic.
 // Los íconos son constantes del código, por eso innerHTML.
-function pintarBotonTema() {
+function pintarBotonTema(tema = temaActual()) {
   const b = $('#tema')
   if (!b) return
-  const oscuro = temaActual() === 'dark'
+  const oscuro = tema === 'dark'
   b.innerHTML = oscuro ? ICONO_NAV.sol : ICONO_NAV.luna
   b.setAttribute('aria-label', oscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro')
   b.title = b.getAttribute('aria-label')

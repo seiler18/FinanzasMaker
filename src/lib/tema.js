@@ -27,5 +27,7 @@ export function alternarTema() {
   // data-dir, #vista no toma nombre propio y todo funde junto (movimiento.css).
   if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(aplicar)
   else aplicar()
+  // Se devuelve el tema nuevo porque, con View Transitions, `aplicar` corre
+  // después: leer temaActual() justo ahora daría todavía el anterior.
   return nuevo
 }
