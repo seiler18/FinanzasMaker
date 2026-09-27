@@ -296,6 +296,43 @@ prueba('esDuplicado_: aviso de Falabella + recibo de Tenpo', () => {
   assert.equal(L.esDuplicado_({ ...fala, fecha: '2026-09-20 09:28' }, [tenpo]), null)
   assert.equal(L.esDuplicado_({ ...fala, banco: 'Tenpo' }, [tenpo]), null)
 })
+/* ---------- cuentas externas (Mercado Pago) ---------- */
+const EXT = { ...CTX, externas: 'Mercado Pago' }
+const conExterna = (args, lector) => { const r = leer(...args); L.categorizar_(r.mov, []); return L.externa_(r.mov, EXT, r.lector || lector) }
+prueba('externa: de Mercado Pago a una cuenta tuya es ingreso', () => {
+  const m = conExterna(['info@mercadopago.cl', '¡Enviamos tu transferencia!',
+    'Ya enviamos tu transferencia de $ 1.096.130 Datos del beneficiario Nombre y apellido: Jesus Seiler Velasquez Entidad: Copec Pay Número de cuenta: 000'])
+  assert.equal(m.tipo, 'ingreso')
+  assert.equal(m.categoria, 'Desde Mercado Pago')
+})
+prueba('externa: de Copec Pay hacia tu Mercado Pago es gasto', () => {
+  const m = conExterna(['mensajeria@copecpay.cl', 'Tu retiro se realizó con éxito',
+    '¡Listo! Tu retiro se realizó con éxito Monto $30.000 Cuenta destino: Jesus Seiler Cuenta Vista ****0000 Mercado Pago N° transacción: 000000 Fecha y hora: 2026-09-19 12:40:46'])
+  assert.equal(m.tipo, 'gasto')
+  assert.equal(m.categoria, 'Hacia Mercado Pago')
+})
+prueba('externa: el «recibiste» del otro lado sigue interno (no se cuenta dos veces)', () => {
+  const m = conExterna(['no-reply@tenpo.cl', 'Comprobante de transferencia - Tenpo',
+    'Comprobante de recibo transferencia La transferencia de Jesus Seiler por 20.000 a tu cuenta Tenpo fue exitosa Monto transferencia: $20.000 Origen transferencia: Jesus Seiler Banco de origen: Mercado Pago'])
+  assert.equal(m.tipo, 'interna')
+})
+prueba('externa: cargar Mercado Pago con la tarjeta es gasto; cargar Copec Pay sigue interno', () => {
+  const mp = conExterna(['no-reply@tenpo.cl', 'Comprobante de compra con tu tarjeta de crédito',
+    'La compra por $100.000 con tu tarjeta de crédito Tenpo fue exitosa. Monto transacción: $100.000 Comercio: MERCADO PAGO SANTIAGO CHL Cuotas: 1'])
+  assert.equal(mp.tipo, 'gasto')
+  const cp = conExterna(['contacto@mail.machbank.cl', 'Has hecho una compra con tu Tarjeta de Crédito MACHBANK', 'Comercio COPEC PAY Monto pagado $12.500 Cantidad de cuotas 0'])
+  assert.equal(cp.tipo, 'interna')
+})
+prueba('externa: sin cuentas externas en Config todo queda como antes', () => {
+  const r = leer('info@mercadopago.cl', '¡Enviamos tu transferencia!', 'Ya enviamos tu transferencia de $ 5.000 Datos del beneficiario Nombre y apellido: Jesus Seiler Entidad: Tenpo')
+  assert.equal(L.externa_(r.mov, CTX, r.lector).tipo, 'interna')
+})
+prueba('externa: una transferencia a un tercero no cambia', () => {
+  const m = conExterna(['info@mercadopago.cl', '¡Enviamos tu transferencia!', 'Ya enviamos tu transferencia de $ 5.000 Datos del beneficiario Nombre y apellido: Rosa Perez Entidad: Banco Estado'])
+  assert.equal(m.tipo, 'gasto')
+  assert.notEqual(m.categoria, 'Desde Mercado Pago')
+})
+
 prueba('todas las reglas base usan tipos válidos', () => {
   for (const r of L.__.REGLAS_BASE) if (r[2]) assert.ok(L.__.TIPOS.includes(r[2]), r.join(','))
 })

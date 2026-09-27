@@ -31,6 +31,12 @@ anota en **Agregar**.
 **Qué no suma:** las transferencias entre tus propias cuentas y el pago de la
 tarjeta. Las compras ya se contaron el día que se hicieron.
 
+**Mercado Pago es una cuenta externa** (`Config → cuentas_externas`): no avisa
+cuando recibes dinero, así que el sueldo que llega ahí se registra cuando lo
+pasas a otra cuenta tuya (Mercado Pago → Copec Pay o MACH = ingreso). Al revés,
+lo que mandas a Mercado Pago cuenta como gasto, porque lo que se gaste ahí no
+llega por correo. Para aplicarlo a lo ya registrado: `reclasificarExternas`.
+
 ## Instalación (una vez, ~20 minutos)
 
 Todo con la cuenta de Gmail donde llegan los avisos.

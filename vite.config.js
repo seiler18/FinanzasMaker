@@ -14,7 +14,12 @@ import { defineConfig } from 'vite'
 const CSP = [
   "default-src 'self'",
   "script-src 'self' https://accounts.google.com/gsi/client",
-  "style-src 'self' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
+  // 'unsafe-inline' SOLO en estilos, y por Google: el botón de «Iniciar sesión»
+  // se dibuja en la página con un <style> y atributos style que inyecta
+  // gsi/client. Sin esto el ícono sale a tamaño completo (visto en producción
+  // el 2026-09-27). Un hash no sirve: cambia cada vez que Google toca su CSS.
+  // Los scripts siguen sin nada en línea, que es lo que importa ante un XSS.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style",
   "font-src https://fonts.gstatic.com",
   "img-src 'self' data:",
   "frame-src https://accounts.google.com/gsi/",

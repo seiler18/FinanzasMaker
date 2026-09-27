@@ -37,8 +37,11 @@ token de «Iniciar sesión con Google»:
 
 **Datos no confiables.** Todo texto de un correo se escribe en la hoja con
 `celda_()` (un `=IMPORTXML(...)` en un asunto no se ejecuta) y se pinta en la
-página con la plantilla `html` que escapa. CSP estricta en el build: sin
-`unsafe-inline`, sin `eval`, solo los orígenes de Google que se necesitan.
+página con la plantilla `html` que escapa. CSP estricta en el build: scripts sin
+`unsafe-inline` ni `eval`, solo los orígenes de Google que se necesitan. Los
+**estilos** sí admiten `unsafe-inline`, porque el botón de Google los inyecta;
+un hash no sirve porque Google cambia su CSS. Un estilo inyectado no ejecuta
+código, y el marcado propio sigue sin `style=""` (lo vigila `npm run check`).
 Anti-clickjacking por JS.
 
 **Repositorio público.** Ninguna credencial: `API_URL` y `CLIENT_ID` no son

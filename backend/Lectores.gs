@@ -320,7 +320,10 @@ const LECTORES = [
       const dest = c.asunto.replace(/^Realizaste una transferencia a /i, '').trim();
       const monto = montoTras_(c.texto, /Monto(?: transferido| total)?/) || primerMonto_(c.texto);
       if (!monto) return null;
-      return mov_(c, { banco: 'MACH', tipo: transferencia_('sale', dest, ctx), monto, contraparte: dest });
+      return mov_(c, {
+        banco: 'MACH', tipo: transferencia_('sale', dest, ctx), monto, contraparte: dest,
+        detalle: entre_(c.texto, 'Banco destino', /Cuenta destino|Monto|$/),
+      });
     },
   },
   {
@@ -715,6 +718,43 @@ function categorizar_(mov, reglas) {
     else if (pareceTransferencia_(mov)) mov.categoria = 'Transferencias a personas';
     else mov.categoria = 'Otros';
   }
+  return mov;
+}
+
+/* ============================================================
+   CUENTAS EXTERNAS
+   Una cuenta tuya que NO avisa lo que recibe ni lo que gasta (Mercado Pago:
+   ahí llega el sueldo, y sus compras con tarjeta o QR no mandan correo).
+   Para las cuentas que sí se leen, esa cuenta es «el mundo de afuera»:
+     · lo que SALE de ella hacia una cuenta tuya → ingreso («Desde …»)
+     · lo que mandas tú HACIA ella              → gasto   («Hacia …»)
+     · cargarla con una tarjeta                  → gasto   («Hacia …»)
+   Se decide solo con el aviso de quien ENVÍA (lectores de SALIDAS): el
+   «recibiste» del otro lado sigue como interna, así no se cuenta dos veces.
+   Config → cuentas_externas (separadas por coma). Vacío = todo interno.
+   ============================================================ */
+
+const SALIDAS = ['tenpo-transferencia-enviada', 'tenpo-pago-enviado', 'mach-transferencia-enviada',
+                 'copecpay-transferencia', 'mercadopago-transferencia'];
+
+function externas_(ctx) {
+  return String((ctx && ctx.externas) || '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function externa_(mov, ctx, lector) {
+  const lista = externas_(ctx);
+  if (!lista.length || mov.tipo !== 'interna') return mov;
+  const cual = (texto) => lista.find((e) => clave_(texto).indexOf(clave_(e)) !== -1) || '';
+  if (mov.categoria === 'Carga de billetera') {
+    const e = cual(mov.contraparte);
+    if (e) { mov.tipo = 'gasto'; mov.categoria = 'Hacia ' + e; }
+    return mov;
+  }
+  if (SALIDAS.indexOf(lector) === -1 || !esPropio_(mov.contraparte, ctx.titular)) return mov;
+  const desde = cual(mov.banco);
+  if (desde) { mov.tipo = 'ingreso'; mov.categoria = 'Desde ' + desde; return mov; }
+  const hacia = cual(mov.detalle);
+  if (hacia) { mov.tipo = 'gasto'; mov.categoria = 'Hacia ' + hacia; }
   return mov;
 }
 

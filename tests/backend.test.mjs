@@ -302,6 +302,30 @@ prueba('reiniciarImportacion borra el cursor', () => {
   assert.equal(props.get('PASADA'), undefined)
 })
 
+prueba('sueldo que pasa de Mercado Pago a Copec Pay entra como ingreso', () => {
+  correo('info@mercadopago.cl', '¡Enviamos tu transferencia!',
+    'Ya enviamos tu transferencia de $ 1.096.130 Datos del beneficiario Nombre y apellido: Jesus Seiler Velasquez Entidad: Copec Pay Número de cuenta: 000')
+  G.procesarCorreos()
+  const m = filas('Movimientos')[0]
+  assert.equal(m.tipo, 'ingreso')
+  assert.equal(m.categoria, 'Desde Mercado Pago')
+})
+prueba('reclasificarExternas corrige lo registrado antes como interno', () => {
+  const i = hojas.Config.d.findIndex((f) => f[0] === 'cuentas_externas')
+  if (i === -1) hojas.Config.d.push(['cuentas_externas', ''])
+  else hojas.Config.d[i][1] = ''
+  correo('info@mercadopago.cl', '¡Enviamos tu transferencia!',
+    'Ya enviamos tu transferencia de $ 900.000 Datos del beneficiario Nombre y apellido: Jesus Seiler Entidad: MACHBANK/BCI')
+  G.procesarCorreos()
+  assert.equal(filas('Movimientos')[0].tipo, 'interna')
+  const j = hojas.Config.d.findIndex((f) => f[0] === 'cuentas_externas')
+  hojas.Config.d[j][1] = 'Mercado Pago'
+  G.reclasificarExternas()
+  assert.equal(filas('Movimientos')[0].tipo, 'ingreso')
+  G.reclasificarExternas()
+  assert.equal(filas('Movimientos')[0].tipo, 'ingreso')
+})
+
 /* ---------- identidad ---------- */
 prueba('sin credencial o con una ajena no hay datos', () => {
   assert.equal(api('datos', {}, '').sesion, false)

@@ -2,6 +2,7 @@ import './styles/tokens.css'
 import './styles/base.css'
 import './styles/app.css'
 import './styles/ingreso.css'
+import './styles/pie.css'
 import { protegerMarco } from './lib/marco.js'
 import { html, crudo, pintar, $, $$, aviso } from './lib/dom.js'
 import { llamar, modoDemo, onSesionCaducada } from './lib/api.js'
@@ -13,6 +14,9 @@ import { revisar } from './vistas/revisar.js'
 import { agregar } from './vistas/agregar.js'
 import { consejos } from './vistas/consejos.js'
 import { ajustes } from './vistas/ajustes.js'
+import { pie } from './lib/pie.js'
+
+const REPO = 'https://github.com/seiler18/FinanzasMaker'
 
 protegerMarco()
 
@@ -119,7 +123,8 @@ function shell() {
     <main class="contenedor">
       <div id="periodo" class="periodo"></div>
       <div id="vista"></div>
-    </main>`)
+    </main>
+    ${crudo(pie({ repo: REPO, nota: 'FinanzasMaker es un registro personal, no asesoría financiera.' }))}`)
 
   $('.pestanas').addEventListener('click', (e) => {
     const b = e.target.closest('[data-vista]')
@@ -165,12 +170,13 @@ const VISTA = [[60, 40], [70, 50], [60, 80], [90, 50], [70, 60], [100, 70]]
 
 function pantallaIngreso() {
   pintar(raiz, html`
-    <main class="ingreso">
+    <div class="ingreso">
       <div class="ingreso-fondo" aria-hidden="true">
         <span class="aurora aurora-1"></span><span class="aurora aurora-2"></span><span class="aurora aurora-3"></span>
         <span class="rejilla-fondo"></span>
       </div>
 
+      <main class="ingreso-cuerpo">
       <section class="ingreso-hero">
         <p class="ingreso-eyebrow"><span class="punto-vivo" aria-hidden="true"></span>Se actualiza sola cada hora</p>
         <h1>Tus finanzas,<br><span class="degradado-texto">leídas solas.</span></h1>
@@ -182,7 +188,7 @@ function pantallaIngreso() {
           <li>${crudo(ICONO.chispa)}Consejos de ahorro</li>
         </ul>
         <div class="ingreso-vista" aria-hidden="true">
-          <div class="vista-cab"><span>Ejemplo · últimos 6 meses</span><b>Ingresos y gastos</b></div>
+          <div class="vista-cab"><b>Ingresos y gastos</b><span>Ejemplo · 6 meses</span></div>
           <div class="vista-barras">${VISTA.map(([a, b]) => crudo(`<span class="vista-par"><i class="v${a}"></i><i class="v${b}"></i></span>`))}</div>
           <div class="vista-leyenda"><span><i class="l1"></i>Ingresos</span><span><i class="l2"></i>Gastos</span></div>
           <div class="vista-chip chip-ahorro">Ahorro del mes<b>+34 %</b></div>
@@ -201,7 +207,9 @@ function pantallaIngreso() {
         <a class="btn-demo" href="?demo">${crudo(ICONO.ojo)}Ver la demo con datos inventados</a>
         <p class="ingreso-pie">${crudo(ICONO.escudo)}Tu Gmail no pasa por ningún servidor ajeno</p>
       </section>
-    </main>`)
+      </main>
+      ${crudo(pie({ repo: REPO, oscuro: true }))}
+    </div>`)
   botonIngreso($('#boton-google'), entrar).catch((err) => aviso(err.message, 'error'))
 }
 

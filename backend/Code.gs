@@ -37,6 +37,7 @@ const CONFIG_BASE = [
   ['desde', '2026/01/01', 'Primera fecha que se importa (AAAA/MM/DD).'],
   ['borrar_correos', 'si', '«si»: el correo va a la papelera después de registrarlo. «no»: se deja donde está.'],
   ['dolar', '950', 'Pesos por dólar para convertir compras en USD (aproximado).'],
+  ['cuentas_externas', 'Mercado Pago', 'Cuentas tuyas que no avisan lo que reciben (separadas por coma): lo que sale de ellas a tus cuentas cuenta como ingreso, y lo que les mandas, como gasto.'],
 ];
 
 // Dominios con lector propio. La red genérica de Lectores.gs cubre el resto
@@ -93,6 +94,27 @@ function reiniciarImportacion() {
   console.log('Listo: la próxima pasada importa desde ' + leerConfig_().desde);
 }
 
+/* Aplica «cuentas_externas» (Config) a lo que ya estaba registrado: los
+   traspasos desde o hacia esas cuentas que entraron como «Entre mis cuentas»
+   pasan a ingreso o gasto. El lector de cada movimiento sale de la bitácora
+   Correos. Se puede correr varias veces: lo ya reclasificado no se toca. */
+function reclasificarExternas() {
+  const cfg = leerConfig_();
+  const ctx = { titular: cfg.titular || '', externas: cfg.cuentas_externas || '' };
+  const lector = {};
+  leer_('correos').forEach((c) => { lector[String(c.gmail_id)] = String(c.lector); });
+  let n = 0;
+  conBloqueo_(() => {
+    leer_('movimientos').forEach((m) => {
+      if (m.origen !== 'correo' || m.tipo !== 'interna') return;
+      const antes = m.tipo + '|' + m.categoria;
+      externa_(m, ctx, lector[String(m.gmail_id)] || '');
+      if (m.tipo + '|' + m.categoria !== antes) { actualizar_('movimientos', 'id', m.id, { tipo: m.tipo, categoria: m.categoria }); n++; }
+    });
+  });
+  console.log(n + ' movimiento(s) reclasificados con cuentas_externas = «' + ctx.externas + '»');
+}
+
 /* Qué ve el script, sin tocar nada: la configuración leída, la búsqueda
    exacta y cuántos correos devuelve. Lo primero que se mira si algo sale en 0. */
 function diagnostico() {
@@ -133,7 +155,7 @@ function procesar_(op) {
   if (!lock.tryLock(op.ensayo ? 30000 : 1000)) return { resumen: { ocupado: true } };
   try {
     const cfg = leerConfig_();
-    const ctx = { titular: cfg.titular || '', dolar: Number(cfg.dolar) || 950 };
+    const ctx = { titular: cfg.titular || '', dolar: Number(cfg.dolar) || 950, externas: cfg.cuentas_externas || '' };
     const reglas = leer_('reglas').filter((r) => r.patron);
     const vistos = new Set(leer_('correos').map((f) => String(f.gmail_id)));
     const recientes = leer_('movimientos').slice(-500);
@@ -175,7 +197,7 @@ function procesar_(op) {
         };
         let r;
         try { r = leerCorreo_(c, ctx); } catch (e) { r = { estado: 'error', motivo: String(e) }; }
-        manejar_(r, c, id, msg, { lote, resumen, reglas, recientes, filasEnsayo, ensayo: op.ensayo });
+        manejar_(r, c, id, msg, { lote, resumen, reglas, recientes, filasEnsayo, ensayo: op.ensayo, ctx });
       }));
 
       if (!op.ensayo) {
@@ -239,7 +261,7 @@ function manejar_(r, c, id, msg, s) {
   // estado ok
   let ref = '';
   if (r.mov) {
-    const m = categorizar_(r.mov, s.reglas);
+    const m = externa_(categorizar_(r.mov, s.reglas), s.ctx, r.lector);
     const dup = esDuplicado_(m, s.recientes.concat(s.lote.movimientos));
     if (dup) {
       s.resumen.duplicados++;

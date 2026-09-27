@@ -50,13 +50,19 @@ Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
 3. **Transferencias entre cuentas propias no suman** (tipo `interna`), ni el
    pago de la tarjeta (`pago_tarjeta`): las compras ya se contaron. Se
    reconocen por el nombre del titular (`Config → titular`).
+   **Excepción: las cuentas externas** (`Config → cuentas_externas`, por
+   defecto Mercado Pago), que no avisan lo que reciben. Lo que sale de ellas
+   a una cuenta propia es ingreso y lo que se les manda es gasto, decidido
+   solo con el aviso de quien envía (`externa_` + `SALIDAS` en Lectores.gs).
 4. **Aportes a Fintual: solo cuenta el correo del banco.** El «Invertimos tus
    $X» de Fintual va a la hoja Inversiones, no a Movimientos; si no, el aporte
    se cuenta dos veces.
 5. **Todo texto de un correo es no confiable.** Se pinta con `html\`\`` (escapa)
    y se escribe en la hoja con `celda_()` (inyección de fórmulas).
-6. **Sin `style="..."` en el marcado**: la CSP lo bloquea. Anchos dinámicos por
-   CSSOM (`el.style.setProperty`). Lo comprueba `npm run check`.
+6. **Sin `style="..."` en el marcado propio.** Anchos dinámicos por CSSOM
+   (`el.style.setProperty`). Lo comprueba `npm run check`. La CSP admite estilos
+   en línea solo porque los necesita el botón de Google (hito 0004); que eso no
+   se vuelva la puerta para usarlos aquí.
 7. **Fixtures anonimizados.** Nombres de terceros falsos, números de cuenta en
    ceros. El nombre del titular se deja (el lector lo necesita). `npm run check`
    rechaza números largos y RUT.

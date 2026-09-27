@@ -1,0 +1,53 @@
+/* Pie de autoría (src/lib/pie.js). Claro u oscuro según el tema; en la
+   pantalla de ingreso va la variante oscura sobre las auroras. */
+.pie {
+  --pie-texto: var(--texto);
+  --pie-tenue: var(--texto-tenue);
+  --pie-borde: var(--borde);
+  --pie-acento: var(--primario);
+  border-top: 1px solid var(--pie-borde);
+  margin-top: 40px;
+  padding: 28px 0 22px;
+  font-size: var(--txt-menudo);
+  color: var(--pie-tenue);
+}
+.pie-oscuro {
+  --pie-texto: var(--ing-texto);
+  --pie-tenue: var(--ing-tenue);
+  --pie-borde: var(--ing-borde);
+  --pie-acento: var(--ing-aurora-1);
+  margin-top: 0;
+}
+.pie-in {
+  width: min(100% - 32px, var(--ancho-max)); margin-inline: auto;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 32px;
+}
+.pie-autor { display: flex; align-items: center; gap: 12px; }
+.pie-mono {
+  display: grid; place-items: center; flex: none;
+  width: 38px; height: 38px; border-radius: 11px;
+  background: linear-gradient(135deg, var(--primario), var(--primario-claro));
+  color: var(--texto-sobre-primario);
+  font-weight: 700; font-size: var(--txt-menudo); letter-spacing: 0.02em;
+}
+.pie-oscuro .pie-mono { background: linear-gradient(135deg, var(--ing-aurora-1), var(--ing-aurora-2)); color: var(--ing-fondo); }
+.pie-hecho { color: var(--pie-texto); }
+.pie-hecho a { color: var(--pie-texto); font-weight: 600; text-decoration-color: var(--pie-acento); text-underline-offset: 3px; }
+.pie-lema { font-style: italic; font-size: var(--txt-micro); }
+.pie-enlaces { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.pie-enlaces a { color: var(--pie-tenue); text-decoration: none; }
+.pie-enlaces a:hover { color: var(--pie-acento); text-decoration: underline; }
+.pie-redes { display: flex; gap: 8px; }
+.pie-redes a {
+  display: grid; place-items: center; width: 36px; height: 36px;
+  border: 1px solid var(--pie-borde); border-radius: 50%;
+  color: var(--pie-tenue);
+  transition: color var(--rapido) var(--curva), border-color var(--rapido) var(--curva);
+}
+.pie-redes a:hover { color: var(--pie-acento); border-color: var(--pie-acento); }
+.pie-redes svg { width: 16px; height: 16px; fill: currentColor; }
+.pie-legal { width: min(100% - 32px, var(--ancho-max)); margin: 18px auto 0; font-size: var(--txt-micro); }
+
+@media (max-width: 560px) {
+  .pie-in { flex-direction: column; align-items: flex-start; }
+}
