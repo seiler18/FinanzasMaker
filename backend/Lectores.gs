@@ -508,6 +508,10 @@ const LECTORES = [
   {
     // Cada plantilla tiene su etiqueta del total: en una venta el primer
     // «US $» del cuerpo es el precio por acción, no lo que recibiste.
+    // El gestor de acciones (../gestor-acciones, backend/Code.gs) lee estos
+    // mismos correos cada 8 h, y los busca con in:anywhere porque aquí se van
+    // a la papelera. Si algún día se borran para siempre en vez de a la
+    // papelera, el gestor deja de ver compras y ventas nuevas.
     id: 'fintual-acciones', de: /@fintual\.com$/i, asunto: /^(Invertiste US|Vendiste [\d,]+ acciones|Recibiste un dividendo)/i,
     leer: (c) => {
       const op = /^Invertiste/i.test(c.asunto) ? 'compra' : /^Vendiste/i.test(c.asunto) ? 'venta' : 'dividendo';
