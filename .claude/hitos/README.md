@@ -13,5 +13,6 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
+| [0003](0003-desde-convertido-en-fecha.md) | 2026-09-27 | La primera instalación importó 0 correos: Sheets convirtió «desde» en fecha | completado (falta pegar los .gs) |
 | [0002](0002-publicado-y-enlazado.md) | 2026-09-27 | Publicado, backend conectado y enlazado en el portafolio | completado (falta CLIENT_ID) |
 | [0001](0001-nace-finanzasmaker.md) | 2026-09-27 | Nace FinanzasMaker: finanzas personales leídas de los correos de los bancos | completado (instalación pendiente) |

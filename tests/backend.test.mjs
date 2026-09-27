@@ -15,7 +15,7 @@ const firmar = (b) => [...b].map((x) => (x > 127 ? x - 256 : x))
 const aBuf = (x) => (typeof x === 'string' ? Buffer.from(x, 'utf8') : Buffer.from(x.map((b) => (b + 256) % 256)))
 
 class Hoja {
-  constructor(n) { this.n = n; this.d = [] }
+  constructor(n) { this.n = n; this.d = []; this.crudo = [] }
   getLastRow() { return this.d.length }
   getMaxRows() { return 1000 }
   getRange(r, c, nr = 1, nc = 1) {
@@ -34,13 +34,19 @@ class Hoja {
       setNumberFormat() { return this }, setFontWeight() { return this },
     }
   }
+  // Como Sheets: un texto con apóstrofo inicial se guarda como texto SIN
+  // el apóstrofo; y un texto con forma de fecha, sin apóstrofo, se vuelve
+  // Date (así se rompió «desde» en la primera instalación real).
   set(r, c, x) {
-    while (this.d.length < r) this.d.push([])
+    while (this.d.length < r) { this.d.push([]); this.crudo.push([]) }
     const f = this.d[r - 1]; while (f.length < c) f.push('')
-    f[c - 1] = x
+    this.crudo[r - 1][c - 1] = x
+    if (typeof x === 'string' && x.startsWith("'")) f[c - 1] = x.slice(1)
+    else if (typeof x === 'string' && /^\d{4}[/-]\d{2}[/-]\d{2}( \d{2}:\d{2})?$/.test(x)) f[c - 1] = new Date(x.replace(/\//g, '-').replace(' ', 'T') + (x.length > 10 ? ':00-03:00' : 'T00:00:00-03:00'))
+    else f[c - 1] = x
   }
-  deleteRows(i, n) { this.d.splice(i - 1, n) }
-  clearContents() { this.d = [] }
+  deleteRows(i, n) { this.d.splice(i - 1, n); this.crudo.splice(i - 1, n) }
+  clearContents() { this.d = []; this.crudo = [] }
   setFrozenRows() {}
 }
 
@@ -56,7 +62,7 @@ class Msg {
   getFrom() { return this.de }
   getSubject() { return this.asunto }
   getDate() { return new Date(this.fecha) }
-  getPlainBody() { return this.texto }
+  getPlainBody() { this.abierto = true; return this.texto }
   getBody() { return this.html || '' }
   isDraft() { return false }
   isInTrash() { return this.papelera }
@@ -68,7 +74,7 @@ const G = {
   console: { log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push('ERR ' + a.join(' ')) },
   SpreadsheetApp: { getActive: () => ss, flush: () => orden.push('flush') },
   CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
-  PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props.get(k) ?? null, setProperty: (k, v) => props.set(k, v) }) },
+  PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props.get(k) ?? null, setProperty: (k, v) => props.set(k, v), deleteProperty: (k) => props.delete(k) }) },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) },
   Session: { getEffectiveUser: () => ({ getEmail: () => 'Duenio@Gmail.com' }) },
@@ -249,7 +255,51 @@ prueba('ensayo: informa sin registrar, sin borrar y sin mover el cursor', () => 
 prueba('un asunto con fórmula se guarda neutralizado', () => {
   correo('avisos@santander.cl', '=IMPORTXML("http://x","//a") comprobante', 'Se ha realizado una transferencia por $1.000')
   G.procesarCorreos()
-  assert.ok(String(filas('Revisar')[0].asunto).startsWith("'="))
+  const col = hojas.Revisar.d[0].indexOf('asunto')
+  assert.ok(String(hojas.Revisar.crudo[1][col]).startsWith("'="))
+})
+
+prueba('«desde» convertido en fecha por Sheets igual busca bien', () => {
+  const i = hojas.Config.d.findIndex((f) => f[0] === 'desde')
+  hojas.Config.d[i][1] = new Date('2026-01-01T00:00:00-03:00')
+  compraTenpo('4.000')
+  G.procesarCorreos()
+  assert.match(G.GmailApp.ultimaConsulta, /after:2026\/01\/01 /)
+  assert.equal(filas('Movimientos').length, 1)
+})
+prueba('una pasada vieja sin «base» (la de la instalación rota) se reinicia', () => {
+  props.set('PASADA', JSON.stringify({ desde: String(Math.floor(Date.now() / 1000) - 3600), inicio: 0, comenzo: 0 }))
+  compraTenpo('4.000', 'VIEJA SANTIAGO CHL', '2026-02-01T12:00:00Z')
+  G.procesarCorreos()
+  assert.equal(filas('Movimientos').length, 1)
+  assert.match(G.GmailApp.ultimaConsulta, /after:2026\/01\/01 /)
+})
+prueba('cambiar «desde» en Config reimporta desde la fecha nueva', () => {
+  G.procesarCorreos()
+  const i = hojas.Config.d.findIndex((f) => f[0] === 'desde')
+  hojas.Config.d[i][1] = '2025/06/01'
+  G.procesarCorreos()
+  assert.match(G.GmailApp.ultimaConsulta, /after:2025\/06\/01 /)
+})
+prueba('correos que no son de bancos no se abren', () => {
+  const m = correo('notifications@github.com', 'Aviso de pago de Actions', 'Pago de $5.000')
+  G.procesarCorreos()
+  assert.ok(!m.abierto)
+  assert.ok(!m.papelera)
+})
+prueba('fechas e ids quedan como texto en la hoja', () => {
+  compraTenpo('4.000')
+  G.procesarCorreos()
+  const m = filas('Movimientos')[0]
+  assert.equal(typeof m.fecha, 'string')
+  assert.match(m.fecha, /^2026-09-18 \d{2}:\d{2}$/)
+  assert.equal(typeof filas('Correos')[0].gmail_id, 'string')
+})
+prueba('reiniciarImportacion borra el cursor', () => {
+  G.procesarCorreos()
+  assert.ok(props.get('PASADA'))
+  G.reiniciarImportacion()
+  assert.equal(props.get('PASADA'), undefined)
 })
 
 /* ---------- identidad ---------- */

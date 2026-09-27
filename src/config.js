@@ -8,4 +8,4 @@
    Mientras falte cualquiera de los dos, la página abre en MODO DEMO con datos
    inventados (src/demo.js). También con ?demo en la URL. */
 export const API_URL = 'https://script.google.com/macros/s/AKfycbwbS-rjbQxeUKJBUTNtFvBE0uUSkv8tMCKGlQJ0FrGPi56rrf90FXcCUA1tdAwJYrrd/exec'
-export const CLIENT_ID = ''
+export const CLIENT_ID = '684530628889-hrt90da5gqaah1pknbbnhhffqugje5sq.apps.googleusercontent.com'

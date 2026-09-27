@@ -84,6 +84,29 @@ function ensayo() {
   console.log(JSON.stringify(r.resumen));
 }
 
+/* Vuelve a importar todo desde «desde» (Config). Lo ya registrado no se
+   duplica: la bitácora Correos lo salta por id. */
+function reiniciarImportacion() {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('PASADA');
+  props.deleteProperty('ULTIMA');
+  console.log('Listo: la próxima pasada importa desde ' + leerConfig_().desde);
+}
+
+/* Qué ve el script, sin tocar nada: la configuración leída, la búsqueda
+   exacta y cuántos correos devuelve. Lo primero que se mira si algo sale en 0. */
+function diagnostico() {
+  const cfg = leerConfig_();
+  const props = PropertiesService.getScriptProperties();
+  const q = consulta_(cfg.desde);
+  const hilos = GmailApp.search(q, 0, 50);
+  const bancarios = hilos.reduce((n, h) => n + h.getMessages().filter((m) => esRemitenteBancario_(correoDe_(m.getFrom()))).length, 0);
+  console.log(JSON.stringify({
+    config: cfg, propietario: props.getProperty('PROPIETARIO'), clientId: props.getProperty('CLIENT_ID') ? 'definido' : 'FALTA',
+    pasada: props.getProperty('PASADA'), consulta: q, hilosPrimeraPagina: hilos.length, correosBancariosPrimeraPagina: bancarios,
+  }, null, 2));
+}
+
 /* ============================================================
    PROCESAMIENTO DE CORREOS
    ============================================================ */
@@ -117,8 +140,12 @@ function procesar_(op) {
     const borrar = !op.ensayo && String(cfg.borrar_correos).toLowerCase() === 'si';
     const props = PropertiesService.getScriptProperties();
 
+    // `base` es el «desde» de Config con que empezó la importación. Si
+    // cambia (o la pasada guardada es de antes de que existiera `base`), se
+    // vuelve a importar desde la fecha nueva: lo ya registrado se salta por id.
+    const base = String(cfg.desde || '2026/01/01');
     let pasada = op.ensayo ? null : JSON.parse(props.getProperty('PASADA') || 'null');
-    if (!pasada) pasada = { desde: String(cfg.desde || '2026/01/01'), inicio: 0, comenzo: Math.floor(Date.now() / 1000) };
+    if (!pasada || pasada.base !== base) pasada = { base, desde: base, inicio: 0, comenzo: Math.floor(Date.now() / 1000) };
     const limite = inicioDe_(pasada.desde);
     const q = consulta_(pasada.desde);
 
@@ -137,8 +164,13 @@ function procesar_(op) {
         const id = msg.getId();
         if (vistos.has(id) || msg.getDate() < limite || msg.isDraft()) return;
         vistos.add(id);
+        const de = correoDe_(msg.getFrom());
+        // La búsqueda por asunto («pago», «aviso»…) trae también correos de
+        // GitHub o de tiendas. Leer el cuerpo es lo caro: se descartan antes
+        // por remitente, sin abrirlos.
+        if (!esRemitenteBancario_(de)) { resumen.ignorados++; return; }
         const c = {
-          de: correoDe_(msg.getFrom()), asunto: msg.getSubject() || '', fecha: fmtFecha_(msg.getDate()),
+          de, asunto: msg.getSubject() || '', fecha: fmtFecha_(msg.getDate()),
           texto: textoCorreo_(msg.getPlainBody(), msg.getBody()),
         };
         let r;
@@ -169,7 +201,7 @@ function procesar_(op) {
     if (op.ensayo) {
       escribirEnsayo_(filasEnsayo);
     } else if (terminado) {
-      props.setProperty('PASADA', JSON.stringify({ desde: String(pasada.comenzo - SOLAPE_S), inicio: 0, comenzo: Math.floor(Date.now() / 1000) }));
+      props.setProperty('PASADA', JSON.stringify({ base, desde: String(pasada.comenzo - SOLAPE_S), inicio: 0, comenzo: Math.floor(Date.now() / 1000) }));
       props.setProperty('ULTIMA', new Date().toISOString());
     } else {
       props.setProperty('PASADA', JSON.stringify(Object.assign(pasada, { inicio })));
@@ -407,7 +439,7 @@ const ACCIONES = {
     const cfg = leerConfig_();
     let ref = '';
     if (b.decision === 'registrar') {
-      const fecha = fila.fecha instanceof Date ? fmtFecha_(fila.fecha) : String(fila.fecha);
+      const fecha = esFecha_(fila.fecha) ? fmtFecha_(fila.fecha) : String(fila.fecha);
       const m = validarMov_(Object.assign({ fecha, banco: fila.banco, contraparte: fila.contraparte, tipo: fila.tipo, monto: fila.monto }, b.mov || {}));
       Object.assign(m, { id: nuevoId_('M'), origen: 'correo', gmail_id: gid, registrado: ahora_() });
       agregarFilas_('movimientos', [m]);
@@ -487,7 +519,7 @@ function fechaValida_(v) {
 // siempre recibe texto 'AAAA-MM-DD HH:MM'.
 function limpiarMov_(f) {
   const o = Object.assign({}, f);
-  if (o.fecha instanceof Date) o.fecha = fmtFecha_(o.fecha);
+  if (esFecha_(o.fecha)) o.fecha = fmtFecha_(o.fecha);
   o.monto = Number(o.monto) || 0;
   delete o.gmail_id;
   return o;
@@ -517,20 +549,41 @@ function sembrar_() {
   if (!leer_('reglas').length) agregarFilas_('reglas', REGLAS_BASE.map((r) => ({ patron: r[0], categoria: r[1], tipo: r[2] || '' })));
 }
 
+/* Columnas que deben quedar como TEXTO. Sheets convierte por su cuenta lo
+   que parece fecha («2026/01/01», «2026-09-18 00:57») y lo que parece número
+   (un id de Gmail hexadecimal como «18012345e6789012» se vuelve 1,8e+22 y se
+   pierde). Se escriben con un apóstrofo delante, que fuerza texto y no se ve.
+   Así se rompió la primera instalación: «desde» quedó como fecha y la
+   búsqueda en Gmail salió «after:Thu Jan 01 2026…», sin resultados. */
+const COLUMNAS_TEXTO = { fecha: 1, gmail_id: 1, referencia: 1, registrado: 1, procesado: 1, valor: 1, patron: 1, id: 1 };
+
+function aCelda_(k, v) {
+  v = celda_(v == null ? '' : v);
+  if (COLUMNAS_TEXTO[k] && typeof v === 'string' && v !== '' && v.charAt(0) !== "'") return "'" + v;
+  return v;
+}
+
+// Lo que ya quedó convertido en planillas creadas antes de lo anterior.
+function deCelda_(k, v) {
+  if (esFecha_(v)) return k === 'valor' ? Utilities.formatDate(v, 'America/Santiago', 'yyyy/MM/dd') : fmtFecha_(v);
+  if (COLUMNAS_TEXTO[k] && typeof v === 'number') return String(v);
+  return v;
+}
+
 function leer_(nombre) {
   const h = hoja_(nombre);
   const n = h.getLastRow();
   if (n < 2) return [];
   const cab = HOJAS[nombre];
   return h.getRange(2, 1, n - 1, cab.length).getValues()
-    .map((fila) => { const o = {}; cab.forEach((k, i) => { o[k] = fila[i]; }); return o; });
+    .map((fila) => { const o = {}; cab.forEach((k, i) => { o[k] = deCelda_(k, fila[i]); }); return o; });
 }
 
 function agregarFilas_(nombre, objs) {
   if (!objs || !objs.length) return;
   const h = hoja_(nombre);
   const cab = HOJAS[nombre];
-  const filas = objs.map((o) => cab.map((k) => celda_(o[k] == null ? '' : o[k])));
+  const filas = objs.map((o) => cab.map((k) => aCelda_(k, o[k])));
   h.getRange(h.getLastRow() + 1, 1, filas.length, cab.length).setValues(filas);
 }
 
@@ -545,7 +598,7 @@ function actualizar_(nombre, campo, valor, cambios) {
     if (String(vals[i][0]) !== String(valor)) continue;
     Object.keys(cambios).forEach((k) => {
       const c = cab.indexOf(k);
-      if (c !== -1) h.getRange(i + 2, c + 1).setValue(celda_(cambios[k]));
+      if (c !== -1) h.getRange(i + 2, c + 1).setValue(aCelda_(k, cambios[k]));
     });
     return true;
   }
@@ -598,6 +651,9 @@ function correoDe_(from) {
   return (m ? m[1] : String(from || '')).trim().toLowerCase();
 }
 
+// Sin instanceof: una Date que llega de otro contexto (la hoja, un test) no
+// es instancia del Date de este y pasaría como si fuera texto.
+function esFecha_(v) { return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v); }
 function fmtFecha_(d) { return Utilities.formatDate(d, 'America/Santiago', 'yyyy-MM-dd HH:mm'); }
 function ahora_() { return fmtFecha_(new Date()); }
 function nuevoId_(p) { return p + Utilities.getUuid().replace(/-/g, '').slice(0, 10); }

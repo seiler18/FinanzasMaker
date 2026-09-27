@@ -22,8 +22,15 @@ pega a mano en el editor. El usuario lo hace; el agente prepara y verifica.
 
 ## Diagnóstico
 
+Lo primero siempre: correr **`diagnostico()`** en el editor. Muestra en el
+registro la configuración tal como la lee el script, si hay `CLIENT_ID` y
+`PROPIETARIO`, el cursor de la importación, la búsqueda exacta y cuántos
+correos bancarios devuelve.
+
 | Síntoma | Causa probable |
 |---|---|
+| `ensayo` y `procesarCorreos` dan 0 en todo | Mirar `consulta` en `diagnostico()`: si dice `after:` seguido de algo que no es `AAAA/MM/DD`, una celda de Config quedó como fecha (hito 0003; ya se corrige al leer). Si la consulta está bien y hay 0 hilos, el problema es la búsqueda |
+| Faltan los meses viejos | `reiniciarImportacion()` y después `procesarCorreos` (lo ya registrado no se duplica) |
 | «Sin conexión con el servidor» | `API_URL` en `src/config.js` no es la URL `/exec` vigente, o la implementación no está en «Cualquier usuario» |
 | «Inicia sesión de nuevo» siempre | Falta la propiedad `CLIENT_ID`, no coincide con `src/config.js`, o `PROPIETARIO` no es el correo con que entras (volver a correr `instalar()` con la cuenta correcta) |
 | El botón de Google no aparece | El origen (`https://seiler18.github.io` o `http://localhost:5173`) no está en *Orígenes de JavaScript autorizados* del ID de cliente |

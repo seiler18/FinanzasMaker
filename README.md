@@ -101,6 +101,11 @@ En [`src/config.js`](src/config.js) pon `API_URL` (la URL `/exec`) y
 `CLIENT_ID`. Sube el cambio a `main` y GitHub Actions publica la página en
 `https://seiler18.github.io/FinanzasMaker/`.
 
+Si `ensayo` o `procesarCorreos` terminan en 0, ejecuta **`diagnostico`**: en
+el registro de ejecución muestra lo que el script lee de Config, la búsqueda
+exacta que hace en Gmail y cuántos correos encuentra. **`reiniciarImportacion`**
+vuelve a importar todo desde `desde` sin duplicar lo ya registrado.
+
 La primera importación (todo 2026) puede tomar varias horas de disparador
 si hay muchos correos: cada ejecución trabaja 4,5 minutos y sigue en la
 siguiente. Para adelantarla, ejecuta `procesarCorreos` a mano unas veces.

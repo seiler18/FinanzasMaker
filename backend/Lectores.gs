@@ -582,6 +582,13 @@ function nombreBanco_(dom) {
   return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
+// ¿Vale la pena abrir este correo? Remitente con lector propio o de un
+// dominio con pinta de banco. Se usa ANTES de leer el cuerpo.
+function esRemitenteBancario_(de) {
+  de = String(de || '').toLowerCase();
+  return LECTORES.some((L) => L.de.test(de)) || FINANCIERAS.test(dominio_(de));
+}
+
 function generico_(c) {
   const dom = dominio_(c.de);
   if (!FINANCIERAS.test(dom)) return { estado: 'nada' };
