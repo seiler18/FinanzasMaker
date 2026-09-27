@@ -66,6 +66,32 @@
   --sombra: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
   --z-barra: 100;
   --z-avisos: 200;
+
+  /* ----- Pantalla de ingreso: siempre oscura, con luz de aurora -----
+     No sigue el tema claro/oscuro: es la portada, y el fondo nocturno es lo
+     que hace que brillen las auroras. Mismos tonos base que la marca
+     (verde petróleo) y que las series del gráfico (azul, naranja). */
+  --ing-fondo:      #05080b;
+  --ing-fondo-2:    #0a1116;
+  --ing-aurora-1:   #14b8a6;
+  --ing-aurora-2:   #3b82f6;
+  --ing-aurora-3:   #8b5cf6;
+  --ing-serie-1:    #3987e5;
+  --ing-serie-2:    #d95926;
+  --ing-texto:      #eaf3f1;
+  --ing-tenue:      #93a6a2;
+  --ing-vidrio:     rgba(255, 255, 255, 0.05);
+  --ing-vidrio-2:   rgba(255, 255, 255, 0.09);
+  --ing-borde:      rgba(255, 255, 255, 0.12);
+  --ing-rejilla:    rgba(255, 255, 255, 0.045);
+  --ing-vivo:       #34d399;
+  --ing-sombra:     0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --fuente-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --txt-hero:       clamp(2.4rem, 1.4rem + 4.2vw, 4.25rem);
+  --ciclo-aurora:   22s;
+  --ciclo-flota:    7s;
+  --ciclo-latido:   2.4s;
+  --crece:          900ms;
 }
 
 @media (prefers-color-scheme: dark) {

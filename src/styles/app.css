@@ -157,12 +157,7 @@ tbody th { font-weight: 500; }
 .presupuestos { display: grid; gap: 8px; }
 .campo-fila { grid-template-columns: 1fr 160px; align-items: center; color: var(--texto); font-size: var(--txt-ui); }
 
-/* ----- Ingreso y carga ----- */
-.ingreso { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
-.ingreso-caja { width: min(100%, 420px); display: grid; gap: 16px; justify-items: center; text-align: center; background: var(--surface); border: 1px solid var(--borde); border-radius: var(--radio); padding: 32px 24px; box-shadow: var(--sombra); }
-.ingreso-caja h1 { font-size: var(--txt-t2); }
-.ingreso-caja p { color: var(--texto-tenue); }
-.boton-google { min-height: 44px; }
+/* ----- Carga (la pantalla de ingreso está en ingreso.css) ----- */
 .cargando { min-height: 60vh; display: grid; place-items: center; color: var(--texto-tenue); padding: 24px; text-align: center; }
 .cargando.error { color: var(--error); }
 

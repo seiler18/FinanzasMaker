@@ -50,7 +50,7 @@ export async function botonIngreso(contenedor, alEntrar) {
     cancel_on_tap_outside: false,
     use_fedcm_for_prompt: true,
   })
-  g.renderButton(contenedor, { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'es' })
+  g.renderButton(contenedor, { theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'pill', locale: 'es', width: 300 })
   g.prompt()
 }
 
