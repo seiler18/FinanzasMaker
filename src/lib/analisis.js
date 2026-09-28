@@ -136,7 +136,7 @@ function mesAnterior(mes, n = 1) {
   return `${d.getUTCFullYear()}-${dd(d.getUTCMonth() + 1)}`
 }
 
-const NO_SUSCRIPCION = new Set(['Transferencias a personas', 'Supermercado', 'Combustible', 'Vivienda', 'Impuestos'])
+const NO_SUSCRIPCION = new Set(['Transferencias a personas', 'Supermercado', 'Combustible', 'Vivienda', 'Impuestos', 'Remesas'])
 
 /* Posibles suscripciones: la misma contraparte con un monto parecido (±10 %)
    en al menos 2 de los últimos 4 meses. */

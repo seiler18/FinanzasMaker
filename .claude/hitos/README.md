@@ -13,6 +13,7 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
+| [0006](0006-binance-y-cada-30-minutos.md) | 2026-09-28 | Binance (remesas y compra P2P) y revisión cada 30 minutos con frenos de cuota | completado |
 | [0005](0005-montos-con-color-detalle-y-movimiento.md) | 2026-09-27 | Montos con signo y color, detalle de las tarjetas, transiciones, celular y tema | completado |
 | [0004](0004-mercado-pago-externa-y-pie.md) | 2026-09-27 | Mercado Pago como cuenta externa, pie de autoría y botón de Google arreglado | completado (faltan .gs y origen OAuth) |
 | [0003](0003-desde-convertido-en-fecha.md) | 2026-09-27 | La primera instalación importó 0 correos: Sheets convirtió «desde» en fecha | completado (falta pegar los .gs) |

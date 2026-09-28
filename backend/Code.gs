@@ -4,7 +4,7 @@
    Vive DENTRO de la planilla (Extensiones → Apps Script) y corre con la
    cuenta del dueño. Dos trabajos:
 
-   1. procesarCorreos(): un disparador cada hora busca en Gmail los avisos de
+   1. procesarCorreos(): un disparador cada 30 min busca en Gmail los avisos de
       los bancos, los lee con Lectores.gs, escribe cada movimiento en la hoja
       y SOLO DESPUÉS manda ese correo a la papelera (Gmail lo borra del todo
       a los 30 días). Lo que no entiende va a «Revisar» y no se toca.
@@ -38,23 +38,39 @@ const CONFIG_BASE = [
   ['borrar_correos', 'si', '«si»: el correo va a la papelera después de registrarlo. «no»: se deja donde está.'],
   ['dolar', '950', 'Pesos por dólar para convertir compras en USD (aproximado).'],
   ['cuentas_externas', 'Mercado Pago', 'Cuentas tuyas que no avisan lo que reciben (separadas por coma): lo que sale de ellas a tus cuentas cuenta como ingreso, y lo que les mandas, como gasto.'],
+  ['vendedores_cripto', 'Leveltech', 'Vendedores de Binance P2P a quienes les compras USDT (separados por coma): esa transferencia pasa a tu cuenta de Binance y no es gasto; el gasto se cuenta cuando el USDT sale por Binance Pay.'],
 ];
 
 // Dominios con lector propio. La red genérica de Lectores.gs cubre el resto
 // a través de las palabras del asunto.
 const REMITENTES = ['tenpo.cl', 'tenpobank.cl', 'machbank.cl', 'somosmach.com', 'bciplus.cl', 'mercadopago.cl',
-                    'mercadopago.com', 'copecpay.cl', 'correo.bancoestado.cl', 'fintual.com', 'bancofalabella.com', 'bci.cl'];
+                    'mercadopago.com', 'copecpay.cl', 'correo.bancoestado.cl', 'fintual.com', 'bancofalabella.com', 'bci.cl',
+                    'binance.com'];
 const PALABRAS_ASUNTO = ['comprobante', 'transferencia', 'compra', 'abono', 'cargo', 'giro', 'pago', 'deposito',
                          'depósito', 'retiro', 'transacción', 'aviso'];
 
 const PAGINA = 40;                 // hilos por vuelta de búsqueda
 const SOLAPE_S = 2 * 24 * 3600;    // cada pasada vuelve a mirar 2 días atrás
 
+/* Cuotas de Google para una cuenta gmail.com gratuita: 90 minutos al día de
+   disparadores y unas 20.000 lecturas de Gmail al día. Pasarse no bloquea
+   Gmail, pero deja el script detenido hasta el día siguiente. Con 48 pasadas
+   al día (cada 30 min) se queda lejos de ambas:
+   · el disparador trabaja a lo más 1,5 min por vez (una pasada sin correos
+     nuevos tarda segundos; solo una importación larga llega al tope);
+   · si en el día ya sumó 60 min, las pasadas siguientes esperan a mañana;
+   · lo que se ignoró (publicidad, alertas, correos que no son de bancos) se
+     recuerda 6 horas y no se vuelve a abrir en cada pasada. */
+const CADA_MIN = 30;
+const PRESUPUESTO_DISPARADOR_MS = 90 * 1000;
+const TOPE_DIARIO_MS = 60 * 60 * 1000;
+const IGNORADOS_S = 6 * 3600;
+
 /* ============================================================
    INSTALACIÓN — se corren a mano desde el editor, una vez
    ============================================================ */
 
-/* Crea las hojas, guarda quién es el dueño y deja el disparador horario.
+/* Crea las hojas, guarda quién es el dueño y deja el disparador.
    CLIENT_ID es el «ID de cliente» de OAuth de la página (README, paso 3):
    no es secreto, pero el backend solo acepta tokens emitidos para él. */
 function instalar() {
@@ -64,11 +80,19 @@ function instalar() {
   props.setProperty('PROPIETARIO', dueno.toLowerCase());
   Object.keys(HOJAS).forEach(hoja_);
   sembrar_();
+  programarDisparador();
+  console.log('Listo. Dueño: ' + dueno + '. Falta: definir CLIENT_ID con definirClienteId("...")');
+}
+
+/* Deja un solo disparador de procesarCorreos, cada CADA_MIN minutos. Lo
+   llama instalar(); se corre a mano para cambiar la frecuencia de una
+   planilla ya instalada. */
+function programarDisparador() {
   ScriptApp.getProjectTriggers()
     .filter((t) => t.getHandlerFunction() === 'procesarCorreos')
     .forEach((t) => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('procesarCorreos').timeBased().everyHours(1).create();
-  console.log('Listo. Dueño: ' + dueno + '. Falta: definir CLIENT_ID con definirClienteId("...")');
+  ScriptApp.newTrigger('procesarCorreos').timeBased().everyMinutes(CADA_MIN).create();
+  console.log('Disparador: procesarCorreos cada ' + CADA_MIN + ' minutos');
 }
 
 function definirClienteId(id) {
@@ -115,6 +139,23 @@ function reclasificarExternas() {
   console.log(n + ' movimiento(s) reclasificados con cuentas_externas = «' + ctx.externas + '»');
 }
 
+/* Aplica «vendedores_cripto» (Config) a lo ya registrado: la transferencia
+   a un vendedor de Binance P2P que entró como gasto pasa a «Compra de
+   cripto» (interna). Se puede correr varias veces. */
+function reclasificarCripto() {
+  const ctx = { vendedores: leerConfig_().vendedores_cripto || '' };
+  let n = 0;
+  conBloqueo_(() => {
+    leer_('movimientos').forEach((m) => {
+      if (m.origen !== 'correo') return;
+      const antes = m.tipo + '|' + m.categoria;
+      p2p_(m, ctx);
+      if (m.tipo + '|' + m.categoria !== antes) { actualizar_('movimientos', 'id', m.id, { tipo: m.tipo, categoria: m.categoria }); n++; }
+    });
+  });
+  console.log(n + ' movimiento(s) reclasificados con vendedores_cripto = «' + ctx.vendedores + '»');
+}
+
 /* Qué ve el script, sin tocar nada: la configuración leída, la búsqueda
    exacta y cuántos correos devuelve. Lo primero que se mira si algo sale en 0. */
 function diagnostico() {
@@ -134,8 +175,18 @@ function diagnostico() {
    ============================================================ */
 
 function procesarCorreos() {
-  const r = procesar_({ ensayo: false, presupuestoMs: 4.5 * 60 * 1000 });
-  console.log(JSON.stringify(r.resumen));
+  const props = PropertiesService.getScriptProperties();
+  const hoy = Utilities.formatDate(new Date(), 'America/Santiago', 'yyyy-MM-dd');
+  const uso = JSON.parse(props.getProperty('USO') || 'null') || {};
+  const usado = uso.dia === hoy ? Number(uso.ms) || 0 : 0;
+  if (usado >= TOPE_DIARIO_MS) { console.log('Tope diario de ' + TOPE_DIARIO_MS / 60000 + ' min alcanzado: sigue mañana'); return; }
+  const t0 = Date.now();
+  try {
+    const r = procesar_({ ensayo: false, presupuestoMs: PRESUPUESTO_DISPARADOR_MS });
+    console.log(JSON.stringify(r.resumen));
+  } finally {
+    props.setProperty('USO', JSON.stringify({ dia: hoy, ms: usado + Date.now() - t0 }));
+  }
 }
 
 function consulta_(desde) {
@@ -155,9 +206,13 @@ function procesar_(op) {
   if (!lock.tryLock(op.ensayo ? 30000 : 1000)) return { resumen: { ocupado: true } };
   try {
     const cfg = leerConfig_();
-    const ctx = { titular: cfg.titular || '', dolar: Number(cfg.dolar) || 950, externas: cfg.cuentas_externas || '' };
+    const ctx = { titular: cfg.titular || '', dolar: Number(cfg.dolar) || 950, externas: cfg.cuentas_externas || '', vendedores: cfg.vendedores_cripto || '' };
     const reglas = leer_('reglas').filter((r) => r.patron);
     const vistos = new Set(leer_('correos').map((f) => String(f.gmail_id)));
+    // Lo ignorado no queda en la bitácora: sin esto se volvería a abrir en
+    // cada pasada mientras siga dentro del solape. El ensayo debe verlo todo.
+    const cache = CacheService.getScriptCache();
+    const ignorados = new Set(op.ensayo ? [] : JSON.parse(cache.get('IGNORADOS') || '[]'));
     const recientes = leer_('movimientos').slice(-500);
     const borrar = !op.ensayo && String(cfg.borrar_correos).toLowerCase() === 'si';
     const props = PropertiesService.getScriptProperties();
@@ -184,19 +239,20 @@ function procesar_(op) {
 
       hilos.forEach((hilo) => hilo.getMessages().forEach((msg) => {
         const id = msg.getId();
-        if (vistos.has(id) || msg.getDate() < limite || msg.isDraft()) return;
+        if (vistos.has(id) || ignorados.has(id) || msg.getDate() < limite || msg.isDraft()) return;
         vistos.add(id);
         const de = correoDe_(msg.getFrom());
         // La búsqueda por asunto («pago», «aviso»…) trae también correos de
         // GitHub o de tiendas. Leer el cuerpo es lo caro: se descartan antes
         // por remitente, sin abrirlos.
-        if (!esRemitenteBancario_(de)) { resumen.ignorados++; return; }
+        if (!esRemitenteBancario_(de)) { resumen.ignorados++; ignorados.add(id); return; }
         const c = {
           de, asunto: msg.getSubject() || '', fecha: fmtFecha_(msg.getDate()),
           texto: textoCorreo_(msg.getPlainBody(), msg.getBody()),
         };
         let r;
         try { r = leerCorreo_(c, ctx); } catch (e) { r = { estado: 'error', motivo: String(e) }; }
+        if (r.estado === 'nada' || r.estado === 'ignorar') ignorados.add(id);
         manejar_(r, c, id, msg, { lote, resumen, reglas, recientes, filasEnsayo, ensayo: op.ensayo, ctx });
       }));
 
@@ -220,6 +276,7 @@ function procesar_(op) {
       if (Date.now() - t0 >= op.presupuestoMs) break;
     }
 
+    if (!op.ensayo) cache.put('IGNORADOS', JSON.stringify(Array.from(ignorados).slice(-3000)), IGNORADOS_S);
     if (op.ensayo) {
       escribirEnsayo_(filasEnsayo);
     } else if (terminado) {
@@ -261,7 +318,7 @@ function manejar_(r, c, id, msg, s) {
   // estado ok
   let ref = '';
   if (r.mov) {
-    const m = externa_(categorizar_(r.mov, s.reglas), s.ctx, r.lector);
+    const m = p2p_(externa_(categorizar_(r.mov, s.reglas), s.ctx, r.lector), s.ctx);
     const dup = esDuplicado_(m, s.recientes.concat(s.lote.movimientos));
     if (dup) {
       s.resumen.duplicados++;

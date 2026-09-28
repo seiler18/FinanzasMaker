@@ -2,7 +2,7 @@
 
 Tus gastos, ingresos e inversiones por día, mes y año, **leídos de los correos
 de aviso de tus bancos**. No le das tus claves bancarias a nadie: un script en
-tu propia cuenta de Google revisa Gmail cada hora, anota cada movimiento en una
+tu propia cuenta de Google revisa Gmail cada 30 minutos, anota cada movimiento en una
 planilla y manda el correo a la papelera.
 
 - **Front:** página estática en GitHub Pages (Vite, sin framework).
@@ -23,6 +23,7 @@ Sin backend configurado la página abre en **modo demo** con datos inventados.
 | Fintual | Aportes, retiros, venta de dólares, compra y venta de ETF, dividendos (hoja Inversiones) |
 | BCI | Aviso de abono a tu cuenta MACH |
 | Banco Falabella | Aviso de transferencia recibida |
+| Binance | Pagos y envíos por Binance Pay en USDT/USDC (remesas), pasados a pesos con el dólar de Config |
 | **Cualquier otro banco** | La red genérica reconoce comprobantes, abonos, cargos y giros de dominios bancarios y los deja en **Por revisar** para que tú decidas |
 
 Lo que no llega por correo (efectivo, CencoPay, compras con Mercado Pago) se
@@ -36,6 +37,14 @@ cuando recibes dinero, así que el sueldo que llega ahí se registra cuando lo
 pasas a otra cuenta tuya (Mercado Pago → Copec Pay o MACH = ingreso). Al revés,
 lo que mandas a Mercado Pago cuenta como gasto, porque lo que se gaste ahí no
 llega por correo. Para aplicarlo a lo ya registrado: `reclasificarExternas`.
+
+**Binance funciona como una cuenta tuya más.** Comprar USDT por P2P es
+transferirle pesos a un vendedor; esa transferencia no es gasto sino
+«Compra de cripto» (`Config → vendedores_cripto`, separados por coma). El gasto
+se cuenta cuando el USDT sale por Binance Pay (categoría «Remesas»). Así, 25 USDT
+comprados para enviar a la familia no se cuentan dos veces. Binance no avisa la
+compra P2P por correo: si compras a un vendedor nuevo, agrégalo a
+`vendedores_cripto` y ejecuta `reclasificarCripto` para lo ya registrado.
 
 ## Instalación (una vez, ~20 minutos)
 
@@ -61,7 +70,7 @@ Todo con la cuenta de Gmail donde llegan los avisos.
    FinanzasMaker (no seguro)** → **Permitir**. Pide leer y modificar Gmail
    (para leer los avisos y mandarlos a la papelera), la planilla, los
    disparadores y la conexión externa (para validar tu inicio de sesión).
-3. Queda creado el disparador que revisa el correo **cada hora**, y las
+3. Queda creado el disparador que revisa el correo **cada 30 minutos**, y las
    pestañas Movimientos, Inversiones, Revisar, Correos, Reglas, Presupuestos
    y Config.
 4. En **Config** revisa `titular`: tu nombre y un apellido tal como lo escriben
@@ -113,8 +122,16 @@ exacta que hace en Gmail y cuántos correos encuentra. **`reiniciarImportacion`*
 vuelve a importar todo desde `desde` sin duplicar lo ya registrado.
 
 La primera importación (todo 2026) puede tomar varias horas de disparador
-si hay muchos correos: cada ejecución trabaja 4,5 minutos y sigue en la
+si hay muchos correos: cada ejecución trabaja 1,5 minutos y sigue en la
 siguiente. Para adelantarla, ejecuta `procesarCorreos` a mano unas veces.
+
+**Cuotas de Google.** Una cuenta gmail.com gratuita tiene 90 minutos al día de
+disparadores y unas 20.000 lecturas de Gmail al día. Con 48 pasadas diarias el
+script se queda lejos: una pasada sin correos nuevos tarda segundos, ninguna
+trabaja más de 1,5 minutos, si en el día ya sumó 60 minutos espera a mañana,
+y lo ignorado (publicidad, alertas) no se vuelve a abrir en cada pasada. Pasarse
+no bloquea Gmail: solo detiene el script hasta el día siguiente. Para cambiar
+la frecuencia de una planilla ya instalada: `programarDisparador`.
 
 ## Uso
 

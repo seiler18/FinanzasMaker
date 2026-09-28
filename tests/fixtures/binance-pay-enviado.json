@@ -1,0 +1,16 @@
+{
+  "from": "do-not-reply@ses.binance.com",
+  "subject": "[Binance]Payment Transaction Detail - 2026-09-28 17:27:48 (UTC)",
+  "date": "2026-09-28T17:27:49Z",
+  "body": "| Payment Transaction Detail |\n| You made the following payment: |\n| Time: | 2026-09-28 17:27:48(UTC) |\n| Amount: | 40 USDT |\n| View Transaction History |\n| Don’t recognize this activity? Please reset your password and contact customer support immediately. This is an automated message, please do not reply. |\n| Stay connected! |\n| © 2026 Binance.com, All Rights Reserved. |",
+  "nota": "Texto plano real sin los enlaces de seguimiento ni el código anti-phishing. Es el envío de 40 USDT a la familia (15 que ya había en Binance + 25 comprados por P2P). La hora del cuerpo es UTC: el lector usa la del correo.",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 38000,
+    "moneda": "USDT",
+    "banco": "Binance",
+    "producto": "Binance Pay",
+    "contraparte": "Binance Pay",
+    "categoria": "Remesas"
+  }
+}

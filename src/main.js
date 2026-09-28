@@ -245,7 +245,7 @@ function pantallaIngreso() {
 
       <main class="ingreso-cuerpo">
       <section class="ingreso-hero">
-        <p class="ingreso-eyebrow"><span class="punto-vivo" aria-hidden="true"></span>Se actualiza sola cada hora</p>
+        <p class="ingreso-eyebrow"><span class="punto-vivo" aria-hidden="true"></span>Se actualiza sola cada 30 minutos</p>
         <h1>Tus finanzas,<br><span class="degradado-texto">leídas solas.</span></h1>
         <p class="ingreso-lead">Lee los avisos que te mandan tus bancos, registra cada gasto, ingreso e inversión y te dice dónde se va la plata. Sin darle tus claves a nadie.</p>
         <ul class="ingreso-rasgos">

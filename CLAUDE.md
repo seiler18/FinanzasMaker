@@ -2,8 +2,8 @@
 
 Control de gastos, ingresos e inversiones de Jesús a partir de los **correos
 de aviso de sus bancos** (Tenpo, MACH, Mercado Pago, Copec Pay, BancoEstado,
-Fintual y otros). No pide claves bancarias a nadie: un Apps Script dentro de
-una planilla lee Gmail cada hora, registra cada movimiento y manda el correo
+Fintual, Binance y otros). No pide claves bancarias a nadie: un Apps Script dentro de
+una planilla lee Gmail cada 30 minutos, registra cada movimiento y manda el correo
 a la papelera. El front está en GitHub Pages (`seiler18/FinanzasMaker`) y,
 sin backend configurado, abre en modo demo con datos inventados.
 
@@ -56,6 +56,9 @@ Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
    defecto Mercado Pago), que no avisan lo que reciben. Lo que sale de ellas
    a una cuenta propia es ingreso y lo que se les manda es gasto, decidido
    solo con el aviso de quien envía (`externa_` + `SALIDAS` en Lectores.gs).
+   **Binance es una cuenta propia:** pagarle a un vendedor P2P
+   (`Config → vendedores_cripto`) es «Compra de cripto» (interna, `p2p_`); el
+   gasto es el USDT que sale por Binance Pay (`binance-pay`, «Remesas»).
 4. **Aportes a Fintual: solo cuenta el correo del banco.** El «Invertimos tus
    $X» de Fintual va a la hoja Inversiones, no a Movimientos; si no, el aporte
    se cuenta dos veces.
@@ -70,7 +73,11 @@ Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
    rechaza números largos y RUT.
 8. **Cada acción nueva exige la identidad del dueño** (`identidad_` en `doPost`).
    No hay acciones públicas salvo `doGet`, que no devuelve datos.
-9. Tras cambiar `Code.gs` o `Lectores.gs`, redesplegar la aplicación web como
+9. **No gastar las cuotas de Google** (gmail.com: 90 min/día de disparadores,
+   ~20.000 lecturas de Gmail/día). Disparador cada 30 min, 1,5 min por pasada,
+   tope diario de 60 min y lo ignorado recordado 6 h (constantes al inicio de
+   `Code.gs`). Lo prueba `tests/backend.test.mjs`.
+10. Tras cambiar `Code.gs` o `Lectores.gs`, redesplegar la aplicación web como
    **versión nueva** de la misma implementación (si no, la URL cambia).
 
 ## Verificación

@@ -60,7 +60,7 @@ function editar(el, app, m, categorias) {
   pintar(dlg, html`
     <form method="dialog" class="form-dialogo">
       <h2>${m.contraparte || TIPOS[m.tipo]}</h2>
-      <p class="tenue">${fechaCorta(m.fecha)} · ${m.banco} · ${clp(m.monto)}${m.moneda === 'USD' ? ` (US$${m.monto_original})` : ''}${m.detalle ? ' · ' + m.detalle : ''}</p>
+      <p class="tenue">${fechaCorta(m.fecha)} · ${m.banco} · ${clp(m.monto)}${m.moneda === 'USD' ? ` (US$${m.monto_original})` : m.moneda && m.moneda !== 'CLP' ? ` (${m.monto_original} ${m.moneda})` : ''}${m.detalle ? ' · ' + m.detalle : ''}</p>
       <label class="campo"><span>Tipo</span><select name="tipo">${Object.entries(TIPOS).map(([k, v]) => html`<option value="${k}" ${m.tipo === k ? 'selected' : ''}>${v}</option>`)}</select></label>
       <label class="campo"><span>Categoría</span><input name="categoria" value="${m.categoria}" list="lista-cats" autocomplete="off" required maxlength="40">
         <datalist id="lista-cats">${categorias.map((c) => html`<option value="${c}">`)}</datalist></label>

@@ -338,6 +338,51 @@ prueba('todas las reglas base usan tipos válidos', () => {
 })
 
 /* ---------- correos reales anonimizados ---------- */
+/* ---------- Binance y compra de cripto por P2P ---------- */
+prueba('binance: un pago en BTC no se inventa en pesos → revisar', () => {
+  const r = leer('do-not-reply@ses.binance.com', '[Binance]Payment Transaction Detail - 2026-09-28 17:27:48 (UTC)',
+    'Payment Transaction Detail You made the following payment: Time: 2026-09-28 17:27:48(UTC) Amount: 0.0005 BTC')
+  assert.equal(r.estado, 'revisar')
+})
+prueba('binance: un pago recibido con el mismo asunto no es gasto', () => {
+  const r = leer('do-not-reply@ses.binance.com', '[Binance]Payment Transaction Detail - 2026-09-28 17:27:48 (UTC)',
+    'Payment Transaction Detail You received the following payment: Amount: 10 USDT')
+  assert.equal(r.estado, 'revisar')
+})
+prueba('binance: montos en formato inglés con miles', () => {
+  const r = leer('do-not-reply@ses.binance.com', '[Binance]Payment Transaction Detail',
+    'You made the following payment: Time: 2026-09-28 17:27:48(UTC) Amount: 1,250.50 USDC')
+  assert.equal(r.mov.monto, Math.round(1250.5 * 950))
+  assert.equal(r.mov.monto_original, 1250.5)
+  assert.equal(r.mov.fecha, '2026-09-18 10:00', 'la hora UTC del cuerpo no reemplaza la del correo')
+})
+prueba('binance: un depósito sin lector va a revisar; alertas y publicidad se ignoran', () => {
+  assert.equal(leer('do-not-reply@ses.binance.com', '[Binance] Deposit Successful', 'Your deposit of 100 USDT is now available').estado, 'revisar')
+  assert.equal(leer('do-not-reply@ses.binance.com', '[Binance] Login Attempted from New IP address 0.0.0.0', 'We noticed your Binance account was accessed').estado, 'ignorar')
+  assert.equal(leer('do_not_reply@smailer2.binance.com', 'Importante: Transacciones con ciertas plataformas', 'Hola Binancians').estado, 'ignorar')
+  assert.equal(leer('do_not_reply@smailer1.binance.com', 'Reclama un cupón de $1 en cripto', 'compra $10 en Spot').estado, 'ignorar')
+})
+const P2P = { ...CTX, vendedores: 'Leveltech' }
+const transferenciaCopec = (dest, monto) => leer('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
+  `¡Listo! Tu transferencia se envió con éxito Monto $${monto} Cuenta destino: ${dest} Cuenta Corriente ****0000 BCI/MACHBANK N° transacción: 000000 Fecha y hora: 2026-09-18 09:22:46 Comentario: pago`)
+prueba('p2p: pagarle a un vendedor de Binance es compra de cripto (interna), no gasto', () => {
+  const r = transferenciaCopec('Leveltech SPA', '25.000')
+  const m = L.p2p_(L.categorizar_(r.mov, []), P2P)
+  assert.equal(m.tipo, 'interna')
+  assert.equal(m.categoria, 'Compra de cripto')
+  assert.equal(m.monto, 25000)
+})
+prueba('p2p: lo que paga un vendedor al venderle USDT es venta de cripto (interna)', () => {
+  const m = L.p2p_({ tipo: 'ingreso', contraparte: 'LEVELTECH SPA', monto: 30000, categoria: 'Ingresos' }, P2P)
+  assert.equal(m.tipo, 'interna')
+  assert.equal(m.categoria, 'Venta de cripto')
+})
+prueba('p2p: otras transferencias y Config vacío no cambian', () => {
+  const otra = L.p2p_(L.categorizar_(transferenciaCopec('Pedro Demo', '20.000').mov, []), P2P)
+  assert.equal(otra.tipo, 'gasto')
+  assert.equal(L.p2p_(L.categorizar_(transferenciaCopec('Leveltech SPA', '25.000').mov, []), CTX).tipo, 'gasto')
+})
+
 const dir = new URL('./fixtures/', import.meta.url)
 const reales = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')) : []
 let conEspera = 0

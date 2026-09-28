@@ -4,13 +4,13 @@ import { clp } from '../lib/formato.js'
 export function ajustes(el, app) {
   const est = app.datos.estado || {}
   const presup = new Map((app.datos.presupuestos || []).map((p) => [p.categoria, Number(p.monto_mensual) || 0]))
-  const cats = app.categorias().filter((c) => !['Entre mis cuentas', 'Pago de tarjeta', 'Inversiones', 'Ingresos', 'Sueldo', 'Cashback'].includes(c))
+  const cats = app.categorias().filter((c) => !['Entre mis cuentas', 'Pago de tarjeta', 'Inversiones', 'Ingresos', 'Sueldo', 'Cashback', 'Compra de cripto', 'Venta de cripto'].includes(c))
 
   pintar(el, html`
     <section class="panel">
       <header class="panel-cab"><h2>Correos</h2></header>
       <dl class="datos-estado">
-        <dt>Última revisión completa</dt><dd>${est.ultima ? new Date(est.ultima).toLocaleString('es-CL') : 'todavía ninguna'}${est.importando ? ' · importando el historial, sigue en la próxima hora' : ''}</dd>
+        <dt>Última revisión completa</dt><dd>${est.ultima ? new Date(est.ultima).toLocaleString('es-CL') : 'todavía ninguna'}${est.importando ? ' · importando el historial, sigue en la próxima revisión' : ''}</dd>
         <dt>Después de registrar</dt><dd>${est.borrar ? 'el correo va a la papelera (Gmail lo borra a los 30 días)' : 'el correo se deja donde está'}</dd>
         <dt>Titular</dt><dd>${est.titular || '—'} <small class="tenue">(para reconocer transferencias entre tus cuentas)</small></dd>
       </dl>

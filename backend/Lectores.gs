@@ -178,6 +178,9 @@ function inv_(c, campos) {
   };
 }
 
+// Monedas cripto que valen un dólar: se pasan a pesos con el dólar de Config.
+const ESTABLES = /^(USDT|USDC|FDUSD|BUSD|USD)$/;
+
 function usd_(valor, ctx) {
   return Math.round(valor * (Number(ctx.dolar) || 950));
 }
@@ -541,6 +544,39 @@ const LECTORES = [
   // previos o resúmenes de algo que llega en otro correo.
   { id: 'fintual-otros', de: /fintual/i, leer: () => IGNORAR },
 
+  /* ----- Binance -----
+     Binance solo avisa por correo lo que SALE por Binance Pay (un envío a la
+     familia, un pago): ese es el gasto, pasado a pesos con el dólar de Config
+     (una moneda estable como USDT vale un dólar). La compra de USDT por P2P no
+     manda correo: llega como transferencia de tu banco a un vendedor, y ese
+     traspaso no es gasto (Config → vendedores_cripto, ver p2p_). */
+  {
+    id: 'binance-pay', de: /binance\.com$/i, asunto: /Payment Transaction Detail|transacci[oó]n de pago/i,
+    leer: (c, ctx) => {
+      // Un pago RECIBIDO podría compartir el asunto: sin esta frase no se da por gasto.
+      if (!/made the following payment|pago se realiz[oó] desde tu Binance Pay/i.test(c.texto)) return null;
+      const m = /(?:Amount|Cantidad)\s*:?\s*\|?\s*([\d.,]+)\s*([A-Z]{2,6})\b/.exec(c.texto);
+      if (!m || !ESTABLES.test(m[2])) return null;       // BTC u otra: no hay cómo pasarla a pesos
+      const cantidad = parseFloat(m[1].replace(/,/g, '')); // formato inglés: «1,234.56»
+      if (!(cantidad > 0)) return null;
+      return mov_(c, {
+        // La hora del cuerpo viene en UTC; la del correo ya es la de Chile.
+        fecha: c.fecha, banco: 'Binance', producto: 'Binance Pay', tipo: 'gasto', monto: usd_(cantidad, ctx),
+        moneda: m[2], monto_original: cantidad, contraparte: 'Binance Pay', categoria: 'Remesas',
+        detalle: 'Convertido a pesos con el dólar de Config',
+      });
+    },
+  },
+  {
+    // Un depósito, un retiro o un pago recibido todavía sin lector: a
+    // «Revisar», no a la basura. Solo el remitente de avisos (ses.), no el de
+    // publicidad (smailer*.).
+    id: 'binance-sin-lector', de: /@ses\.binance\.com$/i, asunto: /deposit|withdraw|dep[oó]sito|retiro|P2P|payment|pago|order|orden/i,
+    leer: () => null,
+  },
+  // Alertas de inicio de sesión y publicidad.
+  { id: 'binance-otros', de: /binance\.com$/i, leer: () => IGNORAR },
+
   /* ----- BCI: aviso de abono a la cuenta MACH (MACH es de BCI) ----- */
   {
     id: 'bci-abono', de: /@bci\.cl$/i, asunto: /abono/i,
@@ -759,6 +795,28 @@ function externa_(mov, ctx, lector) {
   if (desde) { mov.tipo = 'ingreso'; mov.categoria = 'Desde ' + desde; return mov; }
   const hacia = cual(mov.detalle);
   if (hacia) { mov.tipo = 'gasto'; mov.categoria = 'Hacia ' + hacia; }
+  return mov;
+}
+
+/* ============================================================
+   COMPRA Y VENTA DE CRIPTO POR P2P
+   Comprar USDT en Binance P2P es transferirle pesos a un vendedor desde tu
+   banco, y ese aviso llega como gasto a un tercero. No lo es: la plata pasa
+   a tu cuenta de Binance y el gasto se cuenta cuando sale de ahí
+   (binance-pay). Si no, 25 USDT comprados para enviar a la familia se
+   contarían dos veces: los $25.000 al vendedor y los 25 USDT enviados.
+   Al revés igual: lo que te paga un vendedor cuando le vendes USDT es tu
+   propia plata que vuelve.
+   Config → vendedores_cripto (separados por coma, basta parte del nombre).
+   ============================================================ */
+
+function p2p_(mov, ctx) {
+  const lista = String((ctx && ctx.vendedores) || '').split(',').map(clave_).filter(Boolean);
+  if (!lista.length || (mov.tipo !== 'gasto' && mov.tipo !== 'ingreso')) return mov;
+  const k = clave_(mov.contraparte);
+  if (!k || !lista.some((v) => k.indexOf(v) !== -1)) return mov;
+  mov.categoria = mov.tipo === 'gasto' ? 'Compra de cripto' : 'Venta de cripto';
+  mov.tipo = 'interna';
   return mov;
 }
 

@@ -1,0 +1,13 @@
+{
+  "from": "do-not-reply@ses.binance.com",
+  "subject": "[Binance Pay] Detalles de la transacción de pago 0.0.0.0 - 2026-08-20 18:46:04(UTC)",
+  "date": "2026-08-20T18:46:07Z",
+  "body": "| Transacción de Binance Pay |\n| El siguiente pago se realizó desde tu Binance Pay: |\n| Fecha y hora: | 2026-08-20 18:46:04(UTC) |\n| Cantidad: | 255.56 USDT |\n| Ver historial de transacciones de Pay |\n| ¿No reconoces esta actividad? Restablece tu contraseña y contacta a Atención al cliente de inmediato. No respondas a este mensaje automático. |\n| ¡Mantente conectado! |\n| © 2026 Binance.com. Todos los derechos reservados. |",
+  "nota": "Plantilla en español. La IP del asunto va en ceros; sin enlaces de seguimiento ni código anti-phishing.",
+  "espera": {
+    "tipo": "gasto",
+    "monto": 242782,
+    "moneda": "USDT",
+    "categoria": "Remesas"
+  }
+}

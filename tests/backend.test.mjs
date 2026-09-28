@@ -80,7 +80,7 @@ const G = {
   Session: { getEffectiveUser: () => ({ getEmail: () => 'Duenio@Gmail.com' }) },
   ScriptApp: {
     getProjectTriggers: () => [], deleteTrigger() {},
-    newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create() {} }) }) }),
+    newTrigger: (fn) => ({ timeBased: () => ({ everyMinutes: (n) => ({ create() { G.ScriptApp.creado = fn + ' cada ' + n } }) }) }),
   },
   Utilities: {
     DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
@@ -300,6 +300,63 @@ prueba('reiniciarImportacion borra el cursor', () => {
   assert.ok(props.get('PASADA'))
   G.reiniciarImportacion()
   assert.equal(props.get('PASADA'), undefined)
+})
+
+/* ---------- frecuencia y cuotas de Google ---------- */
+prueba('el disparador queda cada 30 minutos', () => {
+  assert.equal(G.ScriptApp.creado, 'procesarCorreos cada 30')
+})
+prueba('con el tope diario de disparador usado, la pasada espera a mañana', () => {
+  compraTenpo('8.000')
+  const hoy = G.Utilities.formatDate(new Date(), 'America/Santiago', 'yyyy-MM-dd')
+  props.set('USO', JSON.stringify({ dia: hoy, ms: 60 * 60 * 1000 }))
+  G.procesarCorreos()
+  assert.equal(filas('Movimientos').length, 0)
+  props.set('USO', JSON.stringify({ dia: '2000-01-01', ms: 60 * 60 * 1000 })) // otro día: vuelve a cero
+  G.procesarCorreos()
+  assert.equal(filas('Movimientos').length, 1)
+  assert.equal(JSON.parse(props.get('USO')).dia, hoy)
+})
+prueba('un correo ignorado no se vuelve a abrir en la pasada siguiente', () => {
+  const m = correo('no-reply@tenpo.cl', 'Estado de cuenta-Tarjeta de Crédito', 'Ya está disponible')
+  G.procesarCorreos()
+  assert.ok(m.abierto)
+  m.abierto = false
+  props.delete('PASADA')
+  G.procesarCorreos()
+  assert.ok(!m.abierto, 'se abrió otra vez')
+  assert.ok(!m.papelera)
+})
+
+/* ---------- Binance ---------- */
+prueba('remesa por Binance: la compra P2P no suma y el envío de USDT es el gasto', () => {
+  correo('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
+    '¡Listo! Tu transferencia se envió con éxito Monto $25.000 Cuenta destino: Leveltech SPA Cuenta Corriente ****0000 BCI/MACHBANK N° transacción: 000000 Comentario: pago', '2026-09-28T17:22:50Z')
+  correo('do-not-reply@ses.binance.com', '[Binance]Payment Transaction Detail - 2026-09-28 17:27:48 (UTC)',
+    'Payment Transaction Detail You made the following payment: Time: 2026-09-28 17:27:48(UTC) Amount: 40 USDT', '2026-09-28T17:27:49Z')
+  G.procesarCorreos()
+  const movs = filas('Movimientos')
+  const compra = movs.find((m) => m.banco === 'Copec Pay')
+  const envio = movs.find((m) => m.banco === 'Binance')
+  assert.equal(compra.tipo, 'interna')
+  assert.equal(compra.categoria, 'Compra de cripto')
+  assert.equal(envio.tipo, 'gasto')
+  assert.equal(envio.monto, 38000)
+  assert.equal(envio.categoria, 'Remesas')
+  assert.equal(envio.fecha, '2026-09-28 14:27', 'hora de Chile, no la UTC del cuerpo')
+  assert.ok(correos.every((m) => m.papelera))
+})
+prueba('reclasificarCripto corrige una compra P2P que entró como gasto', () => {
+  correo('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
+    '¡Listo! Tu transferencia se envió con éxito Monto $25.000 Cuenta destino: Leveltech SPA Cuenta Corriente ****0000 BCI/MACHBANK N° transacción: 000000')
+  const i = hojas.Config.d.findIndex((f) => f[0] === 'vendedores_cripto')
+  hojas.Config.d[i][1] = ''
+  G.procesarCorreos()
+  assert.equal(filas('Movimientos')[0].tipo, 'gasto')
+  hojas.Config.d[i][1] = 'Leveltech'
+  G.reclasificarCripto()
+  assert.equal(filas('Movimientos')[0].tipo, 'interna')
+  assert.equal(filas('Movimientos')[0].categoria, 'Compra de cripto')
 })
 
 prueba('sueldo que pasa de Mercado Pago a Copec Pay entra como ingreso', () => {

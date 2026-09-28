@@ -35,5 +35,5 @@ correos bancarios devuelve.
 | «Inicia sesión de nuevo» siempre | Falta la propiedad `CLIENT_ID`, no coincide con `src/config.js`, o `PROPIETARIO` no es el correo con que entras (volver a correr `instalar()` con la cuenta correcta) |
 | El botón de Google no aparece | El origen (`https://seiler18.github.io` o `http://localhost:5173`) no está en *Orígenes de JavaScript autorizados* del ID de cliente |
 | «Error interno» | Ver **Ejecuciones** en el editor de Apps Script: ahí está la traza |
-| No entran correos nuevos | **Activadores**: debe haber uno `procesarCorreos` cada hora; si no, correr `instalar()`. Ver en Ejecuciones si falla |
+| No entran correos nuevos | **Activadores**: debe haber uno `procesarCorreos` cada 30 minutos; si no, correr `programarDisparador()`. Ver en Ejecuciones si falla; «Tope diario … alcanzado» en el registro es el freno de cuota (sigue al otro día) |
 | Entra todo a «Revisar» | Un banco cambió su plantilla: skill `agregar-banco` |
