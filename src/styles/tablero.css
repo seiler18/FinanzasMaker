@@ -190,3 +190,10 @@
 @media (prefers-reduced-motion: reduce) {
   .cabina-brillo { animation: none; }
 }
+
+/* ----- Vista «Cuotas» ----- */
+.kpi-fijo { cursor: default; }
+.fila-sub { display: block; font-weight: 400; color: var(--texto-tenue); font-size: var(--txt-micro); }
+tfoot th, tfoot td { border-bottom: 0; font-weight: 700; }
+.notas { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: var(--txt-menudo); color: var(--texto-tenue); }
+.notas b { color: var(--texto); }

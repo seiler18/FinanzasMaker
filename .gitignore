@@ -11,6 +11,8 @@ dist/
 *.eml
 .env*
 correos-crudos/
+# Estados de cuenta reales de las tarjetas: solo en esta máquina, jamás en el repo.
+estados-de-cuenta/
 
 # Ajustes de Claude Code de esta máquina (los del repo van en .claude/settings.json)
 .claude/settings.local.json

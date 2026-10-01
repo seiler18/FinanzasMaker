@@ -53,6 +53,14 @@ function generar() {
     if (azar() < 0.5) add(f(entre(5, 25)), { banco: 'BancoEstado', tipo: 'gasto', monto: 20000, contraparte: 'Giro en cajero', categoria: 'Efectivo' })
     add(f(20), { banco: 'MACH', tipo: 'ingreso', monto: entre(300, 900), contraparte: 'Cashback BCI Plus', categoria: 'Cashback' })
   }
+  // Compras en cuotas de los últimos tres meses, para la vista «Cuotas» (montos fijos, sin azar:
+  // así lo demás del demo no cambia).
+  for (let m = Math.max(1, mHoy - 2); m <= mHoy; m++) {
+    const f = `${aHoy}-${dd(m)}-01`
+    add(f, { banco: 'Tenpo', producto: 'Tarjeta de crédito', tipo: 'gasto', monto: 249990, cuotas: 6, contraparte: 'FALABELLA', categoria: 'Compras' })
+    add(f, { banco: 'MACH', producto: 'Tarjeta de crédito', tipo: 'gasto', monto: 89990, cuotas: 3, contraparte: 'DECATHLON', categoria: 'Compras' })
+    if (m >= mHoy - 1) add(f, { banco: 'Tenpo', producto: 'Tarjeta de crédito', tipo: 'gasto', monto: 599990, cuotas: 12, contraparte: 'PARIS', categoria: 'Compras' })
+  }
   // El último mes con un gasto de comida alto, para que el consejo de
   // «categoría que subió» tenga algo que mostrar.
   add(`${aHoy}-${dd(mHoy)}-${dd(Math.max(1, Number(hoy.slice(8, 10)) - 2))}`, { banco: 'Tenpo', producto: 'Tarjeta de crédito', tipo: 'gasto', monto: 64000, contraparte: 'SUSHI DEMO', categoria: 'Comida' })

@@ -242,7 +242,8 @@ export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
   // 7. Cuotas
   const enCuotas = movs.filter((x) => x.tipo === 'gasto' && Number(x.cuotas) > 1 && [mes, ...previos.slice(0, 2)].includes(mesDe(x)))
   if (enCuotas.length) {
-    salida.push({ nivel: 'info', titulo: `${enCuotas.length} compra${enCuotas.length > 1 ? 's' : ''} en cuotas en los últimos 3 meses`, texto: `Suman ${clp(enCuotas.reduce((s, x) => s + Number(x.monto), 0))}. Salvo que sean sin interés, pagarlas en 1 cuota sale más barato.` })
+    const imp = comprasEnCuotas(movs, mes).impuesto
+    salida.push({ nivel: 'info', titulo: `${enCuotas.length} compra${enCuotas.length > 1 ? 's' : ''} en cuotas en los últimos 3 meses`, texto: `Suman ${clp(enCuotas.reduce((s, x) => s + Number(x.monto), 0))}. Aunque sean sin interés pagan impuesto de timbres, así que pagarlas en 1 cuota sale más barato.${imp ? ` Solo el impuesto de timbres estimado de las de este mes es ${clp(imp)}.` : ''}` })
   }
 
   // 8. Efectivo: lo que se gasta después de un giro no queda registrado
@@ -253,4 +254,46 @@ export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
 
   const orden = { alerta: 0, atencion: 1, info: 2, bien: 3 }
   return salida.sort((a, b) => orden[a.nivel] - orden[b.nivel])
+}
+
+/* ---------- impuesto de timbres de las compras en cuotas ----------
+   DL 3475: 0,066 % del monto por cada mes de plazo, con tope de 0,8 % (se
+   alcanza desde las 13 cuotas: 12 × 0,066 = 0,792 %). Lo recauda el banco.
+
+   Verificado contra un estado de cuenta real de Tenpo (septiembre 2026): el
+   cargo «IMPUESTO DECRETO LEY 3475 TASA 0,066 %» es monto × 0,066 % × cuotas,
+   redondeado al peso, y sale en el MISMO estado de cuenta, 1 o 2 días después
+   de la compra. Las compras eran «(0,00 %)», o sea sin interés, y pagaron
+   igual: por eso no hay excepción para «3 cuotas precio contado» (el SII la
+   menciona, pero el banco no la aplica). Una compra en 1 cuota no genera cargo
+   en Tenpo.
+   Sin confirmar: en MACH hubo un cargo equivalente a 0,066 % sobre una compra
+   de 1 cuota, y una compra en 3 cuotas hecha dos días antes del cierre aún no
+   traía cargo. Sigue siendo una ESTIMACIÓN. */
+export const TIMBRE = { tasaMes: 0.066, tope: 0.8 }
+
+export function timbreCuotas(monto, cuotas, p = TIMBRE) {
+  const n = Math.floor(Number(cuotas) || 0)
+  if (n < 2) return 0
+  return Math.round(((Number(monto) || 0) * Math.min(p.tasaMes * n, p.tope)) / 100)
+}
+
+export const porcentajeTimbre = (cuotas, p = TIMBRE) => (Number(cuotas) > 1 ? Math.min(p.tasaMes * Math.floor(Number(cuotas)), p.tope) : 0)
+
+// Compras en cuotas del mes contable, con el impuesto estimado de cada una.
+export function comprasEnCuotas(movs, mes) {
+  const compras = movs
+    .filter((x) => x.tipo === 'gasto' && Number(x.cuotas) > 1 && mesDe(x) === mes)
+    .map((x) => ({ ...x, pct: porcentajeTimbre(x.cuotas), impuesto: timbreCuotas(x.monto, x.cuotas) }))
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
+  return { compras, total: compras.reduce((s, x) => s + Number(x.monto), 0), impuesto: compras.reduce((s, x) => s + x.impuesto, 0) }
+}
+
+// Los últimos `n` meses terminando en `mes`, del más viejo al más nuevo.
+export function timbrePorMes(movs, mes, n = 6) {
+  return Array.from({ length: n }, (_, i) => {
+    const clave = mesAnterior(mes, n - 1 - i)
+    const r = comprasEnCuotas(movs, clave)
+    return { mes: clave, etiqueta: MESES[Number(clave.slice(5)) - 1], impuesto: r.impuesto, n: r.compras.length }
+  })
 }

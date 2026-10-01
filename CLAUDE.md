@@ -17,8 +17,8 @@ Seguridad: `SECURITY.md`.
 |---|---|
 | Lectores de correos (uno por formato) y red genérica | `backend/Lectores.gs` |
 | Gmail → hoja → papelera, API, identidad | `backend/Code.gs` (`ACCIONES`, `procesar_`, `identidad_`) |
-| Totales, series y consejos | `src/lib/analisis.js` |
-| Vistas | `src/vistas/{resumen,movimientos,revisar,agregar,consejos,ajustes}.js` |
+| Totales, series, consejos, fecha contable e impuesto de timbres de las cuotas | `src/lib/analisis.js` |
+| Vistas | `src/vistas/{resumen,movimientos,revisar,agregar,cuotas,consejos,ajustes}.js` |
 | Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
 | Transiciones entre vistas; celular; tema | `src/styles/movimiento.css`, `src/styles/movil.css`, `src/lib/tema.js` |
 | Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |

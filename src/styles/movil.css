@@ -17,7 +17,7 @@
   .pestanas {
     position: fixed; inset: auto 0 0 0; z-index: var(--z-barra);
     width: 100%; margin: 0;
-    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0;
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0;
     padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
     background: var(--barra-fondo); backdrop-filter: blur(12px);
     border-top: 1px solid var(--borde);

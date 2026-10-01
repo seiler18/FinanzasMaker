@@ -1,6 +1,6 @@
 // Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
 import assert from 'node:assert/strict'
-import { rango, mover, enRango, diaContable, totales, porCategoria, porContraparte, serie, suscripciones, consejos } from '../src/lib/analisis.js'
+import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos } from '../src/lib/analisis.js'
 import { conSigno, sentidoDe, SENTIDO } from '../src/lib/formato.js'
 
 let ok = 0
@@ -133,6 +133,43 @@ prueba('fecha contable: los consejos miden el mes contable', () => {
   const movs = [m('2026-09-30', 'ingreso', 1000000, { fecha_contable: '2026-10-01' }), m('2026-10-03', 'gasto', 1500000)]
   assert.ok(consejos(movs, [], '2026-10', '2026-10-31').some((x) => x.titulo === 'Gastaste más de lo que entró') === true)
   assert.ok(!consejos(movs, [], '2026-09', '2026-10-31').some((x) => x.titulo === 'Gastaste más de lo que entró'))
+})
+
+prueba('timbre de cuotas: 0,066 % por mes de plazo con tope de 0,8 %', () => {
+  assert.equal(timbreCuotas(1000000, 1), 0, 'una cuota no es crédito')
+  assert.equal(timbreCuotas(1000000, 3), 1980)
+  assert.equal(timbreCuotas(1000000, 6), 3960)
+  assert.equal(timbreCuotas(1000000, 12), 7920)
+  assert.equal(timbreCuotas(1000000, 13), 8000, 'desde las 13 cuotas topa en 0,8 %')
+  assert.equal(timbreCuotas(1000000, 48), 8000)
+  assert.equal(timbreCuotas(1000000, ''), 0)
+})
+
+prueba('timbre de cuotas: redondea al peso y cobra también las de 3 cuotas sin interés', () => {
+  // Montos inventados; la regla (monto × 0,066 % × cuotas, al peso) calzó con cargos reales de Tenpo.
+  assert.equal(timbreCuotas(250000, 3), 495)
+  assert.equal(timbreCuotas(123456, 3), 244, '244,44 → 244')
+  assert.equal(timbreCuotas(123500, 3), 245, '244,53 → 245')
+})
+
+prueba('compras en cuotas: solo gastos del mes contable', () => {
+  const movs = [
+    m('2026-10-02', 'gasto', 600000, { cuotas: 12, contraparte: 'Paris' }),
+    m('2026-10-05', 'gasto', 90000, { cuotas: 3 }),
+    m('2026-10-06', 'gasto', 50000, { cuotas: 1 }),
+    m('2026-10-07', 'ingreso', 70000, { cuotas: 6 }),
+    m('2026-09-30', 'gasto', 100000, { cuotas: 6, fecha_contable: '2026-10-01' }),
+    m('2026-09-10', 'gasto', 200000, { cuotas: 6 }),
+  ]
+  const oct = comprasEnCuotas(movs, '2026-10')
+  assert.equal(oct.compras.length, 3)
+  assert.equal(oct.total, 790000)
+  assert.equal(oct.impuesto, 4752 + 178 + 396)
+  const seis = timbrePorMes(movs, '2026-10', 6)
+  assert.equal(seis.length, 6)
+  assert.equal(seis[5].mes, '2026-10')
+  assert.equal(seis[4].impuesto, 792)
+  assert.equal(seis[0].impuesto, 0)
 })
 
 console.log(`analisis: ${ok} pruebas ok`)

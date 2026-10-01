@@ -15,6 +15,7 @@ import { resumen } from './vistas/resumen.js'
 import { movimientos } from './vistas/movimientos.js'
 import { revisar } from './vistas/revisar.js'
 import { agregar } from './vistas/agregar.js'
+import { cuotas } from './vistas/cuotas.js'
 import { consejos } from './vistas/consejos.js'
 import { ajustes } from './vistas/ajustes.js'
 import { pie } from './lib/pie.js'
@@ -35,6 +36,7 @@ const VISTAS = {
   movimientos: { titulo: 'Movimientos', corto: 'Movs.', icono: 'lista', fn: movimientos, periodo: true },
   revisar: { titulo: 'Por revisar', corto: 'Revisar', icono: 'bandeja', fn: revisar },
   agregar: { titulo: 'Agregar', corto: 'Agregar', icono: 'mas', fn: agregar },
+  cuotas: { titulo: 'Cuotas', corto: 'Cuotas', icono: 'tarjeta', fn: cuotas, periodo: true, soloMes: true },
   consejos: { titulo: 'Consejos', corto: 'Consejos', icono: 'foco', fn: consejos, periodo: true, soloMes: true },
   ajustes: { titulo: 'Ajustes', corto: 'Ajustes', icono: 'ajustes', fn: ajustes },
 }
@@ -46,6 +48,7 @@ const ICONO_NAV = {
   lista: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>',
   bandeja: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6Z"/></svg>',
   mas: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
+  tarjeta: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
   foco: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></svg>',
   ajustes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
   sol: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
