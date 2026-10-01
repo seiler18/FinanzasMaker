@@ -6,6 +6,10 @@ import { rango, enRango, TIPOS } from '../lib/analisis.js'
    Editar la categoría con «aplicar a todos» guarda una regla en la hoja: la
    próxima compra en ese comercio ya llega bien clasificada. */
 
+// Dentro de cada día se ordena por hora; mostrarla deja ver que el orden es el real.
+// Los manuales sin hora quedan en 00:00 y no la muestran, como en fechaCorta.
+const hora = (f) => { const h = String(f || '').slice(11, 16); return h && h !== '00:00' ? h + ' · ' : '' }
+
 export function movimientos(el, app, filtros = {}) {
   const r = rango(app.periodo.escala, app.periodo.ref)
   const todos = enRango(app.datos.movimientos, r).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
@@ -41,7 +45,7 @@ export function movimientos(el, app, filtros = {}) {
       <ul class="movs">${ms.map((m) => html`
         <li><button class="mov mov-${m.tipo}" data-id="${m.id}">
           <span class="mov-txt"><b>${m.contraparte || TIPOS[m.tipo]}</b>
-            <small>${m.categoria || 'Otros'} · ${m.banco}${m.producto && m.producto !== 'Cuenta' ? ' · ' + m.producto : ''}${Number(m.cuotas) > 1 ? ` · ${m.cuotas} cuotas` : ''}${m.origen === 'manual' ? ' · manual' : ''}${m.nota ? ' · ' + m.nota : ''}</small></span>
+            <small>${hora(m.fecha)}${m.categoria || 'Otros'} · ${m.banco}${m.producto && m.producto !== 'Cuenta' ? ' · ' + m.producto : ''}${Number(m.cuotas) > 1 ? ` · ${m.cuotas} cuotas` : ''}${m.origen === 'manual' ? ' · manual' : ''}${m.nota ? ' · ' + m.nota : ''}</small></span>
           <span class="mov-monto"><b class="${SENTIDO[m.tipo] ? 'monto-' + SENTIDO[m.tipo] : ''}">${conSigno(m.monto, SENTIDO[m.tipo])}</b>${m.tipo === 'interna' || m.tipo === 'pago_tarjeta' ? html`<small>no suma</small>` : ''}</span>
         </button></li>`)}</ul>`)}`)
   }

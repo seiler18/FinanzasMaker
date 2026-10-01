@@ -156,9 +156,11 @@ function reparto(titulo, filas, sentido, max = 6) {
     ${resto ? html`<p class="tenue">y ${conSigno(resto, sentido)} más en ${filas.length - max} otro${filas.length - max > 1 ? 's' : ''}</p>` : ''}`
 }
 
+// Cronológica, lo más reciente primero (la fecha trae la hora: «2026-09-18 00:57»).
+// Ordenar por monto mezclaba las horas del día y no se podía leer como línea de tiempo.
 function lista(titulo, ms, max = 8) {
   if (!ms.length) return ''
-  const vis = [...ms].sort((a, b) => b.monto - a.monto).slice(0, max)
+  const vis = [...ms].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha))).slice(0, max)
   return html`<h3 class="sub">${titulo}</h3>
     <ol class="lista-simple">${vis.map((m) => {
       const s = SENTIDO[m.tipo]
@@ -174,7 +176,7 @@ function detalleTipo(tipo, nombre, valor, movs, sentido) {
     ${total(valor, sentido, `${ms.length} movimiento${ms.length > 1 ? 's' : ''} · promedio ${clp(promedio)}`)}
     ${reparto('Por categoría', porCategoria(movs, tipo), sentido)}
     ${reparto(tipo === 'ingreso' ? 'De quién vino' : 'A quién se le pagó', porContraparte(movs, tipo), sentido, 5)}
-    ${lista(tipo === 'ingreso' ? 'Los más grandes' : 'Los gastos más grandes', ms, 5)}`
+    ${lista(tipo === 'ingreso' ? 'Los últimos ingresos' : 'Los últimos gastos', ms, 8)}`
 }
 
 function detalleAhorro(app, t, movs) {
