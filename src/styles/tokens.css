@@ -41,6 +41,10 @@
   --rejilla:   #e6e8e4;
   --eje:       #6b716e;
 
+  /* Categorías del anillo de gastos: 7 tonos distintos y un gris para «Otros». */
+  --cat-1: #eb6834; --cat-2: #7c5cd6; --cat-3: #0f9d8f; --cat-4: #d9a21b;
+  --cat-5: #d6477f; --cat-6: #2a78d6; --cat-7: #7fb62d; --cat-8: #6b7a8f;   /* 8 = «Otros» */
+
   --primario-tenue: color-mix(in srgb, var(--primario) 10%, transparent);
   --ok-tenue:       color-mix(in srgb, var(--ok) 12%, transparent);
   --aviso-tenue:    color-mix(in srgb, var(--aviso) 14%, transparent);
@@ -100,6 +104,7 @@
   --ing-borde:      rgba(255, 255, 255, 0.12);
   --ing-rejilla:    rgba(255, 255, 255, 0.045);
   --ing-vivo:       #34d399;
+  --ing-alerta:     #fb7185;
   --ing-sombra:     0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --fuente-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   --txt-hero:       clamp(2.4rem, 1.4rem + 4.2vw, 4.25rem);
@@ -136,6 +141,8 @@
     --serie-2:   #d95926;
     --rejilla:   #2a2d2c;
     --eje:       #9aa19d;
+    --cat-1: #f07a4a; --cat-2: #9a82e6; --cat-3: #2fc0b0; --cat-4: #e8b93a;
+    --cat-5: #e86a9a; --cat-6: #4f94ec; --cat-7: #9bcf4a; --cat-8: #8a97aa;
     --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 }
@@ -161,5 +168,7 @@
   --serie-2:   #d95926;
   --rejilla:   #2a2d2c;
   --eje:       #9aa19d;
+  --cat-1: #f07a4a; --cat-2: #9a82e6; --cat-3: #2fc0b0; --cat-4: #e8b93a;
+  --cat-5: #e86a9a; --cat-6: #4f94ec; --cat-7: #9bcf4a; --cat-8: #8a97aa;
   --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

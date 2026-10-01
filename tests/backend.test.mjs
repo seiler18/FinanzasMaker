@@ -136,6 +136,7 @@ const token = (carga, firma = 'firma-buena') => [Buffer.from('{"alg":"RS256"}').
 const valido = () => token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600 })
 const api = (accion, datos = {}, credencial = valido()) => G.doPost({ postData: { contents: JSON.stringify({ accion, credencial, ...datos }) } })
 
+const HOJAS_N = G.__.HOJAS.movimientos.length
 let ok = 0
 const fallos = []
 function prueba(nombre, fn) {
@@ -446,6 +447,26 @@ prueba('un movimiento de correo no deja cambiar su monto', () => {
   G.procesarCorreos()
   api('editar', { id: filas('Movimientos')[0].id, monto: 999999 })
   assert.equal(filas('Movimientos')[0].monto, 1000)
+})
+prueba('fecha contable: un movimiento de correo puede contar en otro día, y se puede quitar', () => {
+  compraTenpo('1.000')
+  G.procesarCorreos()
+  const id = filas('Movimientos')[0].id
+  assert.equal(api('editar', { id, fecha_contable: '2026-10-01' }).ok, true)
+  assert.equal(filas('Movimientos')[0].fecha_contable, '2026-10-01')
+  assert.match(filas('Movimientos')[0].fecha, /^2026-09-18/, 'la fecha real no se toca')
+  assert.equal(api('datos').movimientos[0].fecha_contable, '2026-10-01')
+  assert.equal(api('editar', { id, fecha_contable: '' }).ok, true)
+  assert.equal(api('datos').movimientos[0].fecha_contable, '')
+  assert.match(api('editar', { id, fecha_contable: 'ayer' }).error, /Fecha/)
+})
+prueba('fecha contable: una planilla anterior a la columna recibe su encabezado', () => {
+  compraTenpo('1.000')
+  G.procesarCorreos()
+  hojas['Movimientos'].d[0].length = HOJAS_N - 1
+  vm.runInContext('Object.keys(cabeceraAlDia_).forEach((k) => delete cabeceraAlDia_[k])', ctx)
+  assert.equal(api('datos').ok, true)
+  assert.equal(hojas['Movimientos'].d[0][HOJAS_N - 1], 'fecha_contable')
 })
 prueba('revisar → registrar: crea el movimiento y borra el correo', () => {
   correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000 a Pedro')

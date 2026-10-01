@@ -22,6 +22,13 @@ const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'jul
 const dd = (n) => String(n).padStart(2, '0')
 export const hoyISO = (d = new Date()) => `${d.getFullYear()}-${dd(d.getMonth() + 1)}-${dd(d.getDate())}`
 
+/* Día en que el movimiento CUENTA. Normalmente es el día en que ocurrió; si el
+   dueño fijó `fecha_contable` (un sueldo que el banco depositó el 30 de
+   septiembre pero corresponde a octubre) cuenta en ese día. Todos los
+   periodos, series y consejos pasan por aquí: si uno mirara `fecha` suelto,
+   el mismo movimiento contaría en meses distintos según la pantalla. */
+export const diaContable = (x) => String(x.fecha_contable || x.fecha).slice(0, 10)
+
 function diasDelMes(a, m) { return new Date(Date.UTC(a, m, 0)).getUTCDate() }
 
 /* ---------- periodos ---------- */
@@ -48,7 +55,7 @@ export function mover(escala, ref, paso) {
 }
 
 export function enRango(movs, r) {
-  return movs.filter((x) => { const f = String(x.fecha).slice(0, 10); return f >= r.desde && f <= r.hasta })
+  return movs.filter((x) => { const f = diaContable(x); return f >= r.desde && f <= r.hasta })
 }
 
 /* ---------- totales ---------- */
@@ -118,7 +125,7 @@ export function serie(movs, escala, ref) {
   const idx = new Map(puntos.map((p, i) => [p.clave, i]))
   const salida = puntos.map((p) => ({ ...p, ingresos: 0, gastos: 0 }))
   for (const x of movs) {
-    const i = idx.get(String(x.fecha).slice(0, largo))
+    const i = idx.get(diaContable(x).slice(0, largo))
     if (i == null) continue
     if (x.tipo === 'ingreso') salida[i].ingresos += Number(x.monto) || 0
     if (x.tipo === 'gasto') salida[i].gastos += Number(x.monto) || 0
@@ -129,7 +136,7 @@ export function serie(movs, escala, ref) {
 /* ---------- consejos ---------- */
 
 const clave = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
-const mesDe = (f) => String(f).slice(0, 7)
+const mesDe = (x) => diaContable(x).slice(0, 7)
 function mesAnterior(mes, n = 1) {
   const [a, m] = mes.split('-').map(Number)
   const d = new Date(Date.UTC(a, m - 1 - n, 1))
@@ -144,7 +151,7 @@ export function suscripciones(movs, mes) {
   const meses = new Set([mes, mesAnterior(mes), mesAnterior(mes, 2), mesAnterior(mes, 3)])
   const grupos = new Map()
   for (const x of movs) {
-    if (x.tipo !== 'gasto' || !meses.has(mesDe(x.fecha)) || !x.contraparte) continue
+    if (x.tipo !== 'gasto' || !meses.has(mesDe(x)) || !x.contraparte) continue
     // Se repiten pero no son «suscripciones» que uno revisa si cancelar.
     if (NO_SUSCRIPCION.has(x.categoria)) continue
     const k = clave(x.contraparte)
@@ -154,7 +161,7 @@ export function suscripciones(movs, mes) {
   const salida = []
   for (const lista of grupos.values()) {
     const porMes = new Map()
-    for (const x of lista) porMes.set(mesDe(x.fecha), x)
+    for (const x of lista) porMes.set(mesDe(x), x)
     if (porMes.size < 2) continue
     const montos = [...porMes.values()].map((x) => Number(x.monto))
     const min = Math.min(...montos), max = Math.max(...montos)
@@ -167,7 +174,7 @@ export function suscripciones(movs, mes) {
 
 export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
   const salida = []
-  const delMes = movs.filter((x) => mesDe(x.fecha) === mes)
+  const delMes = movs.filter((x) => mesDe(x) === mes)
   const t = totales(delMes)
   const clp = (n) => '$' + Math.round(n).toLocaleString('es-CL')
 
@@ -195,7 +202,7 @@ export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
     const total = diasDelMes(a, m)
     if (dia >= 5 && dia < total && t.gastos > 0) {
       const proy = (t.gastos / dia) * total
-      const previo = totales(movs.filter((x) => mesDe(x.fecha) === mesAnterior(mes))).gastos
+      const previo = totales(movs.filter((x) => mesDe(x) === mesAnterior(mes))).gastos
       const texto = `A este ritmo terminarías el mes con ${clp(proy)} en gastos` + (previo ? ` (el mes pasado fueron ${clp(previo)}).` : '.')
       salida.push({ nivel: previo && proy > previo * 1.1 ? 'atencion' : 'info', titulo: 'Proyección del mes', texto })
     }
@@ -203,10 +210,10 @@ export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
 
   // 4. Categorías que subieron frente al promedio de los 3 meses anteriores
   const previos = [1, 2, 3].map((n) => mesAnterior(mes, n))
-  const conDatos = previos.filter((pm) => movs.some((x) => mesDe(x.fecha) === pm))
+  const conDatos = previos.filter((pm) => movs.some((x) => mesDe(x) === pm))
   if (conDatos.length) {
     const prom = new Map()
-    for (const pm of conDatos) for (const c of porCategoria(movs.filter((x) => mesDe(x.fecha) === pm))) prom.set(c.categoria, (prom.get(c.categoria) || 0) + c.monto / conDatos.length)
+    for (const pm of conDatos) for (const c of porCategoria(movs.filter((x) => mesDe(x) === pm))) prom.set(c.categoria, (prom.get(c.categoria) || 0) + c.monto / conDatos.length)
     for (const [cat, monto] of gastoCat) {
       const p = prom.get(cat) || 0
       if (p > 0 && monto > p * 1.25 && monto - p >= 15000) {
@@ -233,7 +240,7 @@ export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
   }
 
   // 7. Cuotas
-  const enCuotas = movs.filter((x) => x.tipo === 'gasto' && Number(x.cuotas) > 1 && [mes, ...previos.slice(0, 2)].includes(mesDe(x.fecha)))
+  const enCuotas = movs.filter((x) => x.tipo === 'gasto' && Number(x.cuotas) > 1 && [mes, ...previos.slice(0, 2)].includes(mesDe(x)))
   if (enCuotas.length) {
     salida.push({ nivel: 'info', titulo: `${enCuotas.length} compra${enCuotas.length > 1 ? 's' : ''} en cuotas en los últimos 3 meses`, texto: `Suman ${clp(enCuotas.reduce((s, x) => s + Number(x.monto), 0))}. Salvo que sean sin interés, pagarlas en 1 cuota sale más barato.` })
   }

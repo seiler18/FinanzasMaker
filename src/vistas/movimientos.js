@@ -1,6 +1,6 @@
 import { html, pintar, $, aviso } from '../lib/dom.js'
 import { clp, fechaCorta, conSigno, SENTIDO } from '../lib/formato.js'
-import { rango, enRango, TIPOS } from '../lib/analisis.js'
+import { rango, mover, enRango, diaContable, TIPOS } from '../lib/analisis.js'
 
 /* Lista del periodo, agrupada por día, con filtros y edición.
    Editar la categoría con «aplicar a todos» guarda una regla en la hoja: la
@@ -12,7 +12,9 @@ const hora = (f) => { const h = String(f || '').slice(11, 16); return h && h !==
 
 export function movimientos(el, app, filtros = {}) {
   const r = rango(app.periodo.escala, app.periodo.ref)
-  const todos = enRango(app.datos.movimientos, r).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
+  // Se ordena y agrupa por el día en que CUENTA (fecha contable), no por el real: así un
+  // depósito de fin de mes que cuenta en el siguiente aparece en el mes que lo suma.
+  const todos = enRango(app.datos.movimientos, r).sort((a, b) => diaContable(b).localeCompare(diaContable(a)) || String(b.fecha).localeCompare(String(a.fecha)))
   const bancos = [...new Set(app.datos.movimientos.map((m) => m.banco).filter(Boolean))].sort()
   const categorias = app.categorias()
   const f = { texto: '', tipo: '', banco: '', categoria: '', ...filtros }
@@ -38,14 +40,14 @@ export function movimientos(el, app, filtros = {}) {
       && (!q || `${m.contraparte} ${m.nota} ${m.detalle} ${m.categoria}`.toLowerCase().includes(q)))
     if (!vis.length) return pintar(lista, html`<p class="vacio">No hay movimientos con esos filtros en ${r.etiqueta}.</p>`)
     const dias = new Map()
-    for (const m of vis) { const k = String(m.fecha).slice(0, 10); if (!dias.has(k)) dias.set(k, []); dias.get(k).push(m) }
+    for (const m of vis) { const k = diaContable(m); if (!dias.has(k)) dias.set(k, []); dias.get(k).push(m) }
     pintar(lista, html`<p class="tenue cuenta">${vis.length} movimiento${vis.length > 1 ? 's' : ''}</p>
       ${[...dias].map(([dia, ms]) => html`
       <h3 class="dia">${fechaCorta(dia)}</h3>
       <ul class="movs">${ms.map((m) => html`
         <li><button class="mov mov-${m.tipo}" data-id="${m.id}">
           <span class="mov-txt"><b>${m.contraparte || TIPOS[m.tipo]}</b>
-            <small>${hora(m.fecha)}${m.categoria || 'Otros'} · ${m.banco}${m.producto && m.producto !== 'Cuenta' ? ' · ' + m.producto : ''}${Number(m.cuotas) > 1 ? ` · ${m.cuotas} cuotas` : ''}${m.origen === 'manual' ? ' · manual' : ''}${m.nota ? ' · ' + m.nota : ''}</small></span>
+            <small>${movido(m)}${hora(m.fecha)}${m.categoria || 'Otros'} · ${m.banco}${m.producto && m.producto !== 'Cuenta' ? ' · ' + m.producto : ''}${Number(m.cuotas) > 1 ? ` · ${m.cuotas} cuotas` : ''}${m.origen === 'manual' ? ' · manual' : ''}${m.nota ? ' · ' + m.nota : ''}</small></span>
           <span class="mov-monto"><b class="${SENTIDO[m.tipo] ? 'monto-' + SENTIDO[m.tipo] : ''}">${conSigno(m.monto, SENTIDO[m.tipo])}</b>${m.tipo === 'interna' || m.tipo === 'pago_tarjeta' ? html`<small>no suma</small>` : ''}</span>
         </button></li>`)}</ul>`)}`)
   }
@@ -57,6 +59,9 @@ export function movimientos(el, app, filtros = {}) {
   })
   pintarLista()
 }
+
+// «llegó el vie 30 sep ·» cuando el movimiento cuenta en un día distinto al que ocurrió.
+const movido = (m) => (m.fecha_contable && m.fecha_contable !== String(m.fecha).slice(0, 10) ? `llegó el ${fechaCorta(String(m.fecha).slice(0, 10))} · ` : '')
 
 function editar(el, app, m, categorias) {
   const dlg = $('#editor', el)
@@ -73,6 +78,15 @@ function editar(el, app, m, categorias) {
         <label class="campo"><span>Monto</span><input name="monto" type="number" min="1" step="1" value="${m.monto}"></label>
         <label class="campo"><span>Fecha</span><input name="fecha" type="date" value="${String(m.fecha).slice(0, 10)}"></label>
         <label class="campo"><span>Contraparte</span><input name="contraparte" value="${m.contraparte}" maxlength="80"></label>` : ''}
+      <div class="campo campo-contable">
+        <label for="fecha-contable">Contar en el día <small>(opcional)</small></label>
+        <div class="fila-contable">
+          <input id="fecha-contable" name="fecha_contable" type="date" value="${m.fecha_contable || ''}">
+          <button type="button" class="btn btn-chico btn-borde" data-sig-mes>Mes siguiente</button>
+          <button type="button" class="btn btn-chico btn-borde" data-sin-contable>Quitar</button>
+        </div>
+        <small>Para un depósito que llegó antes de tiempo: cuenta en el mes al que corresponde, no en el que cayó. La fecha real no cambia.</small>
+      </div>
       <label class="campo"><span>Nota</span><input name="nota" value="${m.nota}" maxlength="200"></label>
       <div class="acciones">
         <button class="btn btn-peligro" value="eliminar" formnovalidate>Eliminar</button>
@@ -82,6 +96,8 @@ function editar(el, app, m, categorias) {
       </div>
     </form>`)
   const form = $('form', dlg)
+  form.querySelector('[data-sig-mes]').addEventListener('click', () => { form.fecha_contable.value = mover('mes', String(m.fecha).slice(0, 10), 1) })
+  form.querySelector('[data-sin-contable]').addEventListener('click', () => { form.fecha_contable.value = '' })
   form.addEventListener('submit', async (e) => {
     const accion = e.submitter?.value
     if (accion === 'cancelar') return
@@ -93,7 +109,9 @@ function editar(el, app, m, categorias) {
         aviso('Movimiento eliminado')
       } else {
         const d = Object.fromEntries(new FormData(form))
-        const cambios = { id: m.id, tipo: d.tipo, categoria: d.categoria.trim(), nota: d.nota, regla: d.regla === 'on' }
+        const cambios = { id: m.id, tipo: d.tipo, categoria: d.categoria.trim(), nota: d.nota, regla: d.regla === 'on',
+          // Igual a la fecha real = sin ajuste: no se guarda un dato que no cambia nada.
+          fecha_contable: d.fecha_contable === String(m.fecha).slice(0, 10) ? '' : d.fecha_contable }
         if (manual) Object.assign(cambios, { monto: Number(d.monto), fecha: d.fecha, contraparte: d.contraparte })
         const r = await app.llamar('editar', cambios)
         aviso(r.aplicados ? `Guardado, y aplicado a ${r.aplicados} movimiento${r.aplicados > 1 ? 's' : ''} más` : 'Guardado')

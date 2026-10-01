@@ -95,7 +95,7 @@ export async function demoLlamar(accion, d) {
       if (d.regla && d.categoria) {
         for (const x of db.movimientos) if (x !== m && x.contraparte === m.contraparte) { x.categoria = d.categoria; if (d.tipo) x.tipo = d.tipo; aplicados++ }
       }
-      for (const k of ['tipo', 'categoria', 'nota']) if (d[k] != null) m[k] = d[k]
+      for (const k of ['tipo', 'categoria', 'nota', 'fecha_contable']) if (d[k] != null) m[k] = d[k]
       if (m.origen === 'manual') for (const k of ['monto', 'contraparte', 'fecha']) if (d[k] != null) m[k] = k === 'monto' ? Number(d[k]) : d[k]
       return { ok: true, aplicados }
     }

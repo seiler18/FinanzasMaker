@@ -1,6 +1,6 @@
 // Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
 import assert from 'node:assert/strict'
-import { rango, mover, enRango, totales, porCategoria, porContraparte, serie, suscripciones, consejos } from '../src/lib/analisis.js'
+import { rango, mover, enRango, diaContable, totales, porCategoria, porContraparte, serie, suscripciones, consejos } from '../src/lib/analisis.js'
 import { conSigno, sentidoDe, SENTIDO } from '../src/lib/formato.js'
 
 let ok = 0
@@ -109,6 +109,30 @@ prueba('consejos: proyección solo para el mes en curso', () => {
   const movs = [m('2026-09-02', 'gasto', 100000)]
   assert.ok(consejos(movs, [], '2026-09', '2026-09-10').some((x) => x.titulo === 'Proyección del mes'))
   assert.ok(!consejos(movs, [], '2026-09', '2026-10-10').some((x) => x.titulo === 'Proyección del mes'))
+})
+
+prueba('fecha contable: el depósito del 30 de septiembre cuenta en octubre', () => {
+  const sueldo = m('2026-09-30 09:00', 'ingreso', 3000000, { fecha_contable: '2026-10-01' })
+  const movs = [sueldo, m('2026-09-10', 'ingreso', 100000), m('2026-10-05', 'gasto', 500000)]
+  assert.equal(diaContable(sueldo), '2026-10-01')
+  assert.equal(diaContable(m('2026-09-10', 'gasto', 1)), '2026-09-10')
+  assert.equal(totales(enRango(movs, rango('mes', '2026-09-15'))).ingresos, 100000)
+  const oct = totales(enRango(movs, rango('mes', '2026-10-15')))
+  assert.equal(oct.ingresos, 3000000)
+  assert.equal(oct.ahorro, 2500000)
+  // la serie del año y la del mes también lo mueven
+  const anio = serie(movs, 'año', '2026-10-15')
+  assert.equal(anio[8].ingresos, 100000)
+  assert.equal(anio[9].ingresos, 3000000)
+  assert.equal(serie(movs, 'mes', '2026-10-15')[0].ingresos, 3000000)
+  // sin fecha_contable (vacía) cuenta en su fecha real
+  assert.equal(diaContable({ ...sueldo, fecha_contable: '' }), '2026-09-30')
+})
+
+prueba('fecha contable: los consejos miden el mes contable', () => {
+  const movs = [m('2026-09-30', 'ingreso', 1000000, { fecha_contable: '2026-10-01' }), m('2026-10-03', 'gasto', 1500000)]
+  assert.ok(consejos(movs, [], '2026-10', '2026-10-31').some((x) => x.titulo === 'Gastaste más de lo que entró') === true)
+  assert.ok(!consejos(movs, [], '2026-09', '2026-10-31').some((x) => x.titulo === 'Gastaste más de lo que entró'))
 })
 
 console.log(`analisis: ${ok} pruebas ok`)

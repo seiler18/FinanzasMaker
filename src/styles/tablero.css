@@ -1,0 +1,192 @@
+/* ============================================================
+   TABLERO — la portada del resumen: cabina, tarjetas con sparkline,
+   gráfico de área, dona de gastos y calendario de calor.
+
+   Los colores salen de tokens.css (--cat-*, --serie-*, --ing-*). La cabina
+   es siempre oscura, como la pantalla de ingreso: no sigue el tema, y por eso
+   usa los tokens --ing-*. Las animaciones solo corren bajo .vista[data-entra]
+   (al cambiar de vista), igual que en movimiento.css.
+   ============================================================ */
+
+.tablero { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: stretch; }
+.tablero .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: stretch; }
+
+/* ----- Cabina ----- */
+.cabina {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: grid; gap: 16px; align-content: start;
+  padding: 22px; border-radius: var(--radio);
+  background: linear-gradient(150deg, var(--ing-fondo-2), var(--ing-fondo));
+  border: 1px solid var(--ing-borde); box-shadow: var(--ing-sombra);
+  color: var(--ing-texto);
+}
+.cabina-brillo {
+  position: absolute; z-index: -1; width: 260px; height: 260px; border-radius: 50%;
+  filter: blur(70px); opacity: 0.35; pointer-events: none;
+  animation: deriva var(--ciclo-aurora) ease-in-out infinite alternate;
+}
+.cabina-brillo-1 { top: -110px; left: -80px; background: var(--ing-aurora-1); }
+.cabina-brillo-2 { bottom: -120px; right: -60px; background: var(--ing-aurora-2); animation-delay: calc(var(--ciclo-aurora) / -3); }
+.cabina-rejilla {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(var(--ing-rejilla) 1px, transparent 1px), linear-gradient(90deg, var(--ing-rejilla) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 80% 70% at 30% 30%, var(--ing-fondo) 10%, transparent 75%);
+}
+.cabina-eyebrow { display: flex; align-items: center; gap: 10px; color: var(--ing-tenue); font-size: var(--txt-menudo); font-weight: 600; text-transform: capitalize; letter-spacing: 0.04em; }
+.cabina-cuerpo { display: flex; align-items: center; gap: 20px; }
+.anillo { position: relative; flex: none; width: clamp(110px, 14vw, 140px); aspect-ratio: 1; }
+.an-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.an-pista { fill: none; stroke: var(--ing-vidrio-2); stroke-width: 9; }
+.an-arco { fill: none; stroke-width: 9; stroke-linecap: round; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ing-aurora-1) 55%, transparent)); }
+.an-par-1 { stop-color: var(--ing-aurora-1); }
+.an-par-2 { stop-color: var(--ing-aurora-2); }
+.an-ojo { stroke: var(--aviso); }
+.an-mal { stroke: var(--ing-alerta); }
+.an-centro { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.an-centro b { font-family: var(--fuente-display); font-size: var(--txt-t2); color: var(--ing-texto); line-height: 1.1; }
+.an-centro small { font-size: var(--txt-micro); color: var(--ing-tenue); }
+.cabina-datos { min-width: 0; }
+.cabina-pregunta { color: var(--ing-tenue); font-size: var(--txt-menudo); }
+.cabina-cifra { margin: 2px 0; }
+.cabina .cifra { font-family: var(--fuente-display); font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem); line-height: 1.1; color: var(--ing-texto); }
+.cabina .cifra.monto-mas { color: var(--ing-vivo); }
+.cabina .cifra.monto-menos { color: var(--ing-alerta); }
+.cabina-sub { color: var(--ing-tenue); font-size: var(--txt-menudo); }
+.cabina-filas { display: grid; margin: 0; border-top: 1px solid var(--ing-borde); }
+.cabina-filas div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--ing-borde); font-size: var(--txt-menudo); }
+.cabina-filas dt { color: var(--ing-tenue); }
+.cabina-filas dd { margin: 0; text-align: right; font-weight: 600; }
+.cabina-bien { color: var(--ing-vivo); }
+.cabina-mal { color: var(--ing-alerta); }
+.cabina-pista { padding: 10px 12px; border: 1px solid var(--ing-borde); border-radius: var(--radio-sm); background: var(--ing-vidrio); font-size: var(--txt-menudo); }
+
+/* ----- Tarjetas con sparkline y luz que sigue al puntero ----- */
+.tablero .kpi { position: relative; overflow: hidden; align-content: start; }
+.kpi::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0), color-mix(in srgb, var(--primario) 18%, transparent), transparent 70%);
+  transition: opacity var(--medio) var(--curva);
+}
+.kpi > * { position: relative; z-index: 1; }
+@media (hover: hover) { .kpi:hover::before { opacity: 1; } }
+.kpi-cambio { font-size: var(--txt-micro); font-weight: 700; }
+.kpi-cambio small { font-weight: 500; color: var(--texto-tenue); }
+.kpi-bien { color: var(--mas); }
+.kpi-mal { color: var(--menos); }
+.kpi-igual { color: var(--texto-tenue); }
+.sp { display: block; width: 100%; height: 30px; margin-top: 8px; overflow: visible; }
+.sp-area { fill: color-mix(in srgb, var(--sp, var(--primario)) 14%, transparent); stroke: none; }
+.sp-linea { fill: none; stroke: var(--sp, var(--primario)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.sp-ingresos { --sp: var(--mas); }
+.sp-gastos { --sp: var(--menos); }
+.sp-ahorro { --sp: var(--primario); }
+
+/* ----- Gráfico de área ----- */
+.escalas-chicas .escala { min-height: 32px; padding: 0 14px; font-size: var(--txt-menudo); }
+.a-svg { touch-action: pan-y; outline: none; }
+.a-svg:focus-visible { outline: 2px solid var(--primario); outline-offset: 4px; border-radius: var(--radio-sm); }
+.a-par-s1 { stop-color: var(--serie-1); stop-opacity: 0.38; }
+.a-par-s2 { stop-color: var(--serie-2); stop-opacity: 0.34; }
+.a-par-fin { stop-color: var(--surface); stop-opacity: 0; }
+.a-linea { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.a-s1 { stroke: var(--serie-1); }
+.a-s2 { stroke: var(--serie-2); }
+.a-cursor { opacity: 0; transition: opacity var(--rapido) var(--curva); pointer-events: none; }
+.a-activo .a-cursor { opacity: 1; }
+.a-guia { stroke: var(--eje); stroke-width: 1; stroke-dasharray: 3 3; }
+.a-punto { stroke: var(--surface); stroke-width: 2; }
+.a-punto-s1 { fill: var(--serie-1); }
+.a-punto-s2 { fill: var(--serie-2); }
+.a-captura { fill: transparent; cursor: crosshair; }
+
+/* ----- Dona de gastos ----- */
+.reparto-gasto { display: grid; gap: 20px 28px; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); align-items: center; }
+.dona { position: relative; width: 100%; max-width: 260px; aspect-ratio: 1; margin-inline: auto; }
+.d-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.d-pista { fill: none; stroke: var(--surface-2); stroke-width: 13; }
+.d-seg { fill: none; stroke-width: 13; cursor: pointer; outline: none; transition: opacity var(--medio) var(--curva), stroke-width var(--medio) var(--curva); }
+.d-seg.d-activo, .d-seg:focus-visible { stroke-width: 17; }
+.d-seg.d-apagado { opacity: 0.25; }
+.d-centro { position: absolute; inset: 0; display: grid; place-content: center; gap: 2px; padding: 22%; text-align: center; pointer-events: none; }
+.d-tit, .d-sub { color: var(--texto-tenue); font-size: var(--txt-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-monto { font-family: var(--fuente-display); font-size: var(--txt-t2); color: var(--texto-fuerte); line-height: 1.1; }
+
+/* Un color por categoría: el mismo en la dona, el punto y la barra. */
+.d-seg.d-c1 { stroke: var(--cat-1); } .d-seg.d-c2 { stroke: var(--cat-2); } .d-seg.d-c3 { stroke: var(--cat-3); } .d-seg.d-c4 { stroke: var(--cat-4); }
+.d-seg.d-c5 { stroke: var(--cat-5); } .d-seg.d-c6 { stroke: var(--cat-6); } .d-seg.d-c7 { stroke: var(--cat-7); } .d-seg.d-c8 { stroke: var(--cat-8); }
+.cat-punto.d-c1, .cat-barra.d-c1 { background: var(--cat-1); } .cat-punto.d-c2, .cat-barra.d-c2 { background: var(--cat-2); }
+.cat-punto.d-c3, .cat-barra.d-c3 { background: var(--cat-3); } .cat-punto.d-c4, .cat-barra.d-c4 { background: var(--cat-4); }
+.cat-punto.d-c5, .cat-barra.d-c5 { background: var(--cat-5); } .cat-punto.d-c6, .cat-barra.d-c6 { background: var(--cat-6); }
+.cat-punto.d-c7, .cat-barra.d-c7 { background: var(--cat-7); } .cat-punto.d-c8, .cat-barra.d-c8 { background: var(--cat-8); }
+.cat-punto { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 3px; }
+.reparto-gasto .cats { align-self: stretch; }
+
+/* ----- Calendario de calor ----- */
+.calor { display: grid; gap: 8px; }
+.ca-semana, .ca-rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.ca-semana span { text-align: center; color: var(--texto-tenue); font-size: var(--txt-micro); font-weight: 600; }
+.ca-rejilla { position: relative; }
+.ca-dia {
+  position: relative; aspect-ratio: 1; padding: 0; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--radio-sm);
+  background: var(--surface-2); color: var(--texto-tenue); font-size: var(--txt-micro);
+  transition: transform var(--rapido) var(--curva);
+}
+.ca-n1 { background: color-mix(in srgb, var(--serie-2) 24%, var(--surface-2)); color: var(--texto-fuerte); }
+.ca-n2 { background: color-mix(in srgb, var(--serie-2) 48%, var(--surface-2)); color: var(--texto-fuerte); }
+.ca-n3 { background: color-mix(in srgb, var(--serie-2) 74%, var(--surface-2)); color: var(--texto-sobre-primario); }
+.ca-n4 { background: var(--serie-2); color: var(--texto-sobre-primario); }
+.ca-dia.ca-entra::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--mas); box-shadow: 0 0 0 2px var(--surface); }
+.ca-dia.ca-hoy { border-color: var(--primario); box-shadow: 0 0 0 1px var(--primario); }
+@media (hover: hover) { .ca-dia:hover { transform: scale(1.14); z-index: 2; } }
+.ca-dia:focus-visible { transform: scale(1.14); z-index: 2; }
+.ca-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; color: var(--texto-tenue); font-size: var(--txt-micro); }
+.ca-leyenda i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
+.ca-clave { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.ca-clave .ca-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--mas); }
+
+/* ----- Editor: «Contar en el día» ----- */
+.campo-contable label { color: var(--texto-tenue); }
+.fila-contable { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fila-contable input { flex: 1 1 150px; width: auto; }
+
+/* ----- Entrada animada (solo al cambiar de vista) ----- */
+@keyframes traza { from { stroke-dashoffset: 1; } }
+@keyframes llena-arco { from { stroke-dasharray: 0 100; } }
+@keyframes aparece { from { opacity: 0; } }
+@keyframes revela { from { clip-path: inset(0 100% 0 0); } }
+@keyframes pop { from { opacity: 0; transform: scale(0.4); } }
+
+.vista[data-entra] .cabina,
+.vista[data-entra] .tablero .kpi { animation: sube var(--lento) var(--curva) both; }
+.vista[data-entra] .a-linea { animation: traza calc(var(--crece) * 1.4) var(--curva) both; }
+.vista[data-entra] .a-linea-2 { animation-delay: calc(var(--escalon) * 3); }
+.vista[data-entra] .a-relleno { animation: aparece calc(var(--crece) * 1.4) var(--curva) both; }
+.vista[data-entra] .an-arco { animation: llena-arco calc(var(--crece) * 1.6) var(--curva) both; animation-delay: var(--escalon); }
+.vista[data-entra] .d-seg { animation: llena-arco calc(var(--crece) * 1.4) var(--curva) both; }
+.vista[data-entra] .d-seg:nth-child(2) { animation-delay: var(--escalon); }
+.vista[data-entra] .d-seg:nth-child(3) { animation-delay: calc(var(--escalon) * 2); }
+.vista[data-entra] .d-seg:nth-child(4) { animation-delay: calc(var(--escalon) * 3); }
+.vista[data-entra] .d-seg:nth-child(n+5) { animation-delay: calc(var(--escalon) * 4); }
+.vista[data-entra] .sp { animation: revela calc(var(--crece) * 1.2) var(--curva) both; animation-delay: calc(var(--escalon) * 2); }
+.vista[data-entra] .ca-dia { animation: pop var(--medio) var(--resorte) both; animation-delay: calc(var(--i, 0) * var(--escalon) * 0.35); }
+.vista[data-entra] .tablero .kpi:nth-child(2) { animation-delay: var(--escalon); }
+.vista[data-entra] .tablero .kpi:nth-child(3) { animation-delay: calc(var(--escalon) * 2); }
+.vista[data-entra] .tablero .kpi:nth-child(4) { animation-delay: calc(var(--escalon) * 3); }
+
+@media (max-width: 900px) {
+  .tablero { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .cabina { padding: 18px; }
+  .reparto-gasto { grid-template-columns: minmax(0, 1fr); }
+  .dona { max-width: 220px; }
+  .ca-semana, .ca-rejilla { gap: 4px; }
+}
+@media (max-width: 400px) {
+  .cabina-cuerpo { flex-direction: column; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cabina-brillo { animation: none; }
+}

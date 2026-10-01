@@ -15,7 +15,7 @@ import { compacto, clp } from './formato.js'
 
 const W = 720, H = 240, M = { t: 12, r: 8, b: 26, l: 56 }
 
-function escalaY(max) {
+export function escalaY(max) {
   if (max <= 0) return { tope: 1, marcas: [0] }
   const paso0 = max / 4
   const mag = 10 ** Math.floor(Math.log10(paso0))

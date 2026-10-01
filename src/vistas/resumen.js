@@ -1,42 +1,122 @@
 import { html, crudo, pintar, $, cerrarDialogo } from '../lib/dom.js'
 import { clp, compacto, porciento, fechaCorta, conSigno, sentidoDe, SENTIDO } from '../lib/formato.js'
-import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco, serie, TIPOS } from '../lib/analisis.js'
+import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco, serie, hoyISO, TIPOS } from '../lib/analisis.js'
 import { barrasPareadas, pintarBarrasHorizontales } from '../lib/grafico.js'
+import { areaTendencia, anillo, dona, calor, sparkline, claseCat } from '../lib/tablero.js'
 import { contarCifras } from '../lib/cuenta.js'
 
 const FLECHA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
+
+const ANTERIOR = { dia: 'el día anterior', mes: 'el mes anterior', año: 'el año anterior' }
+const diasDelMes = (a, m) => new Date(Date.UTC(a, m, 0)).getUTCDate()
+const utc = (f) => { const [a, m, d] = f.split('-').map(Number); return Date.UTC(a, m - 1, d) }
+
+/* Cuánto cambió una cifra frente al periodo anterior. `buenoSubiendo`: para
+   los ingresos subir es bueno; para los gastos, malo. Sin base de
+   comparación (el periodo anterior estaba en cero) no se inventa un
+   porcentaje infinito: simplemente no hay chip. */
+function variacion(actual, antes, buenoSubiendo) {
+  if (!antes) return null
+  const p = (actual - antes) / Math.abs(antes)
+  if (Math.abs(p) < 0.01) return { texto: '= igual', clase: 'igual' }
+  const sube = p > 0
+  return { texto: `${sube ? '▲' : '▼'} ${Math.round(Math.abs(p) * 100)} %`, clase: sube === buenoSubiendo ? 'bien' : 'mal' }
+}
+
+/* Filas de la «cabina»: lo que dice cómo va el periodo además del ahorro.
+   Cada fila solo aparece si tiene sentido (no se proyecta un mes que ya
+   terminó, ni se promedia por día un día suelto). */
+function filasCabina({ escala, ref, r, t, antes }) {
+  const filas = []
+  const hoy = hoyISO()
+  if (escala !== 'dia') {
+    const fin = hoy < r.hasta ? hoy : r.hasta
+    const dias = fin < r.desde ? 0 : Math.round((utc(fin) - utc(r.desde)) / 864e5) + 1
+    if (dias > 0 && t.gastos > 0) filas.push(['Gastas por día', clp(t.gastos / dias)])
+    if (escala === 'mes' && hoy >= r.desde && hoy < r.hasta) {
+      const [a, m] = ref.split('-').map(Number)
+      const dia = Number(hoy.slice(8, 10)), total = diasDelMes(a, m)
+      if (dia >= 3 && t.gastos > 0) {
+        const proy = (t.gastos / dia) * total
+        filas.push(['Proyección a fin de mes', clp(proy) + (t.ingresos > 0 ? ` · ${porciento(proy / t.ingresos)} de lo que entró` : '')])
+      }
+    }
+  }
+  const v = variacion(t.gastos, antes.gastos, false)
+  if (v && v.clase !== 'igual') filas.push([`Gasto vs ${ANTERIOR[escala]}`, `${v.texto} (${clp(antes.gastos)})`, v.clase])
+  return filas
+}
 
 export function resumen(el, app) {
   const { escala, ref } = app.periodo
   const r = rango(escala, ref)
   const movs = enRango(app.datos.movimientos, r)
   const t = totales(movs)
+  const antes = totales(enRango(app.datos.movimientos, rango(escala, mover(escala, ref, -1))))
   const cats = porCategoria(movs)
   const bancos = porBanco(movs.filter((m) => m.tipo === 'gasto' || m.tipo === 'ingreso'))
   const presup = new Map((app.datos.presupuestos || []).map((p) => [p.categoria, Number(p.monto_mensual) || 0]))
   const maxCat = Math.max(1, ...cats.map((c) => Math.max(c.monto, escala === 'mes' ? presup.get(c.categoria) || 0 : 0)))
   const puntos = escala === 'dia' ? null : serie(app.datos.movimientos, escala, ref)
+  const filas = filasCabina({ escala, ref, r, t, antes })
+
+  // Ahorro acumulado punto a punto: sube cuando entra plata y baja cuando sale.
+  let corrido = 0
+  const sparks = puntos && {
+    ingresos: puntos.map((p) => p.ingresos),
+    gastos: puntos.map((p) => p.gastos),
+    ahorro: puntos.map((p) => (corrido += p.ingresos - p.gastos)),
+  }
 
   // Cada tarjeta es un botón: abre su detalle (abrirDetalle, más abajo).
-  const kpi = (clave, titulo, valor, sentido, nota = '') => html`
+  const kpi = (clave, titulo, valor, sentido, nota = '', cambio = null) => html`
     <button type="button" class="kpi kpi-${clave}" data-kpi="${clave}" aria-haspopup="dialog">
       <span class="kpi-titulo">${titulo}<span class="kpi-flecha">${crudo(FLECHA)}</span></span>
       <span class="cifra ${sentido ? 'monto-' + sentido : ''}" data-cuenta="${valor}" data-sentido="${sentido}">${conSigno(valor, sentido)}</span>
+      ${cambio ? html`<span class="kpi-cambio kpi-${cambio.clase}">${cambio.texto}<small> vs ${ANTERIOR[escala].replace('el ', '')}</small></span>` : ''}
       ${nota ? html`<span class="kpi-nota">${nota}</span>` : ''}
+      ${sparks && sparks[clave] ? crudo(sparkline(sparks[clave], 'sp-' + clave)) : ''}
     </button>`
 
+  // Un mes sin ingresos casi siempre es un depósito que cayó el mes anterior:
+  // se avisa dónde corregirlo en vez de dejar el «sin ingresos» a secas.
+  const pistaIngreso = escala === 'mes' && t.ingresos === 0 && t.gastos > 0
+
   pintar(el, html`
-    <section class="kpis" aria-label="Totales de ${r.etiqueta}. Toca una tarjeta para ver su detalle">
-      ${kpi('ingresos', 'Ingresos', t.ingresos, t.ingresos ? 'mas' : '')}
-      ${kpi('gastos', 'Gastos', t.gastos, t.gastos ? 'menos' : '')}
-      ${kpi('ahorro', 'Ahorro', t.ahorro, sentidoDe(t.ahorro), t.tasa == null ? 'sin ingresos en el periodo' : `${porciento(t.tasa)} de lo que entró`)}
-      ${kpi('inversion', 'Invertido neto', t.inversionNeta, '', `${clp(t.invertido)} aportado · ${clp(t.rescatado)} retirado`)}
-    </section>
+    <div class="tablero">
+      <section class="cabina" aria-label="Estado de ${r.etiqueta}">
+        <span class="cabina-brillo cabina-brillo-1" aria-hidden="true"></span>
+        <span class="cabina-brillo cabina-brillo-2" aria-hidden="true"></span>
+        <span class="cabina-rejilla" aria-hidden="true"></span>
+        <p class="cabina-eyebrow"><span class="punto-vivo" aria-hidden="true"></span>${r.etiqueta}</p>
+        <div class="cabina-cuerpo">
+          <div id="anillo" class="anillo"></div>
+          <div class="cabina-datos">
+            <p class="cabina-pregunta">${t.ahorro < 0 ? 'Gastaste de más' : 'Te quedó'}</p>
+            <p class="cabina-cifra"><span class="cifra" data-cuenta="${t.ahorro}" data-sentido="${sentidoDe(t.ahorro)}">${conSigno(t.ahorro, sentidoDe(t.ahorro))}</span></p>
+            <p class="cabina-sub">${t.tasa == null ? 'sin ingresos en el periodo' : `${porciento(t.tasa)} de lo que entró`}</p>
+          </div>
+        </div>
+        ${filas.length ? html`<dl class="cabina-filas">${filas.map(([k, v, c]) => html`<div><dt>${k}</dt><dd class="${c ? 'cabina-' + c : ''}">${v}</dd></div>`)}</dl>` : ''}
+        ${pistaIngreso ? html`<p class="cabina-pista">¿Un ingreso llegó antes de tiempo? Ábrelo en Movimientos y usa «Contar en el día» para que sume a este mes.</p>` : ''}
+      </section>
+
+      <section class="kpis" aria-label="Totales de ${r.etiqueta}. Toca una tarjeta para ver su detalle">
+        ${kpi('ingresos', 'Ingresos', t.ingresos, t.ingresos ? 'mas' : '', '', variacion(t.ingresos, antes.ingresos, true))}
+        ${kpi('gastos', 'Gastos', t.gastos, t.gastos ? 'menos' : '', '', variacion(t.gastos, antes.gastos, false))}
+        ${kpi('ahorro', 'Ahorro', t.ahorro, sentidoDe(t.ahorro), t.tasa == null ? 'sin ingresos en el periodo' : `${porciento(t.tasa)} de lo que entró`)}
+        ${kpi('inversion', 'Invertido neto', t.inversionNeta, '', `${clp(t.invertido)} aportado · ${clp(t.rescatado)} retirado`)}
+      </section>
+    </div>
 
     ${puntos ? html`
       <section class="panel">
-        <header class="panel-cab"><h2>${escala === 'año' ? 'Mes a mes' : 'Día a día'}</h2>
-          <p class="tenue">${escala === 'año' ? 'Toca un mes para abrirlo' : 'Toca un día para ver sus movimientos'}</p></header>
+        <header class="panel-cab"><div><h2>${escala === 'año' ? 'Mes a mes' : 'Día a día'}</h2>
+          <p class="tenue">${escala === 'año' ? 'Toca un mes para abrirlo' : 'Toca un día para ver sus movimientos'}</p></div>
+          <div class="escalas escalas-chicas" role="group" aria-label="Tipo de gráfico">
+            <button type="button" class="escala" data-grafico="area" aria-pressed="true">Área</button>
+            <button type="button" class="escala" data-grafico="barras" aria-pressed="false">Barras</button>
+          </div></header>
         <div id="grafico" class="grafico"></div>
         <details class="tabla-datos">
           <summary>Ver como tabla</summary>
@@ -47,24 +127,31 @@ export function resumen(el, app) {
         </details>
       </section>` : ''}
 
-    <div class="columnas">
-      <section class="panel">
-        <header class="panel-cab"><h2>En qué se fue</h2>
-          ${escala === 'mes' && presup.size ? html`<p class="tenue">La raya marca tu presupuesto</p>` : ''}</header>
-        ${cats.length ? html`<ul class="cats">${cats.map((c) => {
+    <section class="panel">
+      <header class="panel-cab"><h2>En qué se fue</h2>
+        <p class="tenue">${escala === 'mes' && presup.size ? 'La raya marca tu presupuesto · ' : ''}Toca una categoría para ver sus movimientos</p></header>
+      ${cats.length ? html`<div class="reparto-gasto">
+        <div id="dona" class="dona"></div>
+        <ul class="cats">${cats.map((c, i) => {
           const tope = escala === 'mes' ? presup.get(c.categoria) : 0
           const estado = tope ? (c.monto > tope ? 'excedido' : c.monto >= tope * 0.8 ? 'cerca' : '') : ''
           return html`<li>
             <button class="cat" data-cat="${c.categoria}">
-              <span class="cat-nombre">${c.categoria}</span>
+              <span class="cat-nombre"><i class="cat-punto d-${claseCat(i)}" aria-hidden="true"></i>${c.categoria}</span>
               <span class="cat-monto"><b class="monto-menos">${conSigno(c.monto, 'menos')}</b>${tope ? html` <small class="${estado}">de ${compacto(tope)}${estado === 'excedido' ? ' · excedido' : ''}</small>` : ''}</span>
               <span class="cat-pista" aria-hidden="true">
-                <span class="cat-barra" data-p="${(c.monto / maxCat) * 100}"></span>
+                <span class="cat-barra d-${claseCat(i)}" data-p="${(c.monto / maxCat) * 100}"></span>
                 ${tope ? html`<span class="cat-tope" data-p="${(tope / maxCat) * 100}"></span>` : ''}
               </span>
             </button></li>`
-        })}</ul>` : html`<p class="vacio">No hay gastos en ${r.etiqueta}.</p>`}
-      </section>
+        })}</ul></div>` : html`<p class="vacio">No hay gastos en ${r.etiqueta}.</p>`}
+    </section>
+
+    <div class="columnas">
+      ${escala === 'mes' ? html`<section class="panel">
+        <header class="panel-cab"><h2>Calendario de gasto</h2><p class="tenue">Cuanto más oscuro, más gastaste ese día</p></header>
+        <div id="calor" class="calor"></div>
+      </section>` : ''}
 
       <section class="panel">
         <header class="panel-cab"><h2>Por banco</h2></header>
@@ -77,11 +164,50 @@ export function resumen(el, app) {
     </div>
     <dialog id="detalle" class="dialogo hoja" aria-labelledby="detalle-titulo"></dialog>`)
 
+  anillo(el.querySelector('#anillo'), t.tasa)
+
   if (puntos) {
-    barrasPareadas(el.querySelector('#grafico'), puntos, {
-      alElegir: (p) => app.cambiarPeriodo(escala === 'año' ? 'mes' : 'dia', escala === 'año' ? `${p.clave}-01` : p.clave, 'adentro'),
+    const elegir = (p) => app.cambiarPeriodo(escala === 'año' ? 'mes' : 'dia', escala === 'año' ? `${p.clave}-01` : p.clave, 'adentro')
+    const pintarGrafico = (tipo) => {
+      const caja = el.querySelector('#grafico')
+      if (tipo === 'barras') barrasPareadas(caja, puntos, { alElegir: elegir })
+      else areaTendencia(caja, puntos, { alElegir: elegir })
+    }
+    pintarGrafico('area')
+    el.querySelector('[data-grafico]').closest('.escalas').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-grafico]')
+      if (!b || b.getAttribute('aria-pressed') === 'true') return
+      el.querySelectorAll('[data-grafico]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+      pintarGrafico(b.dataset.grafico)
     })
   }
+
+  if (cats.length) {
+    const donut = dona(el.querySelector('#dona'), cats, {
+      total: t.gastos,
+      alElegir: (s) => app.ir('movimientos', s.otros ? { tipo: 'gasto' } : { categoria: s.nombre }),
+    })
+    // La lista y la dona se iluminan juntas.
+    const lista = el.querySelector('.cats')
+    lista.addEventListener('pointerover', (e) => { const b = e.target.closest('[data-cat]'); if (b) donut.resaltar(b.dataset.cat) })
+    lista.addEventListener('pointerleave', () => donut.resaltar(null))
+    lista.addEventListener('focusin', (e) => { const b = e.target.closest('[data-cat]'); if (b) donut.resaltar(b.dataset.cat) })
+    lista.addEventListener('focusout', () => donut.resaltar(null))
+  }
+
+  if (escala === 'mes') {
+    calor(el.querySelector('#calor'), puntos, { hoy: hoyISO(), alElegir: (p) => app.cambiarPeriodo('dia', p.clave, 'adentro') })
+  }
+
+  // La luz de cada tarjeta sigue al puntero (--mx/--my, ver tablero.css).
+  el.querySelector('.kpis').addEventListener('pointermove', (e) => {
+    const k = e.target.closest('.kpi')
+    if (!k) return
+    const c = k.getBoundingClientRect()
+    k.style.setProperty('--mx', `${e.clientX - c.left}px`)
+    k.style.setProperty('--my', `${e.clientY - c.top}px`)
+  })
+
   pintarBarrasHorizontales(el)
   contarCifras(el)
   el.addEventListener('click', (e) => {

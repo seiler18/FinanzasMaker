@@ -16,7 +16,10 @@
 
 const HOJAS = {
   movimientos: ['id', 'fecha', 'banco', 'producto', 'tipo', 'monto', 'moneda', 'monto_original', 'contraparte',
-                'categoria', 'cuotas', 'detalle', 'nota', 'origen', 'gmail_id', 'registrado'],
+                'categoria', 'cuotas', 'detalle', 'nota', 'origen', 'gmail_id', 'registrado',
+                // Opcional, 'AAAA-MM-DD'. Si está, el movimiento cuenta en ESE día para los
+                // totales y no en `fecha` (que sigue siendo cuándo ocurrió de verdad).
+                'fecha_contable'],
   inversiones: ['id', 'fecha', 'plataforma', 'operacion', 'instrumento', 'monto', 'moneda', 'detalle', 'gmail_id', 'registrado'],
   revisar:     ['gmail_id', 'fecha', 'remitente', 'asunto', 'motivo', 'tipo', 'monto', 'contraparte', 'banco', 'extracto', 'estado'],
   // Bitácora de cada correo procesado. Es lo que queda como respaldo cuando
@@ -477,6 +480,9 @@ const ACCIONES = {
     if (b.tipo != null) { if (TIPOS.indexOf(b.tipo) === -1) falla_('Tipo no válido'); cambios.tipo = b.tipo; }
     if (b.categoria != null) cambios.categoria = texto_(b.categoria, 40) || 'Otros';
     if (b.nota != null) cambios.nota = texto_(b.nota, 200);
+    // Vacío = que vuelva a contar en su fecha real. Vale para todo origen:
+    // lo típico es un depósito del banco que llegó antes de tiempo.
+    if (b.fecha_contable != null) cambios.fecha_contable = b.fecha_contable === '' ? '' : fechaValida_(b.fecha_contable).slice(0, 10);
     const filas = leer_('movimientos');
     const m = filas.find((f) => String(f.id) === id);
     if (!m) falla_('No existe ese movimiento');
@@ -572,6 +578,7 @@ function validarMov_(x) {
     fecha: fechaValida_(x.fecha), banco: texto_(x.banco, 40) || 'Efectivo', producto: texto_(x.producto, 40) || 'Cuenta',
     tipo, monto: enteroPositivo_(x.monto), moneda: 'CLP', monto_original: '', contraparte: texto_(x.contraparte, 80),
     categoria: texto_(x.categoria, 40), cuotas: '', detalle: texto_(x.detalle, 200), nota: texto_(x.nota, 200),
+    fecha_contable: x.fecha_contable ? fechaValida_(x.fecha_contable).slice(0, 10) : '',
   };
   if (!m.categoria) categorizar_(m, leer_('reglas').filter((r) => r.patron));
   return m;
@@ -599,6 +606,8 @@ function fechaValida_(v) {
 function limpiarMov_(f) {
   const o = Object.assign({}, f);
   if (esFecha_(o.fecha)) o.fecha = fmtFecha_(o.fecha);
+  // Solo el día: deCelda_ ya la devuelve como 'AAAA-MM-DD HH:MM' si Sheets la convirtió.
+  o.fecha_contable = String(o.fecha_contable || '').slice(0, 10);
   o.monto = Number(o.monto) || 0;
   delete o.gmail_id;
   return o;
@@ -608,9 +617,19 @@ function limpiarMov_(f) {
    HOJA
    ============================================================ */
 
+const cabeceraAlDia_ = {};
+
 function hoja_(nombre) {
   const ss = SpreadsheetApp.getActive();
   let h = ss.getSheetByName(NOMBRES_HOJA[nombre]);
+  // Planilla creada antes de que HOJAS ganara una columna: se le escribe el
+  // encabezado que falta, o la columna nueva existiría sin nombre. Una vez por
+  // ejecución y hoja.
+  if (h && !cabeceraAlDia_[nombre] && h.getLastRow() >= 1) {
+    cabeceraAlDia_[nombre] = true;
+    const ultima = HOJAS[nombre].length;
+    if (!h.getRange(1, ultima, 1, 1).getValues()[0][0]) h.getRange(1, 1, 1, ultima).setValues([HOJAS[nombre]]).setFontWeight('bold');
+  }
   if (!h) {
     h = ss.insertSheet(NOMBRES_HOJA[nombre]);
     h.getRange(1, 1, 1, HOJAS[nombre].length).setValues([HOJAS[nombre]]).setFontWeight('bold');
@@ -634,7 +653,7 @@ function sembrar_() {
    pierde). Se escriben con un apóstrofo delante, que fuerza texto y no se ve.
    Así se rompió la primera instalación: «desde» quedó como fecha y la
    búsqueda en Gmail salió «after:Thu Jan 01 2026…», sin resultados. */
-const COLUMNAS_TEXTO = { fecha: 1, gmail_id: 1, referencia: 1, registrado: 1, procesado: 1, valor: 1, patron: 1, id: 1 };
+const COLUMNAS_TEXTO = { fecha: 1, fecha_contable: 1, gmail_id: 1, referencia: 1, registrado: 1, procesado: 1, valor: 1, patron: 1, id: 1 };
 
 function aCelda_(k, v) {
   v = celda_(v == null ? '' : v);
