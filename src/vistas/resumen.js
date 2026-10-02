@@ -168,12 +168,22 @@ export function resumen(el, app) {
 
   if (puntos) {
     const elegir = (p) => app.cambiarPeriodo(escala === 'año' ? 'mes' : 'dia', escala === 'año' ? `${p.clave}-01` : p.clave, 'adentro')
+    let tipoActual = 'area', anchoPintado = 0
     const pintarGrafico = (tipo) => {
+      tipoActual = tipo
       const caja = el.querySelector('#grafico')
+      anchoPintado = caja.clientWidth
       if (tipo === 'barras') barrasPareadas(caja, puntos, { alElegir: elegir })
       else areaTendencia(caja, puntos, { alElegir: elegir })
     }
     pintarGrafico('area')
+    // Al cambiar el ancho de la ventana el gráfico se redibuja a su nuevo ancho.
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        const w = el.querySelector('#grafico')?.clientWidth
+        if (w && Math.abs(w - anchoPintado) > 8) pintarGrafico(tipoActual)
+      }).observe(el.querySelector('#grafico'))
+    }
     el.querySelector('[data-grafico]').closest('.escalas').addEventListener('click', (e) => {
       const b = e.target.closest('[data-grafico]')
       if (!b || b.getAttribute('aria-pressed') === 'true') return

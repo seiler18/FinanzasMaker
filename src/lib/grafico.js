@@ -13,7 +13,7 @@ import { compacto, clp } from './formato.js'
      enfocar con teclado; los mismos números están en la tabla de abajo, así
      el tooltip no es el único camino a un valor. */
 
-const W = 720, H = 240, M = { t: 12, r: 8, b: 26, l: 56 }
+const W0 = 720, H = 240, M = { t: 12, r: 8, b: 26, l: 56 }
 
 export function escalaY(max) {
   if (max <= 0) return { tope: 1, marcas: [0] }
@@ -34,6 +34,9 @@ function barra(x, y, w, h) {
 }
 
 export function barrasPareadas(contenedor, puntos, { alElegir } = {}) {
+  // Al ancho real del contenedor (con piso W0): con un viewBox fijo el navegador
+  // escala también el texto y en un monitor ancho los ejes salen enormes.
+  const W = Math.max(W0, Math.round(contenedor.clientWidth))
   const max = Math.max(0, ...puntos.map((p) => Math.max(p.ingresos, p.gastos)))
   const { tope, marcas } = escalaY(max)
   const ancho = (W - M.l - M.r) / puntos.length

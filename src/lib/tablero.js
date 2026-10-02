@@ -71,9 +71,10 @@ function tooltip(lienzo) {
 
 /* ---------- Área: ingresos y gastos ---------- */
 
-const W = 720, H = 260, M = { t: 14, r: 12, b: 26, l: 56 }
+const W0 = 720, H = 260, M = { t: 14, r: 12, b: 26, l: 56 }
 
 export function areaTendencia(contenedor, puntos, { alElegir } = {}) {
+  const W = Math.max(W0, Math.round(contenedor.clientWidth)) // ver barrasPareadas
   const n = puntos.length
   const max = Math.max(0, ...puntos.map((p) => Math.max(p.ingresos, p.gastos)))
   const { tope, marcas } = escalaY(max)
