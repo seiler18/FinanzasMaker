@@ -5,6 +5,7 @@ import './styles/ingreso.css'
 import './styles/pie.css'
 import './styles/movimiento.css'
 import './styles/tablero.css'
+import './styles/efectos.css'
 import './styles/movil.css'
 import { protegerMarco } from './lib/marco.js'
 import { html, crudo, pintar, $, $$, aviso } from './lib/dom.js'
@@ -20,11 +21,17 @@ import { consejos } from './vistas/consejos.js'
 import { ajustes } from './vistas/ajustes.js'
 import { pie } from './lib/pie.js'
 import { iniciarTema, alternarTema, temaActual } from './lib/tema.js'
+import { montarDotField } from './lib/fondo-dotField.js'
+import { initBrillo, initMagnetico } from './lib/efectos.js'
 
 const REPO = 'https://github.com/seiler18/FinanzasMaker'
 
 protegerMarco()
 iniciarTema()
+// Las tarjetas de «Consejos» llevan el mismo resplandor que sigue al puntero
+// que ya tienen las del Resumen (esas lo reparten desde resumen.js). Un solo
+// listener delegado: sirve aunque la vista se vuelva a pintar.
+initBrillo('.consejo')
 
 /* Router mínimo. Cada vista recibe un contenedor NUEVO en cada render: así
    los listeners que cuelga una vista mueren con ella (en VentasMaker,
@@ -245,6 +252,7 @@ function pantallaIngreso() {
       <div class="ingreso-fondo" aria-hidden="true">
         <span class="aurora aurora-1"></span><span class="aurora aurora-2"></span><span class="aurora aurora-3"></span>
         <span class="rejilla-fondo"></span>
+        <span class="ingreso-puntos"></span>
       </div>
 
       <main class="ingreso-cuerpo">
@@ -282,6 +290,17 @@ function pantallaIngreso() {
       ${crudo(pie({ repo: REPO, oscuro: true }))}
     </div>`)
   botonIngreso($('#boton-google'), entrar).catch((err) => aviso(err.message, 'error'))
+
+  // Efectos de la portada (src/lib/efectos.js, fondo-dotField.js): matriz de
+  // puntos tras la aurora y botón de la demo que se acerca al cursor. Ambos se
+  // apagan con prefers-reduced-motion y se retiran solos al salir de esta pantalla.
+  const colores = getComputedStyle(document.documentElement)
+  montarDotField($('.ingreso-puntos'), {
+    colorA: colores.getPropertyValue('--ing-aurora-1').trim(),
+    colorB: colores.getPropertyValue('--ing-aurora-2').trim(),
+    opacidad: 0.45, ondulacion: 2,
+  })
+  initMagnetico('.btn-demo')
 }
 
 onSesionCaducada(() => {

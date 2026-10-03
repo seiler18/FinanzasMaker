@@ -13,6 +13,7 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
+| [0009](0009-efectos-de-interaccion-y-delta-de-cifras.md) | 2026-10-03 | Efectos de interacción y delta flotante en las cifras | completado (falta visto bueno visual) |
 | [0008](0008-impuesto-de-timbres-en-cuotas.md) | 2026-10-01 | Vista «Cuotas»: impuesto de timbres estimado | completado (falta contrastar con un estado de cuenta) |
 | [0007](0007-fecha-contable-y-tablero.md) | 2026-10-01 | Fecha contable (ingresos que llegan antes) y resumen tipo tablero | completado (falta redesplegar el backend) |
 | [0006](0006-binance-y-cada-30-minutos.md) | 2026-09-28 | Binance (remesas y compra P2P) y revisión cada 30 minutos con frenos de cuota | completado |

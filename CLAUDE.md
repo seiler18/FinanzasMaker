@@ -22,6 +22,7 @@ Seguridad: `SECURITY.md`.
 | Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
 | Transiciones entre vistas; celular; tema | `src/styles/movimiento.css`, `src/styles/movil.css`, `src/lib/tema.js` |
 | Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |
+| Efectos: fondo de puntos, delta de cifras, chispas, imán, destello (todos se apagan con `prefers-reduced-motion`) | `src/lib/{efectos,fondo-dotField,cuenta}.js` + `src/styles/efectos.css` — copias adaptadas del Curriculo; React Bits es MIT + Commons Clause: se usan aquí, **no se redistribuyen** |
 | Backend de mentira del modo demo | `src/demo.js` — debe contestar igual que `Code.gs` |
 | Inicio de sesión con Google | `src/lib/sesion.js` |
 | CSP | `vite.config.js` (solo en build) |

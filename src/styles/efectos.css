@@ -1,0 +1,130 @@
+/* ============================================================
+   EFECTOS — estilos de src/lib/efectos.js, fondo-dotField.js y cuenta.js
+
+   Se importa DESPUÉS de tablero.css (para ganarle por orden de cascada) y
+   ANTES de movil.css, que sigue siendo el último. Colores y duraciones salen
+   de tokens.css; `npm run check` también revisa este archivo.
+   prefers-reduced-motion lo apaga movimiento.css (animation: none) y,
+   además, los módulos JS ni se activan.
+   ============================================================ */
+
+/* ----------------------- MATRIZ DE PUNTOS -----------------------
+   Canvas 2D (lib/fondo-dotField.js) detrás del contenido. z-index -1 queda
+   dentro del contexto de apilamiento de la portada / la cabina (ambas con
+   isolation), así que no tapa nada. La máscara la concentra en el centro y la
+   desvanece hacia los bordes: sin ella la matriz acabaría en una línea recta. */
+.ingreso-puntos,
+.cabina-puntos {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.ingreso-puntos {
+  mask-image: radial-gradient(120% 90% at 50% 40%, var(--ing-fondo) 25%, transparent 80%);
+}
+.cabina-puntos {
+  mask-image: radial-gradient(110% 100% at 65% 45%, var(--ing-fondo) 20%, transparent 85%);
+}
+
+/* ----------------------- DELTA FLOTANTE -----------------------
+   Lo crea cuenta.js cuando una cifra cambia de valor. Solo opacity y
+   transform. Verde = el cambio es bueno para tus finanzas, rojo = malo (la
+   dirección buena depende de la cifra: que suban los gastos no es verde).
+   En la cabina, que es siempre oscura, se usan los tonos --ing-*. */
+.kpi > .delta-flota,
+.cabina > .delta-flota {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 3;
+  padding: 2px 9px;
+  border-radius: var(--radio-pildora);
+  font-size: var(--txt-menudo);
+  font-weight: 700;
+  pointer-events: none;
+  animation: delta-flota var(--ciclo-delta) var(--curva) both;
+}
+/* En las tarjetas la esquina superior derecha la ocupa la flecha de «ver
+   detalle»: el chip baja a la altura de la cifra para no taparla. */
+.kpi > .delta-flota { top: 44px; }
+.delta-bien { color: var(--mas); background: var(--mas-tenue); }
+.delta-mal { color: var(--menos); background: var(--menos-tenue); }
+.delta-neutro { color: var(--texto-tenue); background: var(--surface-2); }
+.cabina .delta-bien { color: var(--ing-vivo); background: color-mix(in srgb, var(--ing-vivo) 16%, transparent); }
+.cabina .delta-mal { color: var(--ing-alerta); background: color-mix(in srgb, var(--ing-alerta) 16%, transparent); }
+@keyframes delta-flota {
+  0%   { opacity: 0; transform: translateY(8px); }
+  14%  { opacity: 1; transform: none; }
+  70%  { opacity: 1; transform: translateY(-6px); }
+  100% { opacity: 0; transform: translateY(-16px); }
+}
+
+/* ----------------------- CHISPAS -----------------------
+   Las suelta lib/efectos.js (soltarChispas) al guardar un movimiento. Fixed y
+   por encima de todo. */
+.chispa {
+  position: fixed;
+  z-index: var(--z-avisos);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--primario-claro);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--primario-claro) 60%, transparent);
+}
+
+/* ----------------------- BRILLO QUE SIGUE AL CURSOR (consejos) -----------------------
+   El Resumen ya tenía el suyo en tablero.css (.kpi::before); este es el mismo
+   resplandor para las tarjetas de Consejos, con --mx/--my repartidos por
+   lib/efectos.js. Solo con hover real: en táctil se quedaría clavado donde se
+   tocó por última vez. */
+@media (hover: hover) and (pointer: fine) {
+  .consejo { position: relative; }
+  .consejo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none; /* si no, taparía los clics de la tarjeta */
+    opacity: 0;
+    background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--primario) 16%, transparent), transparent 70%);
+    transition: opacity var(--medio) var(--curva);
+  }
+  .consejo:hover::before { opacity: 1; }
+}
+
+/* ----------------------- BOTÓN QUE SE ACERCA AL CURSOR -----------------------
+   `translate` es una propiedad aparte de `transform`. Hay que añadirla a la
+   lista de transiciones del botón o el desplazamiento sería a saltos. */
+.btn-demo {
+  translate: var(--mag-x, 0) var(--mag-y, 0);
+  transition:
+    background var(--rapido) var(--curva),
+    border-color var(--rapido) var(--curva),
+    translate var(--rapido) var(--curva);
+}
+
+/* ----------------------- DESTELLO EN «leídas solas.» -----------------------
+   EXCEPCIÓN A «solo transform y opacity», deliberada: un destello sobre texto
+   con degradado solo se puede hacer moviendo el fondo recortado al texto.
+   Repinta UN fragmento de una línea, no la maqueta, y el barrido dura ~2,4 s de
+   cada 7 (el resto queda quieto).
+   Propiedades sueltas (`background-image`, no `background`): el atajo
+   reiniciaría el `background-clip: text` de .degradado-texto (ingreso.css) y el
+   texto se vería como un rectángulo de color. La capa de arriba es el destello;
+   la de abajo, el degradado de siempre. */
+.degradado-texto {
+  background-image:
+    linear-gradient(105deg, transparent 42%, var(--brillo-texto) 50%, transparent 58%),
+    linear-gradient(100deg, var(--ing-aurora-1) 0%, var(--ing-aurora-2) 55%, var(--ing-aurora-3) 100%);
+  background-size: 250% 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  background-position: 120% 0, 0 0;
+  animation: brillo-texto var(--ciclo-brillo) linear var(--espera-brillo) infinite;
+}
+@keyframes brillo-texto {
+  0%   { background-position: 120% 0, 0 0; }
+  35%  { background-position: -20% 0, 0 0; }
+  100% { background-position: -20% 0, 0 0; }
+}

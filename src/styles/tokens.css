@@ -112,6 +112,11 @@
   --ciclo-flota:    7s;
   --ciclo-latido:   2.4s;
   --crece:          900ms;
+  /* Efectos (efectos.css) */
+  --brillo-texto:   rgba(255, 255, 255, 0.75);  /* destello que recorre «leídas solas.» */
+  --ciclo-brillo:   7s;                         /* una vuelta del destello */
+  --espera-brillo:  1.6s;                       /* espera del primer destello */
+  --ciclo-delta:    2200ms;                     /* vida del chip de diferencia de una cifra */
 }
 
 /* Oscuro: por preferencia del sistema, salvo que el usuario haya elegido

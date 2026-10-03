@@ -4,6 +4,10 @@ import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco,
 import { barrasPareadas, pintarBarrasHorizontales } from '../lib/grafico.js'
 import { areaTendencia, anillo, dona, calor, sparkline, claseCat } from '../lib/tablero.js'
 import { contarCifras } from '../lib/cuenta.js'
+import { montarDotField } from '../lib/fondo-dotField.js'
+
+// Qué significa que cada tarjeta suba (lo usa el delta flotante de cuenta.js).
+const SUBE = { ingresos: 'bueno', gastos: 'malo', ahorro: 'bueno', inversion: 'neutro' }
 
 const FLECHA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
 
@@ -72,7 +76,7 @@ export function resumen(el, app) {
   const kpi = (clave, titulo, valor, sentido, nota = '', cambio = null) => html`
     <button type="button" class="kpi kpi-${clave}" data-kpi="${clave}" aria-haspopup="dialog">
       <span class="kpi-titulo">${titulo}<span class="kpi-flecha">${crudo(FLECHA)}</span></span>
-      <span class="cifra ${sentido ? 'monto-' + sentido : ''}" data-cuenta="${valor}" data-sentido="${sentido}">${conSigno(valor, sentido)}</span>
+      <span class="cifra ${sentido ? 'monto-' + sentido : ''}" data-cuenta="${valor}" data-sentido="${sentido}" data-clave="${clave}" data-sube="${SUBE[clave]}">${conSigno(valor, sentido)}</span>
       ${cambio ? html`<span class="kpi-cambio kpi-${cambio.clase}">${cambio.texto}<small> vs ${ANTERIOR[escala].replace('el ', '')}</small></span>` : ''}
       ${nota ? html`<span class="kpi-nota">${nota}</span>` : ''}
       ${sparks && sparks[clave] ? crudo(sparkline(sparks[clave], 'sp-' + clave)) : ''}
@@ -88,12 +92,13 @@ export function resumen(el, app) {
         <span class="cabina-brillo cabina-brillo-1" aria-hidden="true"></span>
         <span class="cabina-brillo cabina-brillo-2" aria-hidden="true"></span>
         <span class="cabina-rejilla" aria-hidden="true"></span>
+        <span class="cabina-puntos" aria-hidden="true"></span>
         <p class="cabina-eyebrow"><span class="punto-vivo" aria-hidden="true"></span>${r.etiqueta}</p>
         <div class="cabina-cuerpo">
           <div id="anillo" class="anillo"></div>
           <div class="cabina-datos">
             <p class="cabina-pregunta">${t.ahorro < 0 ? 'Gastaste de más' : 'Te quedó'}</p>
-            <p class="cabina-cifra"><span class="cifra" data-cuenta="${t.ahorro}" data-sentido="${sentidoDe(t.ahorro)}">${conSigno(t.ahorro, sentidoDe(t.ahorro))}</span></p>
+            <p class="cabina-cifra"><span class="cifra" data-cuenta="${t.ahorro}" data-sentido="${sentidoDe(t.ahorro)}" data-clave="cabina" data-sube="bueno">${conSigno(t.ahorro, sentidoDe(t.ahorro))}</span></p>
             <p class="cabina-sub">${t.tasa == null ? 'sin ingresos en el periodo' : `${porciento(t.tasa)} de lo que entró`}</p>
           </div>
         </div>
@@ -219,7 +224,17 @@ export function resumen(el, app) {
   })
 
   pintarBarrasHorizontales(el)
-  contarCifras(el)
+  // Matriz de puntos tras la cifra de la cabina. Se retira sola cuando la vista
+  // se vuelve a pintar (ver fondo-dotField.js). Alcance corto: la cabina mide
+  // ~600 px, no la pantalla entera.
+  const colores = getComputedStyle(document.documentElement)
+  montarDotField(el.querySelector('.cabina-puntos'), {
+    colorA: colores.getPropertyValue('--ing-aurora-1').trim(),
+    colorB: colores.getPropertyValue('--ing-aurora-2').trim(),
+    separacion: 12, alcance: 170, abombado: 26, ondulacion: 1.5, opacidad: 0.5,
+  })
+  // El periodo entra en la clave: pasar a otro mes no es «un cambio de cifra».
+  contarCifras(el, `${escala}|${ref}`)
   el.addEventListener('click', (e) => {
     const k = e.target.closest('[data-kpi]')
     if (k) return abrirDetalle(el, app, k.dataset.kpi, { movs, t, r })

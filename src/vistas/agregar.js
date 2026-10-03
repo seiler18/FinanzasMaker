@@ -1,5 +1,6 @@
 import { html, pintar, aviso } from '../lib/dom.js'
 import { TIPOS, hoyISO } from '../lib/analisis.js'
+import { soltarChispas } from '../lib/efectos.js'
 
 /* Registro a mano: lo que no llega por correo (efectivo, CencoPay, compras
    con Mercado Pago, un banco que no avisa). */
@@ -35,6 +36,10 @@ export function agregar(el, app) {
     try {
       await app.llamar('agregar', { mov: { ...d, monto: Number(d.monto) } })
       aviso('Guardado')
+      // Chispas desde el botón, SOLO tras guardar bien: celebrar un envío
+      // inválido o fallido sería mentir.
+      const r = boton.getBoundingClientRect()
+      soltarChispas(r.left + r.width / 2, r.top + r.height / 2)
       form.reset()
       form.fecha.value = hoyISO()
       await app.recargar(false)
