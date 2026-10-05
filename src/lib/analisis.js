@@ -133,6 +133,67 @@ export function serie(movs, escala, ref) {
   return salida
 }
 
+/* ---------- ritmo de gasto y proyección ----------
+   Dividir lo gastado entre los días transcurridos y multiplicar por los del mes
+   da cifras absurdas cuando el mes arranca con un pago grande (arriendo, un
+   abono a la tarjeta, una compra en cuotas): $600.000 el día 2 «proyectan»
+   millones. Por eso se separan los gastos GRANDES (puntuales) del corriente
+   (el del día a día):
+   - «por día» y el ritmo usan solo el corriente;
+   - proyección = lo ya gastado (grandes incluidos, son reales) + ritmo
+     corriente × días que faltan. Los grandes no se repiten solos.
+   Con pocos días de datos el ritmo se mezcla con el de los meses anteriores. */
+const diaUTC = (f) => { const [a, m, d] = f.split('-').map(Number); return Date.UTC(a, m - 1, d) }
+const entreDias = (desde, hasta) => (hasta < desde ? 0 : Math.round((diaUTC(hasta) - diaUTC(desde)) / 864e5) + 1)
+const isoUTC = (ms) => { const f = new Date(ms); return `${f.getUTCFullYear()}-${dd(f.getUTCMonth() + 1)}-${dd(f.getUTCDate())}` }
+
+// Desde qué monto un gasto cuenta como «grande»: 5 veces el gasto típico (la
+// mediana) de los últimos 90 días, con piso de $50.000. Sin historia, $150.000.
+export function umbralGrande(movs, hoy = hoyISO()) {
+  const desde = isoUTC(diaUTC(hoy) - 90 * 864e5)
+  const montos = movs
+    .filter((x) => { const f = diaContable(x); return x.tipo === 'gasto' && f >= desde && f <= hoy })
+    .map((x) => Number(x.monto) || 0).sort((a, b) => a - b)
+  if (montos.length < 8) return 150000
+  return Math.max(50000, 5 * montos[Math.floor(montos.length / 2)])
+}
+
+export function ritmoGasto(movs, desde, hasta, hoy = hoyISO(), umbral = umbralGrande(movs, hoy)) {
+  const fin = hoy < hasta ? hoy : hasta
+  const dias = entreDias(desde, fin)
+  const gastos = movs.filter((x) => { const f = diaContable(x); return x.tipo === 'gasto' && f >= desde && f <= fin })
+  const grandes = gastos.filter((x) => Number(x.monto) >= umbral)
+  const total = gastos.reduce((s, x) => s + (Number(x.monto) || 0), 0)
+  const grandesTotal = grandes.reduce((s, x) => s + (Number(x.monto) || 0), 0)
+  const corriente = total - grandesTotal
+  return { dias, total, corriente, grandes: grandes.length, grandesTotal, porDia: dias > 0 ? corriente / dias : 0 }
+}
+
+// Proyección del mes en curso (`mes` = 'AAAA-MM'); null si no es el mes de `hoy`.
+export function proyeccionMes(movs, mes, hoy = hoyISO()) {
+  if (mes !== hoy.slice(0, 7)) return null
+  const [a, m] = mes.split('-').map(Number)
+  const totalDias = diasDelMes(a, m)
+  const dia = Number(hoy.slice(8, 10))
+  if (dia >= totalDias) return null
+  const umbral = umbralGrande(movs, hoy)
+  const actual = ritmoGasto(movs, `${mes}-01`, `${mes}-${dd(totalDias)}`, hoy, umbral)
+  if (actual.total <= 0) return null
+  let hDias = 0, hCorriente = 0
+  for (const n of [1, 2, 3]) {
+    const pm = mesAnterior(mes, n)
+    if (!movs.some((x) => x.tipo === 'gasto' && mesDe(x) === pm)) continue
+    const [pa, pmm] = pm.split('-').map(Number)
+    const dm = diasDelMes(pa, pmm)
+    hCorriente += ritmoGasto(movs, `${pm}-01`, `${pm}-${dd(dm)}`, `${pm}-${dd(dm)}`, umbral).corriente
+    hDias += dm
+  }
+  const historico = hDias ? hCorriente / hDias : null
+  const peso = Math.min(1, dia / 7)
+  const ritmo = historico == null ? actual.porDia : peso * actual.porDia + (1 - peso) * historico
+  return { proy: Math.round(actual.total + ritmo * (totalDias - dia)), ritmo, gastado: actual.total, grandes: actual.grandes, grandesTotal: actual.grandesTotal }
+}
+
 /* ---------- consejos ---------- */
 
 const clave = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -196,16 +257,11 @@ export function consejos(movs, presupuestos, mes, hoy = hoyISO()) {
   }
 
   // 3. Proyección del mes en curso
-  if (mes === hoy.slice(0, 7)) {
-    const dia = Number(hoy.slice(8, 10))
-    const [a, m] = mes.split('-').map(Number)
-    const total = diasDelMes(a, m)
-    if (dia >= 5 && dia < total && t.gastos > 0) {
-      const proy = (t.gastos / dia) * total
-      const previo = totales(movs.filter((x) => mesDe(x) === mesAnterior(mes))).gastos
-      const texto = `A este ritmo terminarías el mes con ${clp(proy)} en gastos` + (previo ? ` (el mes pasado fueron ${clp(previo)}).` : '.')
-      salida.push({ nivel: previo && proy > previo * 1.1 ? 'atencion' : 'info', titulo: 'Proyección del mes', texto })
-    }
+  const pr = proyeccionMes(movs, mes, hoy)
+  if (pr && Number(hoy.slice(8, 10)) >= 5) {
+    const previo = totales(movs.filter((x) => mesDe(x) === mesAnterior(mes))).gastos
+    const texto = `Con tu ritmo diario (${clp(pr.ritmo)} al día, sin contar gastos grandes) terminarías el mes con unos ${clp(pr.proy)} en gastos` + (previo ? ` (el mes pasado fueron ${clp(previo)}).` : '.')
+    salida.push({ nivel: previo && pr.proy > previo * 1.1 ? 'atencion' : 'info', titulo: 'Proyección del mes', texto })
   }
 
   // 4. Categorías que subieron frente al promedio de los 3 meses anteriores

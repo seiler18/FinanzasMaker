@@ -1,6 +1,6 @@
 // Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
 import assert from 'node:assert/strict'
-import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos } from '../src/lib/analisis.js'
+import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos, ritmoGasto, proyeccionMes } from '../src/lib/analisis.js'
 import { conSigno, sentidoDe, SENTIDO } from '../src/lib/formato.js'
 
 let ok = 0
@@ -174,3 +174,19 @@ prueba('compras en cuotas: solo gastos del mes contable', () => {
 
 console.log(`analisis: ${ok} pruebas ok`)
 if (fallos.length) { console.error(fallos.join('\n')); process.exit(1) }
+
+prueba('proyección: un gasto grande al inicio del mes no se multiplica por los días', () => {
+  // Caso real: ~$690.000 en 5 días daba «$137.630 por día» y una proyección de $4,2 millones.
+  const movs = [
+    m('2026-10-01', 'gasto', 500000), // arriendo / abono: puntual
+    ...[3000, 4000, 2500, 5000, 3500, 4500, 2000, 6000, 3000, 4000].map((n, i) => m(`2026-09-${10 + i}`, 'gasto', n)),
+    m('2026-10-02', 'gasto', 8000), m('2026-10-03', 'gasto', 6000), m('2026-10-04', 'gasto', 4000), m('2026-10-05', 'gasto', 7000),
+  ]
+  const g = ritmoGasto(movs, '2026-10-01', '2026-10-31', '2026-10-05')
+  assert.equal(g.grandes, 1)
+  assert.ok(g.porDia < 10000, `por día ${g.porDia}`)
+  const p = proyeccionMes(movs, '2026-10', '2026-10-05')
+  assert.ok(p.proy < 800000, `proyección ${p.proy}`)
+  assert.ok(p.proy > 500000 + 25000)
+  assert.equal(proyeccionMes(movs, '2026-09', '2026-10-05'), null)
+})

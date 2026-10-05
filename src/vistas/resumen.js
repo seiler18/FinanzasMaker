@@ -1,6 +1,6 @@
 import { html, crudo, pintar, $, cerrarDialogo } from '../lib/dom.js'
 import { clp, compacto, porciento, fechaCorta, conSigno, sentidoDe, SENTIDO } from '../lib/formato.js'
-import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco, serie, hoyISO, TIPOS } from '../lib/analisis.js'
+import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco, serie, hoyISO, ritmoGasto, proyeccionMes, TIPOS } from '../lib/analisis.js'
 import { barrasPareadas, pintarBarrasHorizontales } from '../lib/grafico.js'
 import { areaTendencia, anillo, dona, calor, sparkline, claseCat } from '../lib/tablero.js'
 import { contarCifras } from '../lib/cuenta.js'
@@ -12,8 +12,6 @@ const SUBE = { ingresos: 'bueno', gastos: 'malo', ahorro: 'bueno', inversion: 'n
 const FLECHA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
 
 const ANTERIOR = { dia: 'el día anterior', mes: 'el mes anterior', año: 'el año anterior' }
-const diasDelMes = (a, m) => new Date(Date.UTC(a, m, 0)).getUTCDate()
-const utc = (f) => { const [a, m, d] = f.split('-').map(Number); return Date.UTC(a, m - 1, d) }
 
 /* Cuánto cambió una cifra frente al periodo anterior. `buenoSubiendo`: para
    los ingresos subir es bueno; para los gastos, malo. Sin base de
@@ -30,19 +28,21 @@ function variacion(actual, antes, buenoSubiendo) {
 /* Filas de la «cabina»: lo que dice cómo va el periodo además del ahorro.
    Cada fila solo aparece si tiene sentido (no se proyecta un mes que ya
    terminó, ni se promedia por día un día suelto). */
-function filasCabina({ escala, ref, r, t, antes }) {
+function filasCabina({ movs, escala, ref, r, t, antes }) {
   const filas = []
   const hoy = hoyISO()
   if (escala !== 'dia') {
-    const fin = hoy < r.hasta ? hoy : r.hasta
-    const dias = fin < r.desde ? 0 : Math.round((utc(fin) - utc(r.desde)) / 864e5) + 1
-    if (dias > 0 && t.gastos > 0) filas.push(['Gastas por día', clp(t.gastos / dias)])
+    // El «por día» no cuenta los gastos grandes (arriendo, abonos, cuotas): un
+    // solo pago de esos disparaba la cifra a algo que nunca se gasta en un día.
+    const g = ritmoGasto(movs, r.desde, r.hasta, hoy)
+    if (g.dias > 0 && g.corriente > 0) {
+      const nota = g.grandes ? ` · sin ${g.grandes} gasto${g.grandes > 1 ? 's' : ''} grande${g.grandes > 1 ? 's' : ''} (${clp(g.grandesTotal)})` : ''
+      filas.push(['Gastas por día', clp(g.porDia) + nota])
+    }
     if (escala === 'mes' && hoy >= r.desde && hoy < r.hasta) {
-      const [a, m] = ref.split('-').map(Number)
-      const dia = Number(hoy.slice(8, 10)), total = diasDelMes(a, m)
-      if (dia >= 3 && t.gastos > 0) {
-        const proy = (t.gastos / dia) * total
-        filas.push(['Proyección a fin de mes', clp(proy) + (t.ingresos > 0 ? ` · ${porciento(proy / t.ingresos)} de lo que entró` : '')])
+      const pr = proyeccionMes(movs, ref.slice(0, 7), hoy)
+      if (pr && (Number(hoy.slice(8, 10)) >= 3 || pr.ritmo > 0)) {
+        filas.push(['Proyección a fin de mes', clp(pr.proy) + (t.ingresos > 0 ? ` · ${porciento(pr.proy / t.ingresos)} de lo que entró` : '')])
       }
     }
   }
@@ -62,7 +62,7 @@ export function resumen(el, app) {
   const presup = new Map((app.datos.presupuestos || []).map((p) => [p.categoria, Number(p.monto_mensual) || 0]))
   const maxCat = Math.max(1, ...cats.map((c) => Math.max(c.monto, escala === 'mes' ? presup.get(c.categoria) || 0 : 0)))
   const puntos = escala === 'dia' ? null : serie(app.datos.movimientos, escala, ref)
-  const filas = filasCabina({ escala, ref, r, t, antes })
+  const filas = filasCabina({ movs: app.datos.movimientos, escala, ref, r, t, antes })
 
   // Ahorro acumulado punto a punto: sube cuando entra plata y baja cuando sale.
   let corrido = 0
