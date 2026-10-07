@@ -181,7 +181,14 @@ tbody th { font-weight: 500; }
 .hoja-total .cifra { font-size: var(--txt-marca); line-height: 1.1; }
 .hoja-ir { margin-top: 16px; }
 .reparto { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.reparto li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
+.reparto li[hidden], .lista-simple li[hidden], .reparto-movs[hidden] { display: none; }
+.reparto-fila { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; width: 100%; padding: 6px 8px; margin: 0 -8px; box-sizing: content-box; background: none; border: 0; border-radius: var(--radio-sm); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.reparto-fila:hover { background: var(--surface-2); }
+.reparto-fila:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
+.reparto-fila .reparto-nombre::after { content: '▾'; margin-left: 6px; font-size: 0.8em; color: var(--texto-tenue); display: inline-block; transition: transform var(--rapido); }
+.reparto-fila[aria-expanded="true"] .reparto-nombre::after { transform: rotate(180deg); }
+.reparto-movs { margin: 4px 0 6px 10px; padding-left: 12px; border-left: 2px solid var(--borde); }
+.ver-mas { margin-top: 10px; justify-self: start; }
 .reparto-nombre { min-width: 0; overflow-wrap: anywhere; }
 .reparto-nombre small { display: block; color: var(--texto-tenue); font-size: var(--txt-micro); }
 .reparto-pista { grid-column: 1 / -1; height: 6px; border-radius: var(--radio-pildora); background: var(--surface-2); overflow: hidden; }

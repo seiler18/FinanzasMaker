@@ -281,10 +281,39 @@ function abrirDetalle(el, app, clave, { movs, t, r }) {
   dlg.onclick = (e) => {
     // Un clic en el velo cae en el propio <dialog>, fuera de .hoja-cuerpo.
     if (e.target === dlg || e.target.closest('[data-cerrar]')) return cerrarDialogo(dlg)
+    if (alClicDetalle(e)) return
     const ir = e.target.closest('[data-ir]')
     if (ir) { dlg.close(); app.ir('movimientos', { tipo: ir.dataset.ir }) }
   }
   dlg.showModal()
+}
+
+/* «Ver más», «Ver las demás» y el despliegue de una fila del reparto. Todo el
+   contenido ya está pintado: aquí solo se destapa. Devuelve true si el clic era
+   de los suyos. */
+function alClicDetalle(e) {
+  const abre = e.target.closest('[data-abre]')
+  if (abre) {
+    const abierto = abre.getAttribute('aria-expanded') !== 'true'
+    abre.setAttribute('aria-expanded', String(abierto))
+    abre.nextElementSibling.hidden = !abierto
+    return true
+  }
+  const extras = e.target.closest('[data-extras]')
+  if (extras) {
+    extras.previousElementSibling.querySelectorAll('li[data-extra]').forEach((li) => { li.hidden = false })
+    extras.remove()
+    return true
+  }
+  const mas = e.target.closest('[data-mas]')
+  if (mas) {
+    const ocultos = [...mas.previousElementSibling.querySelectorAll('li[hidden]')]
+    ocultos.slice(0, Number(mas.dataset.mas)).forEach((li) => { li.hidden = false })
+    if (ocultos.length <= Number(mas.dataset.mas)) mas.remove()
+    else mas.querySelector('small').textContent = `(${ocultos.length - Number(mas.dataset.mas)})`
+    return true
+  }
+  return false
 }
 
 function total(valor, sentido, nota = '') {
@@ -292,31 +321,45 @@ function total(valor, sentido, nota = '') {
     ${nota ? html`<span class="tenue">${nota}</span>` : ''}</p>`
 }
 
-// Barras de reparto (por categoría o por contraparte), del color del sentido.
-function reparto(titulo, filas, sentido, max = 6) {
-  if (!filas.length) return ''
-  const tope = Math.max(1, filas[0].monto)
-  const vis = filas.slice(0, max)
-  const resto = filas.slice(max).reduce((s, f) => s + f.monto, 0)
-  return html`<h3 class="sub">${titulo}</h3>
-    <ul class="reparto">${vis.map((f) => html`<li>
-      <span class="reparto-nombre">${f.nombre ?? f.categoria}<small>${f.n} movimiento${f.n > 1 ? 's' : ''}</small></span>
-      <b class="monto-${sentido}">${conSigno(f.monto, sentido)}</b>
-      <span class="reparto-pista" aria-hidden="true"><span class="reparto-barra reparto-${sentido}" data-p="${(f.monto / tope) * 100}"></span></span>
-    </li>`)}</ul>
-    ${resto ? html`<p class="tenue">y ${conSigno(resto, sentido)} más en ${filas.length - max} otro${filas.length - max > 1 ? 's' : ''}</p>` : ''}`
+// Los movimientos más recientes primero (la fecha trae la hora: «2026-09-18 00:57»).
+// Ordenar por monto mezclaba las horas del día y no se podía leer como línea de tiempo.
+const recientes = (ms) => [...ms].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
+
+const PASO = 8
+
+/* Filas de movimientos; las que pasan de `max` quedan ocultas y las destapa el
+   botón «Ver más» (ver `alClicDetalle`). Sin tope nunca habría que esconder
+   nada: el detalle se abre con lo justo y quien quiere más lo pide. */
+function filasMov(ms, max = PASO) {
+  const orden = recientes(ms)
+  return html`<ol class="lista-simple">${orden.map((m, i) => {
+      const s = SENTIDO[m.tipo]
+      return html`<li ${i >= max ? 'hidden' : ''}><span>${m.contraparte || TIPOS[m.tipo]}<small>${fechaCorta(m.fecha)} · ${m.banco}</small></span><b class="monto-${s}">${conSigno(m.monto, s)}</b></li>`
+    })}</ol>
+    ${orden.length > max ? html`<button type="button" class="btn btn-chico btn-borde ver-mas" data-mas="${PASO}">Ver más <small>(${orden.length - max})</small></button>` : ''}`
 }
 
-// Cronológica, lo más reciente primero (la fecha trae la hora: «2026-09-18 00:57»).
-// Ordenar por monto mezclaba las horas del día y no se podía leer como línea de tiempo.
-function lista(titulo, ms, max = 8) {
-  if (!ms.length) return ''
-  const vis = [...ms].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha))).slice(0, max)
+/* Barras de reparto (por categoría o por contraparte), del color del sentido.
+   Tocar una fila despliega TODOS sus movimientos (`movsDe`); las filas que no
+   caben en `max` se destapan con «Ver las demás». */
+function reparto(titulo, filas, sentido, movsDe, max = 6) {
+  if (!filas.length) return ''
+  const tope = Math.max(1, filas[0].monto)
   return html`<h3 class="sub">${titulo}</h3>
-    <ol class="lista-simple">${vis.map((m) => {
-      const s = SENTIDO[m.tipo]
-      return html`<li><span>${m.contraparte || TIPOS[m.tipo]}<small>${fechaCorta(m.fecha)} · ${m.banco}</small></span><b class="monto-${s}">${conSigno(m.monto, s)}</b></li>`
-    })}</ol>`
+    <ul class="reparto">${filas.map((f, i) => html`<li ${i >= max ? 'hidden data-extra' : ''}>
+      <button type="button" class="reparto-fila" aria-expanded="false" data-abre>
+        <span class="reparto-nombre">${f.nombre ?? f.categoria}<small>${f.n} movimiento${f.n > 1 ? 's' : ''}</small></span>
+        <b class="monto-${sentido}">${conSigno(f.monto, sentido)}</b>
+        <span class="reparto-pista" aria-hidden="true"><span class="reparto-barra reparto-${sentido}" data-p="${(f.monto / tope) * 100}"></span></span>
+      </button>
+      <div class="reparto-movs" hidden>${filasMov(movsDe(f), 10)}</div>
+    </li>`)}</ul>
+    ${filas.length > max ? html`<button type="button" class="btn btn-chico btn-borde ver-mas" data-extras>Ver las demás <small>(${filas.length - max})</small></button>` : ''}`
+}
+
+function lista(titulo, ms, max = PASO) {
+  if (!ms.length) return ''
+  return html`<h3 class="sub">${titulo}</h3>${filasMov(ms, max)}`
 }
 
 function detalleTipo(tipo, nombre, valor, movs, sentido) {
@@ -325,8 +368,8 @@ function detalleTipo(tipo, nombre, valor, movs, sentido) {
   const promedio = valor / ms.length
   return html`
     ${total(valor, sentido, `${ms.length} movimiento${ms.length > 1 ? 's' : ''} · promedio ${clp(promedio)}`)}
-    ${reparto('Por categoría', porCategoria(movs, tipo), sentido)}
-    ${reparto(tipo === 'ingreso' ? 'De quién vino' : 'A quién se le pagó', porContraparte(movs, tipo), sentido, 5)}
+    ${reparto('Por categoría', porCategoria(movs, tipo), sentido, (f) => ms.filter((m) => (m.categoria || 'Otros') === f.categoria))}
+    ${reparto(tipo === 'ingreso' ? 'De quién vino' : 'A quién se le pagó', porContraparte(movs, tipo), sentido, (f) => ms.filter((m) => (String(m.contraparte || '').trim() || TIPOS[tipo]) === f.nombre), 5)}
     ${lista(tipo === 'ingreso' ? 'Los últimos ingresos' : 'Los últimos gastos', ms, 8)}`
 }
 
@@ -358,6 +401,6 @@ function detalleInversion(t, movs) {
       <div><dt>Aportaste</dt><dd class="monto-menos">${conSigno(t.invertido, t.invertido ? 'menos' : '')}</dd></div>
       <div><dt>Retiraste</dt><dd class="monto-mas">${conSigno(t.rescatado, t.rescatado ? 'mas' : '')}</dd></div>
     </dl>
-    ${reparto('Dónde', porContraparte(movs, 'inversion'), 'menos', 5)}
+    ${reparto('Dónde', porContraparte(movs, 'inversion'), 'menos', (f) => aportes.filter((m) => (String(m.contraparte || '').trim() || TIPOS.inversion) === f.nombre), 5)}
     ${lista('Movimientos', [...aportes, ...rescates])}`
 }
