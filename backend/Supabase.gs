@@ -110,7 +110,16 @@ function sbLeer_(tabla, consulta) {
 function sbInsertar_(tabla, objs, opciones) {
   if (!objs || !objs.length) return;
   const o = opciones || {};
-  const filas = objs.map((x) => aFila_(tabla, x));
+  let filas = objs.map((x) => aFila_(tabla, x));
+  // Con resolución por conflicto, una misma clave dos veces en el mismo envío
+  // la rechaza Postgres («ON CONFLICT DO UPDATE command cannot affect row a
+  // second time»; pasó con un nombre repetido en la hoja Mapa). Gana la última.
+  if (o.conflicto && !o.ignorar) {
+    const cols = o.conflicto.split(',').filter((c) => c !== 'usuario');
+    const vistas = {};
+    filas.forEach((f) => { vistas[cols.map((c) => String(f[c])).join('')] = f; });
+    filas = Object.keys(vistas).map((k) => vistas[k]);
+  }
   // PostgREST rechaza un lote cuyas filas no traen las mismas claves («All
   // object keys must match»). Con `columns` (la unión) y missing=default, lo
   // que una fila no trae toma el valor por defecto de la columna.

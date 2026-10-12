@@ -172,7 +172,6 @@ function migrarAccionesASupabase() {
   if (props.getProperty('MIGRADO_ACCIONES') === 'si') throw new Error('Ya se migró. Para repetirlo, vacía acciones_operaciones y borra la propiedad MIGRADO_ACCIONES.');
   const url = props.getProperty('PLANILLA_ACCIONES');
   if (!url) throw new Error('Falta la propiedad PLANILLA_ACCIONES con la URL de la hoja «Fintual - Monitoreo en vivo»');
-  if (leer_('acciones_operaciones', 'select=id').length) throw new Error('acciones_operaciones ya tiene filas: no se migra encima (se duplicarían las cargadas a mano)');
   const ss = SpreadsheetApp.openByUrl(url);
   const tz = ss.getSpreadsheetTimeZone();
   const hoja = (n, cols) => { const h = ss.getSheetByName(n); return h && h.getLastRow() > 1 ? h.getRange(2, 1, h.getLastRow() - 1, cols).getValues() : []; };
@@ -190,7 +189,12 @@ function migrarAccionesASupabase() {
       fuente: String(r[9] || 'Correo Gmail'), gmail_id: String(r[10] || '') });
   });
   ops.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.i - b.i));
-  agregarFilas_('acciones_operaciones', ops, { conflicto: 'usuario,gmail_id', ignorar: true });
+  // Repetible: si una corrida anterior cortó a medias, las operaciones ya están
+  // y no se vuelven a escribir (las cargadas a mano no tienen correo y se
+  // duplicarían). Lo demás se completa.
+  const yaOps = leer_('acciones_operaciones', 'select=id').length;
+  if (yaOps) console.log('acciones_operaciones ya tenía ' + yaOps + ' fila(s): no se tocaron');
+  else agregarFilas_('acciones_operaciones', ops, { conflicto: 'usuario,gmail_id', ignorar: true });
 
   const mapa = hoja('Mapa', 2).filter((r) => String(r[0]).trim()).map((r) => ({ nombre: String(r[0]).trim(), ticker: String(r[1] || '').trim() }));
   agregarFilas_('acciones_mapa', mapa, { conflicto: 'nombre' });
@@ -198,7 +202,7 @@ function migrarAccionesASupabase() {
   const alertas = hoja('Alertas', 3).filter((r) => r[0] || r[2]).map((r) => ({
     fecha: esFecha_(r[0]) ? r[0].toISOString() : new Date().toISOString(), tipo: String(r[1] || ''), detalle: String(r[2] || ''),
   }));
-  agregarFilas_('acciones_alertas', alertas);
+  if (!leer_('acciones_alertas', 'select=id&limit=1').length) agregarFilas_('acciones_alertas', alertas);
 
   const precios = hoja('Precios', 5).filter((r) => String(r[0]).trim() && numeroHojaAcc_(r[2]) != null).map((r) => ({
     ticker: String(r[0]).trim(), nombre: String(r[1] || ''), precio: numeroHojaAcc_(r[2]), cambio_dia: numeroHojaAcc_(r[3]),
@@ -218,6 +222,6 @@ function migrarAccionesASupabase() {
   }
 
   props.setProperty('MIGRADO_ACCIONES', 'si');
-  console.log('Acciones migradas: ' + ops.length + ' operación(es), ' + mapa.length + ' activo(s) en el mapa, ' + alertas.length + ' alerta(s), ' + precios.length + ' precio(s)');
+  console.log('Acciones migradas: ' + (yaOps || ops.length) + ' operación(es), ' + mapa.length + ' activo(s) en el mapa, ' + alertas.length + ' alerta(s), ' + precios.length + ' precio(s)');
   if (saltadas.length) console.log(saltadas.length + ' fila(s) saltada(s):\n' + saltadas.slice(0, 50).join('\n'));
 }

@@ -188,12 +188,24 @@ prueba('migrarAccionesASupabase trae operaciones (en orden), mapa, alertas, prec
   assert.match(e.logs.join('\n'), /1 fila\(s\) saltada\(s\)/)
   assert.throws(() => e.G.migrarAccionesASupabase(), /Ya se migró/)
 })
-prueba('migrarAccionesASupabase no migra encima de operaciones que ya están', () => {
+prueba('migrarAccionesASupabase se puede repetir tras un corte: no duplica operaciones ni alertas y completa el resto', () => {
   e.props.delete('MIGRADO_ACCIONES')
-  e.externas['https://hoja/gestor'] = hojaGestor()
+  const hoja = hojaGestor()
+  // La hoja Mapa con un nombre repetido: lo que hizo fallar la primera corrida real.
+  hoja.hojas.Mapa.set(4, 1, 'Otra'); hoja.hojas.Mapa.set(4, 2, 'ABC2')
+  e.externas['https://hoja/gestor'] = hoja
   e.props.set('PLANILLA_ACCIONES', 'https://hoja/gestor')
-  ops().push({ id: 1, usuario: USUARIO, fecha: '2026-06-03', tipo: 'compra', ticker: 'VOO' })
-  assert.throws(() => e.G.migrarAccionesASupabase(), /ya tiene filas/)
+  ops().push({ id: 1, usuario: USUARIO, fecha: '2026-06-04', tipo: 'compraUsd', ticker: 'USD' })
+  e.G.migrarAccionesASupabase()
+  assert.equal(ops().length, 1, 'las operaciones que ya estaban no se tocan')
+  assert.equal(e.filas('acciones_mapa').filter((m) => m.nombre === 'Otra').length, 1)
+  assert.equal(e.filas('acciones_mapa').find((m) => m.nombre === 'Otra').ticker, 'ABC2', 'gana la última')
+  assert.equal(e.filas('acciones_alertas').length, 1)
+  assert.equal(e.props.get('MIGRADO_ACCIONES'), 'si')
+})
+prueba('un envío con la misma clave repetida entra igual (la última gana)', () => {
+  e.G.agregarFilas_('acciones_mapa', [{ nombre: 'X', ticker: 'A' }, { nombre: 'X', ticker: 'B' }], { conflicto: 'nombre' })
+  assert.deepEqual(e.filas('acciones_mapa').filter((m) => m.nombre === 'X').map((m) => m.ticker), ['B'])
 })
 
 console.log(`acciones: ${ok} pruebas ok`)
