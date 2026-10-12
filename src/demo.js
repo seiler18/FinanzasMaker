@@ -1,13 +1,15 @@
 /* Modo demo: un backend de mentira en memoria con datos INVENTADOS.
 
    Es lo que ve quien visita la página sin ser el dueño (y lo que se usa para
-   desarrollar sin tocar la planilla). Debe contestar con la misma forma que
-   backend/Code.gs: si allá cambia una acción, cambia aquí también.
+   desarrollar sin tocar la base). Debe contestar con la misma forma que
+   src/lib/datos.js (las acciones contra Supabase): si allá cambia una acción,
+   cambia aquí también.
 
    Los datos salen de un generador con semilla fija: se ven igual en cada
    carga, así una captura del portafolio no cambia sola. */
 
 import { hoyISO } from './lib/analisis.js'
+import { conBase } from './lib/config-base.js'
 
 function semilla(s) {
   return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296 }
@@ -75,7 +77,18 @@ function generar() {
     inversiones, revisar,
     presupuestos: [{ categoria: 'Comida', monto_mensual: 90000 }, { categoria: 'Supermercado', monto_mensual: 220000 }],
     reglas: [],
+    config: conBase([{ clave: 'titular', valor: 'Ana Demo' }, { clave: 'vendedores_cripto', valor: '' }]),
     estado: { ultima: new Date().toISOString(), importando: false, borrar: true, titular: 'Ana Demo' },
+    // Lo que «llegó del celular»: para que el panel de Ajustes se vea en la demo.
+    celular: {
+      dispositivos: [{ id: 'demo-d1', nombre: 'Celular Android', creado: `${hoy}T08:00:00Z`, ultimo_uso: new Date().toISOString(), revocado: null }],
+      notificaciones: [
+        { id: 3, paquete: 'com.tenpo.app', titulo: 'Compra aprobada', texto: 'Compraste $4.990 en CAFE MOLINO', recibida: new Date().toISOString(), estado: 'cruda' },
+        { id: 2, paquete: 'com.mercadopago.wallet', titulo: 'Pagaste con QR', texto: 'Pagaste $2.500 a KIOSKO LA ESQUINA', recibida: new Date(Date.now() - 36e5).toISOString(), estado: 'cruda' },
+        { id: 1, paquete: 'cl.bancoestado.app', titulo: 'Transferencia recibida', texto: 'Recibiste $20.000 de Mario Demo', recibida: new Date(Date.now() - 864e5).toISOString(), estado: 'cruda' },
+      ],
+      total: 3,
+    },
   }
 }
 
@@ -87,7 +100,7 @@ export async function demoLlamar(accion, d) {
   await espera()
   const buscar = (id) => db.movimientos.find((m) => m.id === id)
   switch (accion) {
-    case 'datos': return { ok: true, ...structuredClone(db), demo: true }
+    case 'datos': { const { celular, ...resto } = structuredClone(db); return { ok: true, ...resto, demo: true } }
     case 'agregar': {
       const m = { id: 'D' + Date.now(), producto: 'Cuenta', moneda: 'CLP', origen: 'manual', cuotas: '', detalle: '', nota: '', categoria: 'Otros', ...d.mov, monto: Number(d.mov.monto) }
       if (!/^\d{4}-\d{2}-\d{2}/.test(m.fecha)) throw new Error('Fecha no válida (AAAA-MM-DD)')
@@ -120,6 +133,13 @@ export async function demoLlamar(accion, d) {
       if (Number(d.monto) > 0) db.presupuestos.push({ categoria: d.categoria, monto_mensual: Number(d.monto) })
       return { ok: true }
     }
+    case 'config': {
+      for (const [k, v] of Object.entries(d.valores || {})) if (k in db.config) db.config[k] = String(v)
+      db.estado.titular = db.config.titular
+      db.estado.borrar = db.config.borrar_correos.toLowerCase() === 'si'
+      return { ok: true }
+    }
+    case 'celular': return { ok: true, ...structuredClone(db.celular) }
     case 'sincronizar': return { ok: true, resumen: { registrados: 0, revisar: 0, duplicados: 0, borrados: 0, completa: true }, estado: db.estado }
     default: throw new Error('Acción no válida')
   }

@@ -10,7 +10,7 @@ import './styles/movil.css'
 import { protegerMarco } from './lib/marco.js'
 import { html, crudo, pintar, $, $$, aviso } from './lib/dom.js'
 import { llamar, modoDemo, onSesionCaducada } from './lib/api.js'
-import { botonIngreso, vigente, salir } from './lib/sesion.js'
+import { botonIngreso, haySesion, salir } from './lib/sesion.js'
 import { rango, mover, hoyISO } from './lib/analisis.js'
 import { resumen } from './vistas/resumen.js'
 import { movimientos } from './vistas/movimientos.js'
@@ -120,8 +120,8 @@ const app = {
     for (const p of app.datos.presupuestos || []) s.add(p.categoria)
     return [...s].sort((a, b) => a.localeCompare(b, 'es'))
   },
-  salir() {
-    salir()
+  async salir() {
+    await salir()
     if (app.demo) location.href = location.pathname
     else pantallaIngreso()
   },
@@ -171,6 +171,10 @@ function shell() {
         <a class="marca" href="#resumen"><span class="marca-logo" aria-hidden="true">$</span><span class="marca-nombre">FinanzasMaker</span></a>
         ${app.demo ? html`<span class="etiqueta-demo">Demo<span class="solo-ancho"> · datos inventados</span></span>` : ''}
         <span class="separa"></span>
+        <!-- Inversiones es la otra página del proyecto (inversiones/index.html,
+             lo que era gestor-acciones). Va arriba y no como pestaña: abajo, en
+             el celular, ya hay siete. En la demo, sigue en demo. -->
+        <a class="btn btn-chico btn-borde ir-inversiones" href="./inversiones/${app.demo ? '?demo' : ''}">Inversiones</a>
         <button type="button" class="btn btn-icono btn-borde boton-tema" id="tema"></button>
       </div>
       <nav class="pestanas" aria-label="Secciones">
@@ -221,7 +225,7 @@ async function entrar() {
   try {
     app.datos = await llamar('datos')
   } catch (err) {
-    if (!app.demo && !vigente()) return pantallaIngreso()
+    if (!app.demo && !(await haySesion())) return pantallaIngreso()
     pintar(raiz, html`<div class="cargando error" role="alert">${err.message}</div>`)
     return
   }
@@ -263,7 +267,7 @@ function pantallaIngreso() {
         <ul class="ingreso-rasgos">
           <li>${crudo(ICONO.candado)}Sin claves bancarias</li>
           <li>${crudo(ICONO.reloj)}Día, mes y año</li>
-          <li>${crudo(ICONO.nube)}Tus datos en tu Drive</li>
+          <li>${crudo(ICONO.nube)}Solo tú ves tus datos</li>
           <li>${crudo(ICONO.chispa)}Consejos de ahorro</li>
         </ul>
         <div class="ingreso-vista" aria-hidden="true">
@@ -279,7 +283,7 @@ function pantallaIngreso() {
         <span class="ingreso-logo" aria-hidden="true">$</span>
         <div>
           <h2 id="titulo-ingreso">FinanzasMaker</h2>
-          <p>Entra con la cuenta de Google dueña de la planilla.</p>
+          <p>Entra con tu cuenta de Google.</p>
         </div>
         <div id="boton-google" class="boton-google"></div>
         <div class="separador">o</div>
@@ -289,7 +293,7 @@ function pantallaIngreso() {
       </main>
       ${crudo(pie({ repo: REPO, oscuro: true }))}
     </div>`)
-  botonIngreso($('#boton-google'), entrar).catch((err) => aviso(err.message, 'error'))
+  botonIngreso($('#boton-google'), entrar, (msg) => aviso(msg, 'error')).catch((err) => aviso(err.message, 'error'))
 
   // Efectos de la portada (src/lib/efectos.js, fondo-dotField.js): matriz de
   // puntos tras la aurora y botón de la demo que se acerca al cursor. Ambos se
@@ -308,5 +312,9 @@ onSesionCaducada(() => {
   pantallaIngreso()
 })
 
-if (app.demo || vigente()) entrar()
-else pantallaIngreso()
+// La sesión de Supabase se lee de sessionStorage (y se renueva si venció):
+// es asíncrono, por eso el arranque espera.
+;(async () => {
+  if (app.demo || (await haySesion())) entrar()
+  else pantallaIngreso()
+})()

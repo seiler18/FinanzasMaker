@@ -26,7 +26,8 @@ function archivos(dir, ext) {
 }
 
 // 1
-for (const f of archivos(join(raiz, 'src/styles'), ['.css'])) {
+// Las dos páginas: Finanzas (src/styles) e Inversiones (src/inversiones/styles).
+for (const f of [...archivos(join(raiz, 'src/styles'), ['.css']), ...archivos(join(raiz, 'src/inversiones/styles'), ['.css'])]) {
   if (f.endsWith('tokens.css')) continue
   readFileSync(f, 'utf8').split('\n').forEach((l, i) => {
     const s = l.replace(/\/\*.*?\*\//g, '')

@@ -1,39 +1,23 @@
 /* ============================================================
-   FinanzasMaker — backend en Google Apps Script
+   FinanzasMaker — el trabajador de fondo en Google Apps Script (v2)
 
    Vive DENTRO de la planilla (Extensiones → Apps Script) y corre con la
-   cuenta del dueño. Dos trabajos:
+   cuenta del dueño. Desde el hito 0010 ya no guarda en las hojas: guarda en
+   Supabase (Supabase.gs), y la página lee de allá. Le quedan los trabajos que
+   necesitan la cuenta de Google:
 
    1. procesarCorreos(): un disparador cada 30 min busca en Gmail los avisos de
-      los bancos, los lee con Lectores.gs, escribe cada movimiento en la hoja
-      y SOLO DESPUÉS manda ese correo a la papelera (Gmail lo borra del todo
-      a los 30 días). Lo que no entiende va a «Revisar» y no se toca.
-   2. doPost(): la API que usa la página de GitHub Pages. Cada petición trae
-      el token de «Iniciar sesión con Google»; si no es del dueño, no hay datos.
+      los bancos, los lee con Lectores.gs, escribe cada movimiento en la base y
+      SOLO DESPUÉS manda ese correo a la papelera (Gmail lo borra del todo a
+      los 30 días). Lo que no entiende va a «revisar» y no se toca. También
+      manda a la papelera lo que el dueño decidió borrar desde la página.
+   2. actualizarAcciones() y alertasAcciones() (Acciones.gs): lo que hacía la
+      hoja de gestor-acciones.
+   3. doPost(): solo «sincronizar» («Revisar correos ahora» en la página), con
+      el token de «Iniciar sesión con Google»; si no es del dueño, nada.
 
-   Instalación: README.md. Modelo de amenazas: SECURITY.md.
+   Instalación: README.md («v2: el trabajador»). Modelo de amenazas: SECURITY.md.
    ============================================================ */
-
-const HOJAS = {
-  movimientos: ['id', 'fecha', 'banco', 'producto', 'tipo', 'monto', 'moneda', 'monto_original', 'contraparte',
-                'categoria', 'cuotas', 'detalle', 'nota', 'origen', 'gmail_id', 'registrado',
-                // Opcional, 'AAAA-MM-DD'. Si está, el movimiento cuenta en ESE día para los
-                // totales y no en `fecha` (que sigue siendo cuándo ocurrió de verdad).
-                'fecha_contable'],
-  inversiones: ['id', 'fecha', 'plataforma', 'operacion', 'instrumento', 'monto', 'moneda', 'detalle', 'gmail_id', 'registrado'],
-  revisar:     ['gmail_id', 'fecha', 'remitente', 'asunto', 'motivo', 'tipo', 'monto', 'contraparte', 'banco', 'extracto', 'estado'],
-  // Bitácora de cada correo procesado. Es lo que queda como respaldo cuando
-  // el correo ya se borró, y lo que evita procesar dos veces el mismo.
-  correos:     ['gmail_id', 'fecha', 'remitente', 'asunto', 'resultado', 'lector', 'referencia', 'procesado'],
-  reglas:      ['patron', 'categoria', 'tipo'],
-  presupuestos: ['categoria', 'monto_mensual'],
-  config:      ['clave', 'valor'],
-};
-
-const NOMBRES_HOJA = {
-  movimientos: 'Movimientos', inversiones: 'Inversiones', revisar: 'Revisar', correos: 'Correos',
-  reglas: 'Reglas', presupuestos: 'Presupuestos', config: 'Config', ensayo: 'Ensayo',
-};
 
 const CONFIG_BASE = [
   ['titular', 'Jesus Seiler', 'Tu nombre tal como lo escriben los bancos (nombre + apellido). Sirve para reconocer transferencias entre tus cuentas.'],
@@ -42,6 +26,10 @@ const CONFIG_BASE = [
   ['dolar', '950', 'Pesos por dólar para convertir compras en USD (aproximado).'],
   ['cuentas_externas', 'Mercado Pago', 'Cuentas tuyas que no avisan lo que reciben (separadas por coma): lo que sale de ellas a tus cuentas cuenta como ingreso, y lo que les mandas, como gasto.'],
   ['vendedores_cripto', 'Leveltech', 'Vendedores de Binance P2P a quienes les compras USDT (separados por coma): esa transferencia pasa a tu cuenta de Binance y no es gasto; el gasto se cuenta cuando el USDT sale por Binance Pay.'],
+  ['umbral_venta_pct', '5', 'Inversiones: avisa «¿vender?» cuando una posición gana más de este % sobre su costo.'],
+  ['umbral_caida_pct', '3', 'Inversiones: avisa «¿comprar?» cuando un activo cae más de este % en el día.'],
+  ['acciones_desde', '2026/06/04', 'Inversiones: primera fecha de los correos de operaciones de Fintual que se leen (AAAA/MM/DD).'],
+  ['email_alertas', '', 'Inversiones: a qué correo llegan los avisos. Vacío: al de la cuenta que instaló el script.'],
 ];
 
 // Dominios con lector propio. La red genérica de Lectores.gs cubre el resto
@@ -63,39 +51,40 @@ const SOLAPE_S = 2 * 24 * 3600;    // cada pasada vuelve a mirar 2 días atrás
      nuevos tarda segundos; solo una importación larga llega al tope);
    · si en el día ya sumó 60 min, las pasadas siguientes esperan a mañana;
    · lo que se ignoró (publicidad, alertas, correos que no son de bancos) se
-     recuerda 6 horas y no se vuelve a abrir en cada pasada. */
+     recuerda 6 horas y no se vuelve a abrir en cada pasada.
+   Las tareas de Acciones.gs (cada 1 h y cada 4 h) duran segundos. */
 const CADA_MIN = 30;
 const PRESUPUESTO_DISPARADOR_MS = 90 * 1000;
 const TOPE_DIARIO_MS = 60 * 60 * 1000;
 const IGNORADOS_S = 6 * 3600;
 
 /* ============================================================
-   INSTALACIÓN — se corren a mano desde el editor, una vez
+   INSTALACIÓN — se corren a mano desde el editor
    ============================================================ */
 
-/* Crea las hojas, guarda quién es el dueño y deja el disparador.
-   CLIENT_ID es el «ID de cliente» de OAuth de la página (README, paso 3):
-   no es secreto, pero el backend solo acepta tokens emitidos para él. */
+/* Guarda quién es el dueño, siembra la configuración y las reglas base en la
+   base si están vacías, y deja los disparadores. Antes: probarSupabase()
+   (Supabase.gs) y, si había datos en la planilla, migrarASupabase() (Migrar.gs). */
 function instalar() {
   const props = PropertiesService.getScriptProperties();
   const dueno = Session.getEffectiveUser().getEmail();
   if (!dueno) throw new Error('No se pudo leer tu correo: autoriza el script y vuelve a correr instalar()');
   props.setProperty('PROPIETARIO', dueno.toLowerCase());
-  Object.keys(HOJAS).forEach(hoja_);
   sembrar_();
   programarDisparador();
-  console.log('Listo. Dueño: ' + dueno + '. Falta: definir CLIENT_ID con definirClienteId("...")');
+  console.log('Listo. Dueño: ' + dueno + (props.getProperty('CLIENT_ID') ? '' : '. Falta: definir CLIENT_ID con definirClienteId("...")'));
 }
 
-/* Deja un solo disparador de procesarCorreos, cada CADA_MIN minutos. Lo
-   llama instalar(); se corre a mano para cambiar la frecuencia de una
-   planilla ya instalada. */
+/* Un solo disparador de cada tarea. Se corre a mano para rehacerlos. */
 function programarDisparador() {
+  const tareas = [['procesarCorreos', (t) => t.everyMinutes(CADA_MIN), 'cada ' + CADA_MIN + ' minutos'],
+                  ['actualizarAcciones', (t) => t.everyHours(1), 'cada 1 hora'],
+                  ['alertasAcciones', (t) => t.everyHours(4), 'cada 4 horas']];
+  const nombres = tareas.map((t) => t[0]);
   ScriptApp.getProjectTriggers()
-    .filter((t) => t.getHandlerFunction() === 'procesarCorreos')
+    .filter((t) => nombres.indexOf(t.getHandlerFunction()) !== -1)
     .forEach((t) => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('procesarCorreos').timeBased().everyMinutes(CADA_MIN).create();
-  console.log('Disparador: procesarCorreos cada ' + CADA_MIN + ' minutos');
+  tareas.forEach((t) => { t[1](ScriptApp.newTrigger(t[0]).timeBased()).create(); console.log('Disparador: ' + t[0] + ' ' + t[2]); });
 }
 
 function definirClienteId(id) {
@@ -104,16 +93,21 @@ function definirClienteId(id) {
   console.log('CLIENT_ID guardado');
 }
 
-/* Ensayo: lee los correos y escribe en la hoja «Ensayo» qué haría con cada
-   uno — sin registrar nada, sin borrar nada y sin mover el cursor. Es la
-   prueba de los lectores contra tus correos reales antes de soltarlos. */
+function sembrar_() {
+  if (!leer_('config', 'select=clave').length) agregarFilas_('config', CONFIG_BASE.map((c) => ({ clave: c[0], valor: c[1] })));
+  if (!leer_('reglas', 'select=id').length) agregarFilas_('reglas', REGLAS_BASE.map((r) => ({ patron: r[0], categoria: r[1], tipo: r[2] || '' })));
+}
+
+/* Ensayo: lee los correos y escribe en la hoja «Ensayo» de esta planilla qué
+   haría con cada uno — sin registrar nada, sin borrar nada y sin mover el
+   cursor. Es la prueba de los lectores contra tus correos reales. */
 function ensayo() {
   const r = procesar_({ ensayo: true, presupuestoMs: 5 * 60 * 1000 });
   console.log(JSON.stringify(r.resumen));
 }
 
-/* Vuelve a importar todo desde «desde» (Config). Lo ya registrado no se
-   duplica: la bitácora Correos lo salta por id. */
+/* Vuelve a importar todo desde «desde» (configuración). Lo ya registrado no
+   se duplica: la bitácora `correos` lo salta por id. */
 function reiniciarImportacion() {
   const props = PropertiesService.getScriptProperties();
   props.deleteProperty('PASADA');
@@ -121,40 +115,33 @@ function reiniciarImportacion() {
   console.log('Listo: la próxima pasada importa desde ' + leerConfig_().desde);
 }
 
-/* Aplica «cuentas_externas» (Config) a lo que ya estaba registrado: los
-   traspasos desde o hacia esas cuentas que entraron como «Entre mis cuentas»
-   pasan a ingreso o gasto. El lector de cada movimiento sale de la bitácora
-   Correos. Se puede correr varias veces: lo ya reclasificado no se toca. */
+/* Aplica «cuentas_externas» a lo que ya estaba registrado: los traspasos
+   desde o hacia esas cuentas que entraron como «Entre mis cuentas» pasan a
+   ingreso o gasto. El lector de cada movimiento sale de la bitácora. Se puede
+   correr varias veces: lo ya reclasificado no se toca. */
 function reclasificarExternas() {
   const cfg = leerConfig_();
   const ctx = { titular: cfg.titular || '', externas: cfg.cuentas_externas || '' };
   const lector = {};
-  leer_('correos').forEach((c) => { lector[String(c.gmail_id)] = String(c.lector); });
+  leer_('correos', 'select=gmail_id,lector').forEach((c) => { lector[String(c.gmail_id)] = String(c.lector); });
   let n = 0;
-  conBloqueo_(() => {
-    leer_('movimientos').forEach((m) => {
-      if (m.origen !== 'correo' || m.tipo !== 'interna') return;
-      const antes = m.tipo + '|' + m.categoria;
-      externa_(m, ctx, lector[String(m.gmail_id)] || '');
-      if (m.tipo + '|' + m.categoria !== antes) { actualizar_('movimientos', 'id', m.id, { tipo: m.tipo, categoria: m.categoria }); n++; }
-    });
+  leer_('movimientos', 'select=id,tipo,categoria,contraparte,banco,detalle,gmail_id&origen=eq.correo&tipo=eq.interna').forEach((m) => {
+    const antes = m.tipo + '|' + m.categoria;
+    externa_(m, ctx, lector[String(m.gmail_id)] || '');
+    if (m.tipo + '|' + m.categoria !== antes) { actualizar_('movimientos', 'id', m.id, { tipo: m.tipo, categoria: m.categoria }); n++; }
   });
   console.log(n + ' movimiento(s) reclasificados con cuentas_externas = «' + ctx.externas + '»');
 }
 
-/* Aplica «vendedores_cripto» (Config) a lo ya registrado: la transferencia
-   a un vendedor de Binance P2P que entró como gasto pasa a «Compra de
-   cripto» (interna). Se puede correr varias veces. */
+/* Aplica «vendedores_cripto» a lo ya registrado: la transferencia a un
+   vendedor de Binance P2P que entró como gasto pasa a «Compra de cripto». */
 function reclasificarCripto() {
   const ctx = { vendedores: leerConfig_().vendedores_cripto || '' };
   let n = 0;
-  conBloqueo_(() => {
-    leer_('movimientos').forEach((m) => {
-      if (m.origen !== 'correo') return;
-      const antes = m.tipo + '|' + m.categoria;
-      p2p_(m, ctx);
-      if (m.tipo + '|' + m.categoria !== antes) { actualizar_('movimientos', 'id', m.id, { tipo: m.tipo, categoria: m.categoria }); n++; }
-    });
+  leer_('movimientos', 'select=id,tipo,categoria,contraparte&origen=eq.correo').forEach((m) => {
+    const antes = m.tipo + '|' + m.categoria;
+    p2p_(m, ctx);
+    if (m.tipo + '|' + m.categoria !== antes) { actualizar_('movimientos', 'id', m.id, { tipo: m.tipo, categoria: m.categoria }); n++; }
   });
   console.log(n + ' movimiento(s) reclasificados con vendedores_cripto = «' + ctx.vendedores + '»');
 }
@@ -169,7 +156,8 @@ function diagnostico() {
   const bancarios = hilos.reduce((n, h) => n + h.getMessages().filter((m) => esRemitenteBancario_(correoDe_(m.getFrom()))).length, 0);
   console.log(JSON.stringify({
     config: cfg, propietario: props.getProperty('PROPIETARIO'), clientId: props.getProperty('CLIENT_ID') ? 'definido' : 'FALTA',
-    pasada: props.getProperty('PASADA'), consulta: q, hilosPrimeraPagina: hilos.length, correosBancariosPrimeraPagina: bancarios,
+    migrado: props.getProperty('MIGRADO') || 'no', pasada: props.getProperty('PASADA'), consulta: q,
+    hilosPrimeraPagina: hilos.length, correosBancariosPrimeraPagina: bancarios,
   }, null, 2));
 }
 
@@ -177,7 +165,15 @@ function diagnostico() {
    PROCESAMIENTO DE CORREOS
    ============================================================ */
 
+/* Hasta que no se haya pasado lo de la planilla a la base, no se procesa
+   nada: la bitácora de la base estaría vacía y lo de los últimos dos días
+   (ya registrado en la hoja y en la papelera) entraría otra vez, duplicado. */
+function migrado_() {
+  return PropertiesService.getScriptProperties().getProperty('MIGRADO') === 'si';
+}
+
 function procesarCorreos() {
+  if (!migrado_()) { console.log('Falta correr migrarASupabase() (o empezarDeCero()): no se procesa nada todavía'); return; }
   const props = PropertiesService.getScriptProperties();
   const hoy = Utilities.formatDate(new Date(), 'America/Santiago', 'yyyy-MM-dd');
   const uso = JSON.parse(props.getProperty('USO') || 'null') || {};
@@ -185,6 +181,7 @@ function procesarCorreos() {
   if (usado >= TOPE_DIARIO_MS) { console.log('Tope diario de ' + TOPE_DIARIO_MS / 60000 + ' min alcanzado: sigue mañana'); return; }
   const t0 = Date.now();
   try {
+    borrarDecididos_();
     const r = procesar_({ ensayo: false, presupuestoMs: PRESUPUESTO_DISPARADOR_MS });
     console.log(JSON.stringify(r.resumen));
   } finally {
@@ -210,19 +207,21 @@ function procesar_(op) {
   try {
     const cfg = leerConfig_();
     const ctx = { titular: cfg.titular || '', dolar: Number(cfg.dolar) || 950, externas: cfg.cuentas_externas || '', vendedores: cfg.vendedores_cripto || '' };
-    const reglas = leer_('reglas').filter((r) => r.patron);
-    const vistos = new Set(leer_('correos').map((f) => String(f.gmail_id)));
+    const reglas = leer_('reglas', 'select=patron,categoria,tipo&order=id').filter((r) => r.patron);
+    // Los ya procesados se consultan por trozo (los ids de cada página), no
+    // todos al empezar: la bitácora crece sin tope y la página de búsqueda no.
+    const vistos = new Set();
     // Lo ignorado no queda en la bitácora: sin esto se volvería a abrir en
     // cada pasada mientras siga dentro del solape. El ensayo debe verlo todo.
     const cache = CacheService.getScriptCache();
     const ignorados = new Set(op.ensayo ? [] : JSON.parse(cache.get('IGNORADOS') || '[]'));
-    const recientes = leer_('movimientos').slice(-500);
+    const recientes = leerPagina_('movimientos', 'select=id,fecha,banco,tipo,monto,contraparte&order=fecha.desc&limit=500');
     const borrar = !op.ensayo && String(cfg.borrar_correos).toLowerCase() === 'si';
     const props = PropertiesService.getScriptProperties();
 
-    // `base` es el «desde» de Config con que empezó la importación. Si
-    // cambia (o la pasada guardada es de antes de que existiera `base`), se
-    // vuelve a importar desde la fecha nueva: lo ya registrado se salta por id.
+    // `base` es el «desde» de la configuración con que empezó la importación.
+    // Si cambia, se vuelve a importar desde la fecha nueva: lo ya registrado
+    // se salta por id.
     const base = String(cfg.desde || '2026/01/01');
     let pasada = op.ensayo ? null : JSON.parse(props.getProperty('PASADA') || 'null');
     if (!pasada || pasada.base !== base) pasada = { base, desde: base, inicio: 0, comenzo: Math.floor(Date.now() / 1000) };
@@ -239,8 +238,13 @@ function procesar_(op) {
     for (;;) {
       const hilos = GmailApp.search(q, inicio, PAGINA);
       const lote = { movimientos: [], inversiones: [], revisar: [], correos: [], papelera: [] };
+      const mensajes = [];
+      hilos.forEach((hilo) => hilo.getMessages().forEach((msg) => mensajes.push(msg)));
 
-      hilos.forEach((hilo) => hilo.getMessages().forEach((msg) => {
+      const nuevos = mensajes.map((m) => m.getId()).filter((id) => !vistos.has(id) && !ignorados.has(id));
+      if (nuevos.length) leerPagina_('correos', 'select=gmail_id&' + sbIn_('gmail_id', nuevos)).forEach((f) => vistos.add(String(f.gmail_id)));
+
+      mensajes.forEach((msg) => {
         const id = msg.getId();
         if (vistos.has(id) || ignorados.has(id) || msg.getDate() < limite || msg.isDraft()) return;
         vistos.add(id);
@@ -257,13 +261,12 @@ function procesar_(op) {
         try { r = leerCorreo_(c, ctx); } catch (e) { r = { estado: 'error', motivo: String(e) }; }
         if (r.estado === 'nada' || r.estado === 'ignorar') ignorados.add(id);
         manejar_(r, c, id, msg, { lote, resumen, reglas, recientes, filasEnsayo, ensayo: op.ensayo, ctx });
-      }));
+      });
 
       if (!op.ensayo) {
-        // Primero la hoja, después la papelera. Si algo falla al escribir,
-        // se lanza antes de tocar un solo correo.
+        // Primero la base, después la papelera. Si algo falla al escribir,
+        // escribir_ lanza antes de tocar un solo correo.
         escribir_(lote);
-        SpreadsheetApp.flush();
         if (borrar) {
           lote.papelera.forEach((m) => {
             try { if (!m.isInTrash()) m.moveToTrash(); resumen.borrados++; }
@@ -283,10 +286,13 @@ function procesar_(op) {
     if (op.ensayo) {
       escribirEnsayo_(filasEnsayo);
     } else if (terminado) {
+      const ahora = new Date().toISOString();
       props.setProperty('PASADA', JSON.stringify({ base, desde: String(pasada.comenzo - SOLAPE_S), inicio: 0, comenzo: Math.floor(Date.now() / 1000) }));
-      props.setProperty('ULTIMA', new Date().toISOString());
+      props.setProperty('ULTIMA', ahora);
+      guardarEstado_({ ultima: ahora, importando: false, resumen });
     } else {
       props.setProperty('PASADA', JSON.stringify(Object.assign(pasada, { inicio })));
+      guardarEstado_({ importando: true, resumen });
     }
     resumen.completa = terminado;
     return { resumen };
@@ -350,16 +356,40 @@ function manejar_(r, c, id, msg, s) {
   }
 }
 
+/* La bitácora va al final: si una tabla de datos falla, el correo no queda
+   anotado como procesado y la próxima pasada lo vuelve a intentar. Las de
+   «revisar» y la bitácora no se pisan si ya estaban (reintento tras un corte). */
 function escribir_(lote) {
   agregarFilas_('movimientos', lote.movimientos);
   agregarFilas_('inversiones', lote.inversiones);
-  agregarFilas_('revisar', lote.revisar);
-  agregarFilas_('correos', lote.correos);
+  agregarFilas_('revisar', lote.revisar, { conflicto: 'usuario,gmail_id', ignorar: true });
+  agregarFilas_('correos', lote.correos, { conflicto: 'usuario,gmail_id', ignorar: true });
+}
+
+/* Lo que el dueño decidió en la página («Registrar» con borrar_correos = si,
+   o «Descartar y borrar el correo»): la página solo lo marca, porque Gmail lo
+   toca únicamente este script. Se anota hecho aunque el correo ya no exista. */
+function borrarDecididos_() {
+  const pendientes = leer_('revisar', 'select=gmail_id&borrar_correo=is.true&correo_borrado=is.false');
+  pendientes.forEach((f) => {
+    try {
+      const msg = GmailApp.getMessageById(f.gmail_id);
+      if (msg && !msg.isInTrash()) msg.moveToTrash();
+    } catch (e) {
+      console.error('No se pudo borrar ' + f.gmail_id + ': ' + e);
+    }
+    actualizar_('revisar', 'gmail_id', f.gmail_id, { correo_borrado: true });
+  });
+}
+
+/* Una sola página de resultados, para consultas que ya traen su `limit`. */
+function leerPagina_(tabla, consulta) {
+  return sbPedir_('get', tabla, sbConsulta_(tabla, consulta)) || [];
 }
 
 function escribirEnsayo_(filas) {
   const ss = SpreadsheetApp.getActive();
-  const h = ss.getSheetByName(NOMBRES_HOJA.ensayo) || ss.insertSheet(NOMBRES_HOJA.ensayo);
+  const h = ss.getSheetByName('Ensayo') || ss.insertSheet('Ensayo');
   h.clearContents();
   const cab = ['fecha', 'remitente', 'asunto', 'resultado', 'tipo', 'monto', 'contraparte', 'categoria', 'banco', 'lector', 'motivo'];
   const datos = [cab].concat(filas.map((f) => cab.map((k) => celda_(f[k] == null ? '' : f[k]))));
@@ -367,7 +397,7 @@ function escribirEnsayo_(filas) {
 }
 
 /* ============================================================
-   API HTTP
+   API HTTP — solo «Revisar correos ahora»
    ============================================================ */
 
 function doGet() {
@@ -388,14 +418,10 @@ function doPost(e) {
     if (!identidad_(body.credencial)) return json_({ ok: false, error: 'Inicia sesión de nuevo', sesion: false });
     return json_(Object.assign({ ok: true }, ACCIONES[accion](body)));
   } catch (err) {
-    if (err instanceof ErrorVisible) return json_({ ok: false, error: err.message });
     console.error(err && err.stack || err);
     return json_({ ok: false, error: 'Error interno' });
   }
 }
-
-class ErrorVisible extends Error {}
-function falla_(msg) { throw new ErrorVisible(msg); }
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -450,299 +476,28 @@ function identidad_(cred) {
 function relleno_(s) { return s + '==='.slice((s.length + 3) % 4); }
 function hex_(bytes) { return bytes.map((b) => ((b + 256) % 256).toString(16).padStart(2, '0')).join(''); }
 
-/* ============================================================
-   ACCIONES (todas exigen la identidad del dueño)
-   ============================================================ */
-
+/* La página habla con Supabase para todo lo demás (src/lib/datos.js). */
 const ACCIONES = {
-  datos: () => ({
-    movimientos: leer_('movimientos').map(limpiarMov_),
-    inversiones: leer_('inversiones'),
-    revisar: leer_('revisar').filter((r) => r.estado === 'pendiente'),
-    presupuestos: leer_('presupuestos'),
-    reglas: leer_('reglas'),
-    estado: estado_(),
-  }),
-
-  agregar: (b) => conBloqueo_(() => {
-    const m = validarMov_(b.mov || {});
-    Object.assign(m, { id: nuevoId_('M'), origen: 'manual', gmail_id: '', registrado: ahora_() });
-    agregarFilas_('movimientos', [m]);
-    return { mov: limpiarMov_(m) };
-  }),
-
-  /* Cambiar tipo o categoría. Con `regla: true` además se guarda la regla
-     «esta contraparte → esta categoría» y se aplica a los movimientos que ya
-     tenían la misma contraparte: así se corrige una vez, no cien. */
-  editar: (b) => conBloqueo_(() => {
-    const id = texto_(b.id, 40);
-    const cambios = {};
-    if (b.tipo != null) { if (TIPOS.indexOf(b.tipo) === -1) falla_('Tipo no válido'); cambios.tipo = b.tipo; }
-    if (b.categoria != null) cambios.categoria = texto_(b.categoria, 40) || 'Otros';
-    if (b.nota != null) cambios.nota = texto_(b.nota, 200);
-    // Vacío = que vuelva a contar en su fecha real. Vale para todo origen:
-    // lo típico es un depósito del banco que llegó antes de tiempo.
-    if (b.fecha_contable != null) cambios.fecha_contable = b.fecha_contable === '' ? '' : fechaValida_(b.fecha_contable).slice(0, 10);
-    const filas = leer_('movimientos');
-    const m = filas.find((f) => String(f.id) === id);
-    if (!m) falla_('No existe ese movimiento');
-    if (m.origen === 'manual') {
-      if (b.monto != null) cambios.monto = enteroPositivo_(b.monto);
-      if (b.contraparte != null) cambios.contraparte = texto_(b.contraparte, 80);
-      if (b.fecha != null) cambios.fecha = fechaValida_(b.fecha);
-    }
-    let aplicados = 0;
-    if (b.regla && cambios.categoria && m.contraparte) {
-      agregarFilas_('reglas', [{ patron: m.contraparte, categoria: cambios.categoria, tipo: cambios.tipo || '' }]);
-      const k = clave_(m.contraparte);
-      filas.forEach((f) => {
-        if (String(f.id) !== id && clave_(f.contraparte) === k) {
-          actualizar_('movimientos', 'id', f.id, Object.assign({ categoria: cambios.categoria }, cambios.tipo ? { tipo: cambios.tipo } : {}));
-          aplicados++;
-        }
-      });
-    }
-    actualizar_('movimientos', 'id', id, cambios);
-    return { aplicados };
-  }),
-
-  eliminar: (b) => conBloqueo_(() => {
-    const id = texto_(b.id, 40);
-    if (!borrarFila_('movimientos', 'id', id)) falla_('No existe ese movimiento');
-    // La bitácora de Correos queda: impide que el mismo correo (si sigue en
-    // la papelera) vuelva a entrar en la próxima pasada.
-    return {};
-  }),
-
-  /* Decidir un «Por revisar»: registrarlo (con los datos corregidos a mano)
-     o descartarlo. Registrar lo trata como cualquier correo leído: queda
-     el movimiento y el correo va a la papelera si borrar_correos = si. */
-  revisar: (b) => conBloqueo_(() => {
-    const gid = texto_(b.gmail_id, 40);
-    const fila = leer_('revisar').find((r) => String(r.gmail_id) === gid && r.estado === 'pendiente');
-    if (!fila) falla_('Ya no está pendiente');
-    const cfg = leerConfig_();
-    let ref = '';
-    if (b.decision === 'registrar') {
-      const fecha = esFecha_(fila.fecha) ? fmtFecha_(fila.fecha) : String(fila.fecha);
-      const m = validarMov_(Object.assign({ fecha, banco: fila.banco, contraparte: fila.contraparte, tipo: fila.tipo, monto: fila.monto }, b.mov || {}));
-      Object.assign(m, { id: nuevoId_('M'), origen: 'correo', gmail_id: gid, registrado: ahora_() });
-      agregarFilas_('movimientos', [m]);
-      ref = m.id;
-    } else if (b.decision !== 'descartar') {
-      falla_('Decisión no válida');
-    }
-    actualizar_('revisar', 'gmail_id', gid, { estado: b.decision === 'registrar' ? 'registrado' : 'descartado' });
-    actualizar_('correos', 'gmail_id', gid, { resultado: b.decision === 'registrar' ? 'registrado' : 'descartado', referencia: ref });
-    SpreadsheetApp.flush();
-    let borrado = false;
-    if ((b.decision === 'registrar' && String(cfg.borrar_correos).toLowerCase() === 'si') || (b.decision === 'descartar' && b.borrar === true)) {
-      try { const msg = GmailApp.getMessageById(gid); if (msg && !msg.isInTrash()) msg.moveToTrash(); borrado = true; }
-      catch (e) { console.error('No se pudo borrar ' + gid + ': ' + e); }
-    }
-    return { borrado, id: ref };
-  }),
-
-  presupuesto: (b) => conBloqueo_(() => {
-    const cat = texto_(b.categoria, 40);
-    if (!cat) falla_('Falta la categoría');
-    const monto = Math.max(0, Math.round(Number(b.monto) || 0));
-    borrarFila_('presupuestos', 'categoria', cat);
-    if (monto > 0) agregarFilas_('presupuestos', [{ categoria: cat, monto_mensual: monto }]);
-    return {};
-  }),
-
-  // «Revisar correos ahora» desde la página: la misma pasada del disparador,
-  // con menos tiempo para que el navegador no espere minutos.
-  sincronizar: () => ({ resumen: procesar_({ ensayo: false, presupuestoMs: 40 * 1000 }).resumen, estado: estado_() }),
+  // «Revisar correos ahora»: la misma pasada del disparador, con menos tiempo
+  // para que el navegador no espere minutos.
+  sincronizar: () => {
+    if (!migrado_()) return { resumen: { ocupado: true } };
+    borrarDecididos_();
+    return { resumen: procesar_({ ensayo: false, presupuestoMs: 40 * 1000 }).resumen };
+  },
 };
 
-function estado_() {
-  const props = PropertiesService.getScriptProperties();
-  const p = JSON.parse(props.getProperty('PASADA') || 'null');
-  const cfg = leerConfig_();
-  return {
-    ultima: props.getProperty('ULTIMA') || '',
-    importando: !!(p && p.inicio > 0),
-    borrar: String(cfg.borrar_correos).toLowerCase() === 'si',
-    titular: cfg.titular || '',
-  };
-}
-
-/* ---------- validación ---------- */
-
-function validarMov_(x) {
-  const tipo = String(x.tipo || 'gasto');
-  if (TIPOS.indexOf(tipo) === -1) falla_('Tipo no válido');
-  const m = {
-    fecha: fechaValida_(x.fecha), banco: texto_(x.banco, 40) || 'Efectivo', producto: texto_(x.producto, 40) || 'Cuenta',
-    tipo, monto: enteroPositivo_(x.monto), moneda: 'CLP', monto_original: '', contraparte: texto_(x.contraparte, 80),
-    categoria: texto_(x.categoria, 40), cuotas: '', detalle: texto_(x.detalle, 200), nota: texto_(x.nota, 200),
-    fecha_contable: x.fecha_contable ? fechaValida_(x.fecha_contable).slice(0, 10) : '',
-  };
-  if (!m.categoria) categorizar_(m, leer_('reglas').filter((r) => r.patron));
-  return m;
-}
-
-function texto_(v, max) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max); }
-
-function enteroPositivo_(v) {
-  const n = Math.round(Number(v));
-  if (!isFinite(n) || n <= 0 || n > 1e10) falla_('Monto no válido');
-  return n;
-}
-
-function fechaValida_(v) {
-  const s = String(v || '');
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/.exec(s);
-  if (!m) falla_('Fecha no válida (AAAA-MM-DD)');
-  const f = armarFecha_(m[1], m[2], m[3], m[4] || 12, m[5] || 0);
-  if (!f) falla_('Fecha no válida');
-  return f;
-}
-
-// Sheets devuelve fechas como Date si la celda se reinterpretó; la página
-// siempre recibe texto 'AAAA-MM-DD HH:MM'.
-function limpiarMov_(f) {
-  const o = Object.assign({}, f);
-  if (esFecha_(o.fecha)) o.fecha = fmtFecha_(o.fecha);
-  // Solo el día: deCelda_ ya la devuelve como 'AAAA-MM-DD HH:MM' si Sheets la convirtió.
-  o.fecha_contable = String(o.fecha_contable || '').slice(0, 10);
-  o.monto = Number(o.monto) || 0;
-  delete o.gmail_id;
-  return o;
-}
-
 /* ============================================================
-   HOJA
+   UTILIDADES
    ============================================================ */
 
-const cabeceraAlDia_ = {};
-
-function hoja_(nombre) {
-  const ss = SpreadsheetApp.getActive();
-  let h = ss.getSheetByName(NOMBRES_HOJA[nombre]);
-  // Planilla creada antes de que HOJAS ganara una columna: se le escribe el
-  // encabezado que falta, o la columna nueva existiría sin nombre. Una vez por
-  // ejecución y hoja.
-  if (h && !cabeceraAlDia_[nombre] && h.getLastRow() >= 1) {
-    cabeceraAlDia_[nombre] = true;
-    const ultima = HOJAS[nombre].length;
-    if (!h.getRange(1, ultima, 1, 1).getValues()[0][0]) h.getRange(1, 1, 1, ultima).setValues([HOJAS[nombre]]).setFontWeight('bold');
-  }
-  if (!h) {
-    h = ss.insertSheet(NOMBRES_HOJA[nombre]);
-    h.getRange(1, 1, 1, HOJAS[nombre].length).setValues([HOJAS[nombre]]).setFontWeight('bold');
-    h.setFrozenRows(1);
-    // La fecha como texto: si Sheets la convierte a fecha, la zona horaria
-    // de la planilla puede correrla un día.
-    const col = HOJAS[nombre].indexOf('fecha');
-    if (col !== -1) h.getRange(2, col + 1, h.getMaxRows() - 1, 1).setNumberFormat('@');
-  }
-  return h;
-}
-
-function sembrar_() {
-  if (!leer_('config').length) agregarFilas_('config', CONFIG_BASE.map((c) => ({ clave: c[0], valor: c[1] })));
-  if (!leer_('reglas').length) agregarFilas_('reglas', REGLAS_BASE.map((r) => ({ patron: r[0], categoria: r[1], tipo: r[2] || '' })));
-}
-
-/* Columnas que deben quedar como TEXTO. Sheets convierte por su cuenta lo
-   que parece fecha («2026/01/01», «2026-09-18 00:57») y lo que parece número
-   (un id de Gmail hexadecimal como «18012345e6789012» se vuelve 1,8e+22 y se
-   pierde). Se escriben con un apóstrofo delante, que fuerza texto y no se ve.
-   Así se rompió la primera instalación: «desde» quedó como fecha y la
-   búsqueda en Gmail salió «after:Thu Jan 01 2026…», sin resultados. */
-const COLUMNAS_TEXTO = { fecha: 1, fecha_contable: 1, gmail_id: 1, referencia: 1, registrado: 1, procesado: 1, valor: 1, patron: 1, id: 1 };
-
-function aCelda_(k, v) {
-  v = celda_(v == null ? '' : v);
-  if (COLUMNAS_TEXTO[k] && typeof v === 'string' && v !== '' && v.charAt(0) !== "'") return "'" + v;
-  return v;
-}
-
-// Lo que ya quedó convertido en planillas creadas antes de lo anterior.
-function deCelda_(k, v) {
-  if (esFecha_(v)) return k === 'valor' ? Utilities.formatDate(v, 'America/Santiago', 'yyyy/MM/dd') : fmtFecha_(v);
-  if (COLUMNAS_TEXTO[k] && typeof v === 'number') return String(v);
-  return v;
-}
-
-function leer_(nombre) {
-  const h = hoja_(nombre);
-  const n = h.getLastRow();
-  if (n < 2) return [];
-  const cab = HOJAS[nombre];
-  return h.getRange(2, 1, n - 1, cab.length).getValues()
-    .map((fila) => { const o = {}; cab.forEach((k, i) => { o[k] = deCelda_(k, fila[i]); }); return o; });
-}
-
-function agregarFilas_(nombre, objs) {
-  if (!objs || !objs.length) return;
-  const h = hoja_(nombre);
-  const cab = HOJAS[nombre];
-  const filas = objs.map((o) => cab.map((k) => aCelda_(k, o[k])));
-  h.getRange(h.getLastRow() + 1, 1, filas.length, cab.length).setValues(filas);
-}
-
-function actualizar_(nombre, campo, valor, cambios) {
-  const h = hoja_(nombre);
-  const cab = HOJAS[nombre];
-  const n = h.getLastRow();
-  if (n < 2) return false;
-  const col = cab.indexOf(campo);
-  const vals = h.getRange(2, col + 1, n - 1, 1).getValues();
-  for (let i = 0; i < vals.length; i++) {
-    if (String(vals[i][0]) !== String(valor)) continue;
-    Object.keys(cambios).forEach((k) => {
-      const c = cab.indexOf(k);
-      if (c !== -1) h.getRange(i + 2, c + 1).setValue(aCelda_(k, cambios[k]));
-    });
-    return true;
-  }
-  return false;
-}
-
-function borrarFila_(nombre, campo, valor) {
-  const h = hoja_(nombre);
-  const n = h.getLastRow();
-  if (n < 2) return false;
-  const col = HOJAS[nombre].indexOf(campo);
-  const vals = h.getRange(2, col + 1, n - 1, 1).getValues();
-  for (let i = vals.length - 1; i >= 0; i--) {
-    if (String(vals[i][0]) === String(valor)) { h.deleteRows(i + 2, 1); return true; }
-  }
-  return false;
-}
-
-function leerConfig_() {
-  const o = {};
-  leer_('config').forEach((f) => { o[String(f.clave)] = String(f.valor); });
-  CONFIG_BASE.forEach((c) => { if (!(c[0] in o)) o[c[0]] = c[1]; });
-  return o;
-}
-
-/* Neutraliza la inyección de fórmulas: el asunto de un correo lo escribe un
-   tercero, y un «=IMPORTXML(…)» en una celda se ejecutaría. El apóstrofo
-   inicial lo fuerza a texto y no se ve. */
+/* Neutraliza la inyección de fórmulas en la hoja «Ensayo»: el asunto de un
+   correo lo escribe un tercero, y un «=IMPORTXML(…)» en una celda se
+   ejecutaría. El apóstrofo inicial lo fuerza a texto y no se ve. */
 function celda_(v) {
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) return "'" + v;
   return v;
 }
-
-function conBloqueo_(fn) {
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(20000)) falla_('Se están procesando correos, intenta en un momento');
-  try {
-    const r = fn();
-    SpreadsheetApp.flush();
-    return r;
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-/* ---------- utilidades ---------- */
 
 function correoDe_(from) {
   const m = /<([^>]+)>/.exec(String(from || ''));

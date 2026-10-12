@@ -337,3 +337,139 @@ test('notificaciones: cada uno ve y toca solo las suyas', async () => {
     assert.equal((await falla('update dispositivos set usuario = $1', [b]))?.code, '42501')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Finanzas (0004)
+// ---------------------------------------------------------------------------
+
+const mov = (usuario, extra = {}) => sql.query(
+  'insert into movimientos (usuario, fecha, tipo, monto, contraparte, origen) values ($1, $2, $3, $4, $5, $6) returning id',
+  [usuario, extra.fecha ?? '2026-10-01 12:00', extra.tipo ?? 'gasto', extra.monto ?? 1000, extra.contraparte ?? 'JUMBO', extra.origen ?? 'correo'])
+
+test('movimientos: el dueño crea, corrige y borra lo suyo; otro no ve nada', async () => {
+  const a = await crearUsuario()
+  const b = await crearUsuario()
+  const { rows: [{ id }] } = await mov(a)
+  await como(b, async () => {
+    assert.equal((await sql.query('select id from movimientos')).rowCount, 0)
+    assert.equal((await sql.query("update movimientos set categoria = 'x'")).rowCount, 0)
+    assert.equal((await sql.query('delete from movimientos')).rowCount, 0)
+    // No puede escribir a nombre de otro.
+    assert.equal((await falla("insert into movimientos (usuario, fecha, tipo, monto) values ($1, '2026-10-01 12:00', 'gasto', 1)", [a]))?.code, '42501')
+  })
+  await como(a, async () => {
+    assert.equal((await sql.query('select id from movimientos')).rowCount, 1)
+    const nuevo = await sql.query("insert into movimientos (fecha, tipo, monto) values ('2026-10-02 09:30', 'ingreso', 5000) returning id, usuario, origen")
+    assert.match(nuevo.rows[0].id, /^M[0-9a-f]{10}$/)
+    assert.equal(nuevo.rows[0].usuario, a)
+    assert.equal(nuevo.rows[0].origen, 'manual')
+    assert.equal((await sql.query("update movimientos set categoria = 'Supermercado' where id = $1", [id])).rowCount, 1)
+    assert.equal((await falla('update movimientos set usuario = $1', [b]))?.code, '42501')
+    assert.equal((await sql.query('delete from movimientos where id = $1', [id])).rowCount, 1)
+  })
+})
+
+test('movimientos: la base rechaza una fecha, un tipo o un monto que la página no entendería', async () => {
+  const a = await crearUsuario()
+  await como(a, async () => {
+    assert.equal((await falla("insert into movimientos (fecha, tipo, monto) values ('01/10/2026', 'gasto', 1)"))?.code, '23514')
+    assert.equal((await falla("insert into movimientos (fecha, tipo, monto) values ('2026-10-01 12:00', 'regalo', 1)"))?.code, '23514')
+    assert.equal((await falla("insert into movimientos (fecha, tipo, monto) values ('2026-10-01 12:00', 'gasto', -5)"))?.code, '23514')
+  })
+})
+
+test('revisar, correos, inversiones y estado: los escribe el trabajador; la página solo decide', async () => {
+  const a = await crearUsuario()
+  await sql.query("insert into revisar (usuario, gmail_id, fecha, monto) values ($1, 'g1', '2026-10-01 12:00', 1000)", [a])
+  await como(a, async () => {
+    assert.equal((await falla("insert into revisar (gmail_id) values ('g2')"))?.code, '42501')
+    assert.equal((await falla('update revisar set monto = 1'))?.code, '42501')
+    assert.equal((await falla("insert into correos (gmail_id) values ('g2')"))?.code, '42501')
+    assert.equal((await falla('delete from correos'))?.code, '42501')
+    assert.equal((await falla('insert into estado_trabajador (usuario) values ($1)', [a]))?.code, '42501')
+    assert.equal((await falla('update estado_trabajador set importando = true'))?.code, '42501')
+    assert.equal((await falla("insert into inversiones (fecha) values ('2026-10-01 12:00')"))?.code, '42501')
+  })
+})
+
+test('decidir_revisar: registrar crea el movimiento y marca el correo para la papelera, todo junto', async () => {
+  const a = await crearUsuario()
+  const b = await crearUsuario()
+  await sql.query("insert into revisar (usuario, gmail_id, fecha) values ($1, 'g1', '2026-10-01 12:00'), ($1, 'g2', '2026-10-01 12:00')", [a])
+  await sql.query("insert into correos (usuario, gmail_id, resultado) values ($1, 'g1', 'revisar'), ($1, 'g2', 'revisar')", [a])
+  const m = { fecha: '2026-10-01 12:00', tipo: 'gasto', monto: 4990, contraparte: 'KIOSCO', categoria: 'Otros', banco: 'Tenpo' }
+
+  await como(b, async () => {
+    assert.match((await falla("select decidir_revisar('g1', 'registrar', $1)", [m]))?.message ?? '', /ya-no-pendiente/)
+  })
+  await como(a, async () => {
+    const { rows: [{ id }] } = await sql.query("select decidir_revisar('g1', 'registrar', $1) as id", [m])
+    const movs = await sql.query('select origen, gmail_id, monto from movimientos where id = $1', [id])
+    assert.deepEqual(movs.rows, [{ origen: 'correo', gmail_id: 'g1', monto: '4990' }])
+    const rev = await sql.query("select estado, borrar_correo from revisar where gmail_id = 'g1'")
+    assert.deepEqual(rev.rows, [{ estado: 'registrado', borrar_correo: true }])
+    const bit = await sql.query("select resultado, referencia from correos where gmail_id = 'g1'")
+    assert.deepEqual(bit.rows, [{ resultado: 'registrado', referencia: id }])
+    assert.match((await falla("select decidir_revisar('g1', 'registrar', $1)", [m]))?.message ?? '', /ya-no-pendiente/)
+
+    // Descartar sin pedir borrar deja el correo en Gmail.
+    await sql.query("select decidir_revisar('g2', 'descartar')")
+    assert.deepEqual((await sql.query("select estado, borrar_correo from revisar where gmail_id = 'g2'")).rows, [{ estado: 'descartado', borrar_correo: false }])
+  })
+  // Con borrar_correos = no, registrar tampoco lo borra.
+  await sql.query("insert into revisar (usuario, gmail_id, fecha) values ($1, 'g3', '2026-10-01 12:00')", [a])
+  await sql.query("insert into config (usuario, clave, valor) values ($1, 'borrar_correos', 'no')", [a])
+  await como(a, async () => {
+    await sql.query("select decidir_revisar('g3', 'registrar', $1)", [m])
+    assert.equal((await sql.query("select borrar_correo from revisar where gmail_id = 'g3'")).rows[0].borrar_correo, false)
+  })
+})
+
+test('decidir_revisar: si el movimiento no es válido, no cambia nada', async () => {
+  const a = await crearUsuario()
+  await sql.query("insert into revisar (usuario, gmail_id, fecha) values ($1, 'g1', '2026-10-01 12:00')", [a])
+  await como(a, async () => {
+    assert.ok(await falla("select decidir_revisar('g1', 'registrar', $1)", [{ fecha: 'mal', tipo: 'gasto', monto: 1 }]))
+    assert.match((await falla("select decidir_revisar('g1', 'otra')"))?.message ?? '', /decision-invalida/)
+    assert.equal((await sql.query("select estado from revisar where gmail_id = 'g1'")).rows[0].estado, 'pendiente')
+    assert.equal((await sql.query('select id from movimientos')).rowCount, 0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Inversiones (0005)
+// ---------------------------------------------------------------------------
+
+test('inversiones: operaciones del dueño; precios y mapa los lee cualquiera con sesión y no los escribe nadie', async () => {
+  const a = await crearUsuario()
+  const b = await crearUsuario()
+  await sql.query("insert into acciones_operaciones (usuario, fecha, tipo, ticker, cantidad, usd, gmail_id) values ($1, '2026-06-03', 'compra', 'VOO', 0.2, 120, 'x1')", [a])
+  await sql.query("insert into acciones_precios (ticker, precio) values ('VOO', 600) on conflict do nothing")
+  await como(b, async () => {
+    assert.equal((await sql.query('select id from acciones_operaciones')).rowCount, 0)
+    assert.equal((await sql.query('select ticker from acciones_precios')).rowCount, 1)
+  })
+  await como(a, async () => {
+    assert.equal((await sql.query('select id from acciones_operaciones')).rowCount, 1)
+    assert.equal((await falla("insert into acciones_operaciones (fecha, tipo) values ('2026-06-05', 'compra')"))?.code, '42501')
+    assert.equal((await sql.query("update acciones_operaciones set ticker = 'VTI'")).rowCount, 1)
+    assert.equal((await falla('update acciones_operaciones set usuario = $1', [b]))?.code, '42501')
+    assert.equal((await falla("insert into acciones_precios (ticker) values ('X')"))?.code, '42501')
+    assert.equal((await falla('update acciones_precios set precio = 1'))?.code, '42501')
+    assert.equal((await falla("insert into acciones_mapa (nombre, ticker) values ('x', 'X')"))?.code, '42501')
+    assert.equal((await falla("insert into acciones_alertas (tipo) values ('x')"))?.code, '42501')
+  })
+})
+
+test('inversiones: un mismo correo de Fintual entra una vez', async () => {
+  const a = await crearUsuario()
+  await sql.query('begin')
+  try {
+    await sql.query("insert into acciones_operaciones (usuario, fecha, tipo, gmail_id) values ($1, '2026-06-03', 'compra', 'dup')", [a])
+    assert.equal((await falla("insert into acciones_operaciones (usuario, fecha, tipo, gmail_id) values ($1, '2026-06-03', 'compra', 'dup')", [a]))?.code, '23505')
+    // Lo cargado a mano (sin correo) no choca.
+    assert.equal(await falla("insert into acciones_operaciones (usuario, fecha, tipo) values ($1, '2026-06-03', 'compra'), ($1, '2026-06-03', 'compra')", [a]), null)
+  } finally {
+    await sql.query('rollback')
+  }
+})

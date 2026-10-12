@@ -1,0 +1,161 @@
+/* ============================================================
+   TABLERO — anillo de posiciones en ganancia, área de lo puesto frente a lo
+   recuperado, dona de composición, calendario de calor por mes y sparklines
+   en los mosaicos.
+
+   Solo tokens (colores en tokens.css: --serie-1/2, --cat-1…8). Las
+   animaciones cuelgan de .revela.visible (lib/movimiento.js), igual que las
+   barras: parten en reposo y juegan cuando la sección entra en pantalla.
+   ============================================================ */
+
+.tablero { display: grid; gap: var(--e-5); grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); align-items: stretch; }
+
+/* ----- Estado de la cartera: anillo + cifras ----- */
+.estado-cartera { display: grid; gap: var(--e-4); align-content: start; }
+.anillo { position: relative; width: clamp(120px, 40%, 160px); aspect-ratio: 1; margin-inline: auto; }
+.an-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.an-pista { fill: none; stroke: var(--surface-2); stroke-width: 9; }
+.an-arco { fill: none; stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray var(--dur-crece) var(--curva); }
+.an-par-1 { stop-color: var(--serie-1); }
+.an-par-2 { stop-color: var(--serie-2); }
+.an-bien { stroke: var(--serie-2); }
+.an-ojo { stroke: var(--estado-aviso); }
+.an-mal { stroke: var(--negativo); }
+.an-centro { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.an-centro b { font-size: var(--t-xl); font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.an-centro small { font-size: var(--t-xs); color: var(--texto-tenue); }
+.estado-cartera .pares div { grid-template-columns: 1fr auto; align-items: baseline; padding-bottom: var(--e-2); border-bottom: 1px solid var(--rejilla); }
+.estado-cartera .pares dd { text-align: right; }
+.estado-cartera .pares dd small { display: inline; margin-left: var(--e-1); color: var(--texto-tenue); }
+
+/* ----- Mosaicos con sparkline y luz que sigue al puntero ----- */
+.tile { position: relative; overflow: hidden; }
+.tile::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0), color-mix(in srgb, var(--primario) 14%, transparent), transparent 70%);
+  transition: opacity var(--dur-medio) var(--curva);
+}
+.tile > * { position: relative; }
+@media (hover: hover) { .tile:hover::before { opacity: 1; } }
+.sp { display: block; width: 100%; height: 30px; margin-top: var(--e-2); overflow: visible; }
+.sp-area { fill: color-mix(in srgb, var(--sp, var(--serie-1)) 14%, transparent); stroke: none; }
+.sp-linea { fill: none; stroke: var(--sp, var(--serie-1)); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset var(--dur-crece) var(--curva); }
+.sp-puesto { --sp: var(--serie-1); }
+.sp-recuperado { --sp: var(--serie-2); }
+.sp-div { --sp: var(--serie-2); }
+
+/* ----- Tooltip y leyenda de los gráficos ----- */
+.g-lienzo { position: relative; }
+.g-tip {
+  position: absolute; z-index: 3; min-width: 9rem; padding: var(--e-2) var(--e-3); pointer-events: none;
+  background: var(--surface); border: 1px solid var(--borde); border-radius: var(--radio-sm); box-shadow: var(--sombra);
+  font-size: var(--t-xs); color: var(--texto-2); font-variant-numeric: tabular-nums;
+}
+.g-tip strong { display: block; margin-bottom: var(--e-1); color: var(--texto); font-size: var(--t-sm); }
+.g-tip[hidden] { display: none; }
+.g-clave { display: inline-block; width: 10px; height: 10px; margin-right: var(--e-2); border-radius: 3px; vertical-align: baseline; }
+.g-clave-s1 { background: var(--serie-1); }
+.g-clave-s2 { background: var(--serie-2); }
+.g-leyenda { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); margin-bottom: var(--e-2); font-size: var(--t-xs); color: var(--texto-2); }
+.g-svg { display: block; width: 100%; height: auto; }
+.g-rejilla { stroke: var(--rejilla); stroke-width: 1; }
+.g-base { stroke: var(--eje); stroke-width: 1; }
+.g-eje { fill: var(--texto-tenue); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* ----- Gráfico de área ----- */
+.a-svg { touch-action: pan-y; outline: none; }
+.a-svg:focus-visible { outline: 2px solid var(--primario); outline-offset: 4px; border-radius: var(--radio-sm); }
+.a-par-s1 { stop-color: var(--serie-1); stop-opacity: 0.38; }
+.a-par-s2 { stop-color: var(--serie-2); stop-opacity: 0.34; }
+.a-par-fin { stop-color: var(--surface); stop-opacity: 0; }
+.a-linea { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset calc(var(--dur-crece) * 1.4) var(--curva); }
+.a-s1 { stroke: var(--serie-1); }
+.a-s2 { stroke: var(--serie-2); }
+.a-relleno { transition: opacity calc(var(--dur-crece) * 1.4) var(--curva); }
+.a-cursor { opacity: 0; transition: opacity var(--dur) var(--curva); pointer-events: none; }
+.a-activo .a-cursor { opacity: 1; }
+.a-guia { stroke: var(--eje); stroke-width: 1; stroke-dasharray: 3 3; }
+.a-punto { stroke: var(--surface); stroke-width: 2; }
+.a-punto-s1 { fill: var(--serie-1); }
+.a-punto-s2 { fill: var(--serie-2); }
+.a-captura { fill: transparent; cursor: crosshair; }
+
+/* ----- Dona de composición ----- */
+.reparto { display: grid; gap: var(--e-5); grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); align-items: center; }
+.dona { position: relative; width: 100%; max-width: 220px; aspect-ratio: 1; margin-inline: auto; }
+.d-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.d-pista { fill: none; stroke: var(--surface-2); stroke-width: 13; }
+.d-seg { fill: none; stroke-width: 13; cursor: pointer; outline: none; transition: opacity var(--dur-medio) var(--curva), stroke-width var(--dur-medio) var(--curva), stroke-dasharray var(--dur-crece) var(--curva); }
+.d-seg.d-activo, .d-seg:focus-visible { stroke-width: 17; }
+.d-seg.d-apagado { opacity: 0.25; }
+.d-centro { position: absolute; inset: 0; display: grid; place-content: center; gap: 2px; padding: 22%; text-align: center; pointer-events: none; }
+.d-tit, .d-sub { color: var(--texto-tenue); font-size: var(--t-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-monto { font-size: var(--t-lg); font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.d-seg.d-c1 { stroke: var(--cat-1); } .d-seg.d-c2 { stroke: var(--cat-2); } .d-seg.d-c3 { stroke: var(--cat-3); } .d-seg.d-c4 { stroke: var(--cat-4); }
+.d-seg.d-c5 { stroke: var(--cat-5); } .d-seg.d-c6 { stroke: var(--cat-6); } .d-seg.d-c7 { stroke: var(--cat-7); } .d-seg.d-c8 { stroke: var(--cat-8); }
+.cat-punto.d-c1 { background: var(--cat-1); } .cat-punto.d-c2 { background: var(--cat-2); } .cat-punto.d-c3 { background: var(--cat-3); } .cat-punto.d-c4 { background: var(--cat-4); }
+.cat-punto.d-c5 { background: var(--cat-5); } .cat-punto.d-c6 { background: var(--cat-6); } .cat-punto.d-c7 { background: var(--cat-7); } .cat-punto.d-c8 { background: var(--cat-8); }
+.cat-punto { display: inline-block; width: 10px; height: 10px; margin-right: var(--e-2); border-radius: 3px; flex: none; }
+
+/* Leyenda de la dona: la misma información que el gráfico, con nombre y valor. */
+.cats { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-1); }
+.cat-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--e-3);
+  width: 100%; padding: var(--e-1) var(--e-2); border: 0; border-radius: var(--radio-sm);
+  background: none; font: inherit; font-size: var(--t-sm); color: inherit; text-align: left; cursor: pointer;
+}
+.cat-fila:hover, .cat-fila:focus-visible { background: var(--surface-2); }
+.cat-nombre { display: flex; align-items: center; min-width: 0; }
+.cat-nombre b { margin-right: var(--e-2); }
+.cat-nombre small { color: var(--texto-tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cat-val small { margin-left: var(--e-1); color: var(--texto-tenue); }
+
+/* ----- Calendario de calor por mes ----- */
+.calor { display: grid; gap: var(--e-2); }
+.ca-filas { position: relative; display: grid; gap: var(--e-2); }
+.ca-anio { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); align-items: center; gap: var(--e-2); }
+.ca-anio > b { font-size: var(--t-xs); color: var(--texto-tenue); font-variant-numeric: tabular-nums; }
+.ca-rejilla { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--e-1); }
+.ca-hueco { aspect-ratio: 1; }
+.ca-dia {
+  position: relative; aspect-ratio: 1; padding: 0; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--radio-sm);
+  background: var(--surface-2); color: var(--texto-tenue); font: inherit; font-size: var(--t-micro);
+  transition: transform var(--dur) var(--curva);
+}
+.ca-n1 { background: color-mix(in srgb, var(--serie-1) 24%, var(--surface-2)); color: var(--texto); }
+.ca-n2 { background: color-mix(in srgb, var(--serie-1) 48%, var(--surface-2)); color: var(--texto); }
+.ca-n3 { background: color-mix(in srgb, var(--serie-1) 74%, var(--surface-2)); color: var(--sobre-primario); }
+.ca-n4 { background: var(--serie-1); color: var(--sobre-primario); }
+.ca-dia.ca-entra::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--serie-2); box-shadow: 0 0 0 2px var(--surface); }
+@media (hover: hover) { .ca-dia:hover { transform: scale(1.14); z-index: 2; } }
+.ca-dia:focus-visible { transform: scale(1.14); z-index: 2; outline: 2px solid var(--primario); }
+.ca-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); margin-top: var(--e-1); color: var(--texto-tenue); font-size: var(--t-xs); }
+.ca-leyenda i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
+.ca-clave { display: inline-flex; align-items: center; gap: var(--e-2); margin-left: auto; }
+.ca-clave .ca-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--serie-2); }
+
+/* ----- Entrada: arcos, líneas y celdas juegan al entrar la sección ----- */
+@keyframes pop { from { opacity: 0; transform: scale(0.4); } }
+.revela:not(.visible) .a-linea, .revela:not(.visible) .sp-linea { stroke-dashoffset: 1; }
+.revela:not(.visible) .a-relleno { opacity: 0; }
+.revela:not(.visible) .an-arco, .revela:not(.visible) .d-seg { stroke-dasharray: 0 100; }
+.revela.visible .a-linea-2 { transition-delay: calc(var(--escalon) * 3); }
+.revela.visible .an-arco { transition-delay: var(--escalon); }
+.revela.visible .d-seg:nth-child(2) { transition-delay: var(--escalon); }
+.revela.visible .d-seg:nth-child(3) { transition-delay: calc(var(--escalon) * 2); }
+.revela.visible .d-seg:nth-child(4) { transition-delay: calc(var(--escalon) * 3); }
+.revela.visible .d-seg:nth-child(n+5) { transition-delay: calc(var(--escalon) * 4); }
+.revela.visible .ca-dia { animation: pop var(--dur-medio) var(--resorte) both; animation-delay: calc(var(--i, 0) * var(--escalon) * 0.35); }
+
+@media (max-width: 900px) {
+  .tablero { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .reparto { grid-template-columns: minmax(0, 1fr); }
+  .dona { max-width: 200px; }
+  .ca-anio { grid-template-columns: 2rem minmax(0, 1fr); }
+  .ca-rejilla { gap: 2px; }
+  .ca-dia span { display: none; }
+}

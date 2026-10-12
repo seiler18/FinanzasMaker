@@ -1,43 +1,54 @@
 # FinanzasMaker — cómo se trabaja aquí
 
-Control de gastos, ingresos e inversiones de Jesús a partir de los **correos
-de aviso de sus bancos** (Tenpo, MACH, Mercado Pago, Copec Pay, BancoEstado,
-Fintual, Binance y otros). No pide claves bancarias a nadie: un Apps Script dentro de
-una planilla lee Gmail cada 30 minutos, registra cada movimiento y manda el correo
-a la papelera. El front está en GitHub Pages (`seiler18/FinanzasMaker`) y,
-sin backend configurado, abre en modo demo con datos inventados.
+Control de gastos, ingresos e inversiones de Jesús, leído de lo que le avisan
+sus bancos (Tenpo, MACH, Mercado Pago, Copec Pay, BancoEstado, Fintual,
+Binance y otros). No pide claves bancarias a nadie. Dos páginas, un proyecto:
+**Finanzas** (`/FinanzasMaker/`) e **Inversiones** (`/FinanzasMaker/inversiones/`,
+lo que era gestor-acciones). Sin sesión, las dos abren en modo demo.
 
-Hermano de `../VentasMaker/` (misma arquitectura: Vite sin framework, Apps
-Script sobre Sheets, CSP estricta, deploy por Actions). Instalación: `README.md`.
-Seguridad: `SECURITY.md`.
+La v2 (hitos 0010 y 0011) tiene tres piezas:
 
-**En transición a la v2 (hito 0010).** La base pasa a Supabase (proyecto
-`mbcswbrmgfgmpsssnfzh`), entra un canal sin correo (las notificaciones del
-celular, por MacroDroid) y gestor-acciones se une como la sección
-«Inversiones». Hoy en Supabase solo están el blindaje y las notificaciones
-crudas. La página y los correos siguen en Apps Script hasta el día del
-cambio; después Apps Script queda solo como trabajador de fondo (Gmail,
-precios, alertas) que escribe en Supabase.
+- **Base: Supabase** (proyecto `mbcswbrmgfgmpsssnfzh`). Postgres con RLS por
+  usuario. La página lee y escribe directo con la sesión de Google.
+- **Trabajador: Apps Script** dentro de la planilla, con la cuenta del dueño.
+  Lo que necesita Google:
+  - lee Gmail cada 30 min, escribe en la base y después manda el correo a la
+    papelera;
+  - cada hora lee las operaciones de Fintual y los precios de Yahoo;
+  - cada 4 h avisa las señales de la cartera.
+  Escribe con una clave secreta (se salta la RLS) y filtra él por usuario.
+- **Celular: MacroDroid** manda las notificaciones de los bancos a la
+  función `notificacion`. Por ahora se guardan crudas (relevamiento).
+
+Hermano de `../VentasMaker/` (Vite sin framework, CSP estricta, deploy por
+Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 
 ## Mapa
 
 | Qué | Dónde |
 |---|---|
-| Lectores de correos (uno por formato) y red genérica | `backend/Lectores.gs` |
-| Gmail → hoja → papelera, API, identidad | `backend/Code.gs` (`ACCIONES`, `procesar_`, `identidad_`) |
-| Totales, series, consejos, fecha contable e impuesto de timbres de las cuotas | `src/lib/analisis.js` |
-| Vistas | `src/vistas/{resumen,movimientos,revisar,agregar,cuotas,consejos,ajustes}.js` |
-| Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
-| Transiciones entre vistas; celular; tema | `src/styles/movimiento.css`, `src/styles/movil.css`, `src/lib/tema.js` |
-| Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |
-| Efectos: fondo de puntos, delta de cifras, chispas, imán, destello (todos se apagan con `prefers-reduced-motion`) | `src/lib/{efectos,fondo-dotField,cuenta}.js` + `src/styles/efectos.css` — copias adaptadas del Curriculo; React Bits es MIT + Commons Clause: se usan aquí, **no se redistribuyen** |
-| Backend de mentira del modo demo | `src/demo.js` — debe contestar igual que `Code.gs` |
-| Inicio de sesión con Google | `src/lib/sesion.js` |
-| CSP | `vite.config.js` (solo en build) |
-| Correos reales anonimizados | `tests/fixtures/*.json` |
-| Esquema de Supabase: blindaje, registro cerrado, dispositivos, notificaciones | `supabase/migrations/NNNN_*.sql` |
+| Esquema: blindaje y registro cerrado, notificaciones, finanzas, inversiones | `supabase/migrations/NNNN_*.sql` |
 | Recepción de notificaciones del celular; lector del cuerpo | `supabase/functions/notificacion/{index.ts,cuerpo.js}` |
-| Pruebas de la base (Postgres desechable) y lo mínimo de Supabase que imitan | `tests/base.test.mjs`, `supabase/pruebas/supabase-minimo.sql` |
+| Ingreso con Google y registro cerrado (lo que sube `config push`) | `supabase/config.toml` (`[auth]`, `[auth.external.google]`) |
+| Trabajador: pasada de correos, disparadores, «Revisar correos ahora», identidad | `backend/Code.gs` (`procesar_`, `borrarDecididos_`, `ACCIONES`, `identidad_`) |
+| Lectores de correos (uno por formato) y red genérica; reglas base | `backend/Lectores.gs` |
+| Cliente de Supabase del trabajador: columnas, recortes, filtro de usuario | `backend/Supabase.gs` (`COLUMNAS`, `sbConsulta_`) |
+| Fintual: operaciones, precios, alertas; costo promedio móvil | `backend/Acciones.gs` (`costoMovilAcciones_`) |
+| Migración única desde las planillas | `backend/Migrar.gs` |
+| Acciones de la página contra Supabase (misma forma que tenía el Apps Script) | `src/lib/datos.js` (`ACCIONES`), puerta única `src/lib/api.js` (`llamar`) |
+| Sesión: botón de Google → `signInWithIdToken` con nonce | `src/lib/sesion.js`, cliente `src/lib/supa.js` |
+| Validación y categorías en la página (gemelas de Code.gs / Lectores.gs) | `src/lib/validar.js`, `src/lib/reglas.js`, `src/lib/config-base.js` |
+| Totales, series, consejos, fecha contable, timbres de las cuotas | `src/lib/analisis.js` |
+| Vistas de Finanzas | `src/vistas/{resumen,movimientos,revisar,agregar,cuotas,consejos,ajustes}.js` |
+| Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
+| Página Inversiones (su propio CSS, libs y demo) | `inversiones/index.html`, `src/inversiones/` (`main.js`, `lib/cartera.js`, `lib/api.js` arma el contrato v1) |
+| Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |
+| Efectos (se apagan con `prefers-reduced-motion`) | `src/lib/{efectos,fondo-dotField,cuenta}.js`, `src/styles/efectos.css` — de React Bits (MIT + Commons Clause: se usan aquí, **no se redistribuyen**) |
+| Backend de mentira del modo demo | `src/demo.js` (Finanzas) y `src/inversiones/demo.js` — contestan igual que lo real |
+| CSP y las dos páginas del build | `vite.config.js` |
+| Correos reales anonimizados | `tests/fixtures/*.json` |
+| Apps Script y Supabase de mentira para probar los `.gs` | `tests/apps-script-falso.mjs` |
+| Pruebas de la base (Postgres desechable) y lo mínimo de Supabase | `tests/base.test.mjs`, `supabase/pruebas/supabase-minimo.sql` |
 | Dar de alta un celular (la clave va a `.env`) | `scripts/crear-dispositivo.mjs` |
 
 ## Procedimientos y memoria
@@ -48,8 +59,8 @@ algo con sustancia, registra el hito.
 | Necesitas… | Skill |
 |---|---|
 | Que se lea un banco o un formato nuevo | `agregar-banco` |
-| Llevar un cambio de `Code.gs`/`Lectores.gs` a producción | `desplegar-backend` |
-| Publicar el front | `desplegar` |
+| Llevar un cambio de `backend/*.gs` al Apps Script | `desplegar-backend` |
+| Publicar las páginas | `desplegar` |
 | Dejar constancia de lo hecho | `registrar-hito` |
 
 Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
@@ -57,68 +68,82 @@ Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
 ## Reglas
 
 1. **Escribir antes de borrar.** Un correo va a la papelera solo después de
-   que su fila quedó en la hoja (`escribir_` + `flush` antes de `moveToTrash`).
-   Lo prueba `tests/backend.test.mjs`; no se toca ese orden.
+   que la base confirmó su fila. `escribir_` lanza si Supabase no responde
+   2xx, antes de `moveToTrash`, y la bitácora `correos` va al final del lote.
+   Lo prueban `tests/backend.test.mjs` (falla simulada) y el orden
+   `escribe:` → `papelera:`. No se toca.
 2. **Lo dudoso no se borra.** Un correo que ningún lector entiende va a
-   «Revisar» y se queda en Gmail hasta que el dueño decide. La red genérica
-   solo propone, nunca registra.
+   `revisar` y se queda en Gmail hasta que el dueño decide en la página. La
+   página **marca** (`borrar_correo`); el trabajador borra en su próxima
+   pasada (`borrarDecididos_`). Gmail lo toca solo el trabajador.
 3. **Transferencias entre cuentas propias no suman** (tipo `interna`), ni el
-   pago de la tarjeta (`pago_tarjeta`): las compras ya se contaron. Se
-   reconocen por el nombre del titular (`Config → titular`).
-   **Excepción: las cuentas externas** (`Config → cuentas_externas`, por
-   defecto Mercado Pago), que no avisan lo que reciben. Lo que sale de ellas
-   a una cuenta propia es ingreso y lo que se les manda es gasto, decidido
-   solo con el aviso de quien envía (`externa_` + `SALIDAS` en Lectores.gs).
+   pago de la tarjeta (`pago_tarjeta`). Se reconocen por `titular`.
+   **Excepción: las cuentas externas** (`cuentas_externas`, por defecto
+   Mercado Pago): lo que sale de ellas a una cuenta propia es ingreso y lo que
+   se les manda es gasto (`externa_` + `SALIDAS` en Lectores.gs).
    **Binance es una cuenta propia:** pagarle a un vendedor P2P
-   (`Config → vendedores_cripto`) es «Compra de cripto» (interna, `p2p_`); el
-   gasto es el USDT que sale por Binance Pay (`binance-pay`, «Remesas»).
+   (`vendedores_cripto`) es «Compra de cripto»; el gasto es el USDT que sale
+   por Binance Pay.
 4. **Aportes a Fintual: solo cuenta el correo del banco.** El «Invertimos tus
-   $X» de Fintual va a la hoja Inversiones, no a Movimientos; si no, el aporte
-   se cuenta dos veces.
-5. **Todo texto de un correo es no confiable.** Se pinta con `html\`\`` (escapa)
-   y se escribe en la hoja con `celda_()` (inyección de fórmulas).
-6. **Sin `style="..."` en el marcado propio.** Anchos dinámicos por CSSOM
-   (`el.style.setProperty`). Lo comprueba `npm run check`. La CSP admite estilos
-   en línea solo porque los necesita el botón de Google (hito 0004); que eso no
-   se vuelva la puerta para usarlos aquí.
+   $X» va a `inversiones`, no a `movimientos`. Las operaciones de acciones
+   van además a `acciones_operaciones` (Acciones.gs), que es otra cuenta: no
+   se suman con las finanzas.
+5. **Todo texto de un correo o una notificación es no confiable.** Se pinta
+   con `html\`\`` (escapa). En la hoja «Ensayo», `celda_()` (fórmulas).
+6. **Sin `style="..."` en el marcado propio.** Anchos dinámicos por CSSOM.
+   Lo comprueba `npm run check` en las dos páginas. La CSP admite estilos en
+   línea solo por el botón de Google (hito 0004).
 7. **Fixtures anonimizados.** Nombres de terceros falsos, números de cuenta en
-   ceros. El nombre del titular se deja (el lector lo necesita). `npm run check`
-   rechaza números largos y RUT.
-8. **Cada acción nueva exige la identidad del dueño** (`identidad_` en `doPost`).
-   No hay acciones públicas salvo `doGet`, que no devuelve datos.
-9. **No gastar las cuotas de Google** (gmail.com: 90 min/día de disparadores,
-   ~20.000 lecturas de Gmail/día). Disparador cada 30 min, 1,5 min por pasada,
-   tope diario de 60 min y lo ignorado recordado 6 h (constantes al inicio de
-   `Code.gs`). Lo prueba `tests/backend.test.mjs`.
-10. Tras cambiar `Code.gs` o `Lectores.gs`, redesplegar la aplicación web como
-   **versión nueva** de la misma implementación (si no, la URL cambia).
-11. **Supabase: la clave pública no abre nada.**
-   - `anon` no tiene privilegios en `public`: la página lee con sesión y
-     mandan las políticas.
-   - Toda tabla nueva va en una migración con RLS, políticas
+   ceros, el titular se deja. `npm run check` rechaza números largos y RUT.
+8. **La clave pública no abre nada.**
+   - `anon` no tiene privilegios en `public`; la página lee con sesión.
+   - Toda tabla nueva va en una migración con RLS, la política
      `usuario = (select auth.uid())` y su caso en `tests/base.test.mjs`,
      entrando con el rol equivocado.
-   - Toda función `security definer` fija `search_path` y revoca `execute`
-     de `public` y `anon` con nombre.
+   - Toda función `security definer` fija `search_path` y revoca `execute` de
+     `public` y `anon` con nombre.
    - Una migración aplicada no se edita: se escribe la siguiente.
-   - El registro está cerrado: la base solo acepta correos de `permitidos`.
-
-   Las pruebas fallan si una tabla queda sin RLS, si `anon` puede algo o si
-   aparece una función `security definer` nueva al alcance de
-   `authenticated`.
-12. **Ningún secreto sale de `.env`.** Ahí están la clave de la base y la de
-   cada celular. No se imprimen ni se pegan en la terminal: los scripts las
-   leen de ahí. La clave de servicio solo existe en Supabase (la usa la
-   función) y, más adelante, en las propiedades del script de Apps Script.
+   - El registro está cerrado: solo entran los correos de `permitidos`.
+9. **El trabajador escribe con la clave secreta: el filtro es suyo.**
+   - Toda consulta pasa por `sbConsulta_`, que antepone
+     `usuario=eq.<SUPABASE_USUARIO>`, y toda fila sale de `aFila_` con su
+     `usuario`.
+   - Las tablas de todos (`acciones_precios`, `acciones_mapa`) son las
+     únicas sin dueño (`GLOBALES`).
+   - Una columna nueva va también en `COLUMNAS`: si no, no se escribe.
+10. **Gemelas que deben calzar** (cada par tiene su prueba):
+    - `src/lib/reglas.js` ↔ `categorizar_`;
+    - `config-base.js` ↔ `CONFIG_BASE`;
+    - `src/inversiones/lib/cartera.js` ↔ `costoMovilAcciones_`. El costo
+      promedio es **móvil**, el que tenías el día de cada venta;
+    - `src/demo.js` ↔ `datos.js`;
+    - `src/inversiones/demo.js` ↔ el contrato v1.
+11. **No gastar las cuotas de Google.** Disparador de correos cada 30 min, 1,5
+    min por pasada, tope diario de 60 min, lo ignorado recordado 6 h
+    (constantes al inicio de `Code.gs`). Acciones: cada 1 h y cada 4 h.
+12. **Ningún secreto sale de `.env`.** La clave de la base y la de cada celular
+    viven ahí; los scripts las leen sin imprimirlas. La clave secreta del
+    trabajador vive solo en Supabase y en las propiedades del Apps Script.
+    `npm run check` rechaza `sb_secret_` y JWT en el repo.
+13. Tras cambiar un `.gs`: pegarlo en el editor y redesplegar la aplicación web
+    como **versión nueva** de la misma implementación (si no, la URL cambia).
 
 ## Verificación
 
-`npm test` corre los lectores (casos sintéticos + fixtures reales), el flujo
-del backend con Gmail simulado, los cálculos y el lector del cuerpo de las
-notificaciones. `npm run test:base` levanta un Postgres 17 desechable, le
-aplica las migraciones y prueba RLS, privilegios y políticas.
-`npm run build` incluye check, test y test:base. Contra la base real, lo
-verificable es por HTTP: que la clave publicable reciba 401 y que el
-registro devuelva `registro-cerrado`. La prueba contra los correos reales es `ensayo()` en el editor de Apps
-Script: escribe en la hoja «Ensayo» qué haría con cada correo, sin registrar
-ni borrar. La revisión visual de la página la hace el usuario.
+- **`npm test`:**
+  - los lectores (sintéticos más fixtures reales);
+  - el trabajador contra un Supabase falso (`backend`, `acciones`);
+  - las gemelas (`reglas`, `inversiones-cartera`);
+  - el contrato de la demo de Inversiones;
+  - los cálculos;
+  - el cuerpo de las notificaciones.
+- **`npm run test:base`:** un Postgres 17 desechable con las migraciones.
+  Prueba RLS, privilegios, políticas y `decidir_revisar`.
+- **`npm run build`:** incluye check, test y test:base.
+- **Contra la base real:** un usuario de prueba temporal, que se borra al
+  final. Las acciones de `datos.js` y las del trabajador con curl síncrono
+  (así se encontró el «All object keys must match» de PostgREST, hito 0011).
+- **El trabajador real:** `probarSupabase()` y `ensayo()` en el editor.
+- **La revisión visual la hace el usuario.** Una prueba de humo (cargar sin
+  errores) sí se puede: `vite preview` más `playwright-core` en el scratchpad
+  con el Chrome instalado.

@@ -50,7 +50,7 @@ export function revisar(el, app) {
     form.querySelectorAll('button').forEach((b) => { b.disabled = true })
     try {
       const r = await app.llamar('revisar', cuerpo)
-      aviso(accion === 'registrar' ? `Registrado${r.borrado ? ' y correo a la papelera' : ''}` : r.borrado ? 'Descartado y borrado' : 'Descartado')
+      aviso(accion === 'registrar' ? `Registrado${r.borrado ? '; el correo se irá a la papelera en la próxima revisión' : ''}` : r.borrado ? 'Descartado; el correo se irá a la papelera en la próxima revisión' : 'Descartado')
       await app.recargar()
     } catch (err) {
       aviso(err.message, 'error')

@@ -13,6 +13,7 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
+| [0011](0011-v2-supabase-inversiones-y-trabajador.md) | 2026-10-12 | La v2 completa: la página en Supabase, Inversiones adentro y el trabajador | listo en la rama v2 (falta el cambio en producción) |
 | [0010](0010-supabase-y-notificaciones-del-celular.md) | 2026-10-12 | Nace la v2: base en Supabase (RLS, registro cerrado) y notificaciones del celular | en curso (falta la macro y el relevamiento) |
 | [0009](0009-efectos-de-interaccion-y-delta-de-cifras.md) | 2026-10-03 | Efectos de interacción y delta flotante en las cifras | completado (falta visto bueno visual) |
 | [0008](0008-impuesto-de-timbres-en-cuotas.md) | 2026-10-01 | Vista «Cuotas»: impuesto de timbres estimado | completado (falta contrastar con un estado de cuenta) |

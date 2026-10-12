@@ -1,15 +1,40 @@
 # FinanzasMaker
 
-Tus gastos, ingresos e inversiones por día, mes y año, **leídos de los correos
-de aviso de tus bancos**. No le das tus claves bancarias a nadie: un script en
-tu propia cuenta de Google revisa Gmail cada 30 minutos, anota cada movimiento en una
-planilla y manda el correo a la papelera.
+Tus gastos, ingresos e inversiones por día, mes y año, **leídos solos de lo que
+te avisan tus bancos**: los correos de aviso y, en el celular, las
+notificaciones de sus apps. No le das tus claves bancarias a nadie.
 
-- **Front:** página estática en GitHub Pages (Vite, sin framework).
-- **Backend:** Google Apps Script dentro de una planilla de Google Sheets.
-- **Costo:** $0. Nada de tus datos pasa por un servidor ajeno: viven en tu Drive.
+Dos páginas, un proyecto:
 
-Sin backend configurado la página abre en **modo demo** con datos inventados.
+- **Finanzas** (`/FinanzasMaker/`): gastos, ingresos, presupuestos, cuotas y consejos.
+- **Inversiones** (`/FinanzasMaker/inversiones/`): la cartera de acciones de
+  Fintual, con costo promedio móvil, resultado y dividendos. Era
+  [gestor-acciones](https://github.com/seiler18/gestor-acciones).
+
+Sin sesión, las dos abren en **modo demo** con datos inventados.
+
+## Cómo está armado (v2)
+
+```
+Gmail ───► trabajador (Apps Script: cada 30 min, 1 h y 4 h) ──┐
+Celular ─► MacroDroid ─► función «notificacion» (Supabase) ────┼─► Supabase (Postgres + RLS) ◄── las dos páginas
+```
+
+- **Base:** un proyecto de Supabase (plan gratis). La clave pública que va en la
+  página no abre nada sin sesión: cada tabla tiene RLS y `anon` no tiene
+  privilegios. Solo los correos de la tabla `permitidos` pueden crear cuenta.
+- **Página:** Vite sin framework en GitHub Pages. Entra con *Iniciar sesión con
+  Google* y lee y escribe directo en la base.
+- **Trabajador:** un Google Apps Script dentro de una planilla, con tu cuenta.
+  Lee Gmail, registra cada movimiento en la base y SOLO DESPUÉS manda el correo
+  a la papelera. También lee las operaciones de Fintual, trae los precios de
+  Yahoo y avisa por correo las señales de la cartera. Es lo único que toca tu
+  Gmail.
+- **Celular:** MacroDroid manda cada notificación de los bancos a la base
+  (ver abajo). Por ahora se guardan crudas, para el relevamiento.
+- **Costo:** $0.
+
+Historia y decisiones: `.claude/hitos/` (0010 y 0011 son la v2).
 
 ## Qué entiende
 
@@ -20,10 +45,10 @@ Sin backend configurado la página abre en **modo demo** con datos inventados.
 | Copec Pay | Transferencias, retiros a tus cuentas, cargas de saldo |
 | Mercado Pago | Transferencias enviadas, pagos de servicios, ingresos de dinero |
 | BancoEstado | Compras con débito, crédito (también en dólares) y Rutpay, giros, transferencias entre tus cuentas |
-| Fintual | Aportes, retiros, venta de dólares, compra y venta de ETF, dividendos (hoja Inversiones) |
+| Fintual | Aportes, retiros, venta de dólares, compra y venta de ETF, dividendos (tabla `inversiones`); las operaciones de acciones, además, en la página **Inversiones** |
 | BCI | Aviso de abono a tu cuenta MACH |
 | Banco Falabella | Aviso de transferencia recibida |
-| Binance | Pagos y envíos por Binance Pay en USDT/USDC (remesas), pasados a pesos con el dólar de Config |
+| Binance | Pagos y envíos por Binance Pay en USDT/USDC (remesas), pasados a pesos con el `dolar` de la configuración |
 | **Cualquier otro banco** | La red genérica reconoce comprobantes, abonos, cargos y giros de dominios bancarios y los deja en **Por revisar** para que tú decidas |
 
 Lo que no llega por correo (efectivo, CencoPay, compras con Mercado Pago) se
@@ -32,7 +57,7 @@ anota en **Agregar**.
 **Qué no suma:** las transferencias entre tus propias cuentas y el pago de la
 tarjeta. Las compras ya se contaron el día que se hicieron.
 
-**Mercado Pago es una cuenta externa** (`Config → cuentas_externas`): no avisa
+**Mercado Pago es una cuenta externa** (`cuentas_externas` en Ajustes): no avisa
 cuando recibes dinero, así que el sueldo que llega ahí se registra cuando lo
 pasas a otra cuenta tuya (Mercado Pago → Copec Pay o MACH = ingreso). Al revés,
 lo que mandas a Mercado Pago cuenta como gasto, porque lo que se gaste ahí no
@@ -40,98 +65,108 @@ llega por correo. Para aplicarlo a lo ya registrado: `reclasificarExternas`.
 
 **Binance funciona como una cuenta tuya más.** Comprar USDT por P2P es
 transferirle pesos a un vendedor; esa transferencia no es gasto sino
-«Compra de cripto» (`Config → vendedores_cripto`, separados por coma). El gasto
+«Compra de cripto» (`vendedores_cripto` en Ajustes, separados por coma). El gasto
 se cuenta cuando el USDT sale por Binance Pay (categoría «Remesas»). Así, 25 USDT
 comprados para enviar a la familia no se cuentan dos veces. Binance no avisa la
 compra P2P por correo: si compras a un vendedor nuevo, agrégalo a
 `vendedores_cripto` y ejecuta `reclasificarCripto` para lo ya registrado.
 
-## Instalación (una vez, ~20 minutos)
+## Instalación desde cero
 
-Todo con la cuenta de Gmail donde llegan los avisos.
+Para una cuenta nueva. Si vienes de la v1 (todo en planillas), sigue
+[Pasar de la v1 a la v2](#pasar-de-la-v1-a-la-v2).
 
-### 1. La planilla y el script
+### 1. La base (Supabase)
 
-1. En Google Drive: **Nuevo → Hoja de cálculo**. Nómbrala `FinanzasMaker`.
-2. **Extensiones → Apps Script.** Se abre el editor con un `Código.gs`.
-3. Borra lo que trae y pega el contenido de [`backend/Code.gs`](backend/Code.gs).
-   Renómbralo a `Code`.
-4. **+ → Secuencia de comandos**, llámalo `Lectores` y pega
-   [`backend/Lectores.gs`](backend/Lectores.gs).
-5. ⚙️ **Configuración del proyecto** → marca *Mostrar el archivo de manifiesto
-   «appsscript.json»*. Vuelve al editor, abre `appsscript.json` y reemplázalo
-   por [`backend/appsscript.json`](backend/appsscript.json).
+1. Crea un proyecto en <https://supabase.com> (región São Paulo) y guarda la
+   contraseña de la base en `.env` como `CLAVE_BASE_DATOS_FINANZASMAKER`.
+2. `npx supabase login` y `npx supabase link --project-ref <ref>`.
+3. Aplica las tablas, la función del celular y la configuración de Auth:
+   ```bash
+   export SUPABASE_DB_PASSWORD="$(grep '^CLAVE_BASE_DATOS_FINANZASMAKER=' .env | cut -d= -f2-)"
+   npx supabase db push
+   npx supabase functions deploy notificacion --use-api
+   npx supabase config push      # ingreso con Google, registro cerrado
+   ```
+4. En el SQL Editor, tu correo en la lista de acceso:
+   `insert into permitidos (email) values ('tu@gmail.com');`
+5. **Authentication → Users → Add user** con ese correo (confirmado). Su *UID*
+   es el `SUPABASE_USUARIO` del trabajador.
 
-### 2. Instalar
+### 2. El ID de cliente de Google
 
-1. En el editor elige la función **`instalar`** y pulsa **Ejecutar**.
-2. Google pide permisos. Como el script es tuyo y no está publicado, avisa
-   *«Google no verificó esta app»*: **Configuración avanzada → Ir a
-   FinanzasMaker (no seguro)** → **Permitir**. Pide leer y modificar Gmail
-   (para leer los avisos y mandarlos a la papelera), la planilla, los
-   disparadores y la conexión externa (para validar tu inicio de sesión).
-3. Queda creado el disparador que revisa el correo **cada 30 minutos**, y las
-   pestañas Movimientos, Inversiones, Revisar, Correos, Reglas, Presupuestos
-   y Config.
-4. En **Config** revisa `titular`: tu nombre y un apellido tal como lo escriben
-   los bancos (por defecto `Jesus Seiler`). Con él se reconocen las
-   transferencias entre tus cuentas.
+La página lo necesita para el botón *Iniciar sesión con Google*. No es secreto.
 
-**Opcional:** ejecuta `ensayo`. Escribe en la pestaña **Ensayo** qué haría con
-cada correo desde el 01-01-2026, sin registrar ni borrar nada. Es la forma de
-ver los lectores contra tus correos reales antes de soltarlos.
+1. <https://console.cloud.google.com/> → proyecto `FinanzasMaker` →
+   **Pantalla de consentimiento de OAuth** (*Externo*, tu Gmail en usuarios de prueba).
+2. **Credenciales → ID de cliente de OAuth → Aplicación web**, con orígenes
+   `https://seiler18.github.io` y `http://localhost:5173`.
+3. Ponlo en `src/config.js` (`CLIENT_ID`) y en `supabase/config.toml`
+   (`[auth.external.google] client_id`), y vuelve a hacer `config push`.
 
-### 3. El inicio de sesión con Google
+### 3. El trabajador (Apps Script)
 
-La página necesita un «ID de cliente» para mostrar el botón *Iniciar sesión
-con Google*. No es un secreto, y no da acceso a nada: solo identifica tu página.
+1. Una planilla nueva en Drive → **Extensiones → Apps Script**.
+2. Crea un archivo por cada `.gs` de [`backend/`](backend/) con su mismo
+   nombre (`Code`, `Lectores`, `Supabase`, `Acciones`, `Migrar`) y
+   pega su contenido. En ⚙️ marca *Mostrar el archivo de manifiesto* y
+   reemplaza `appsscript.json` por [el del repo](backend/appsscript.json).
+3. ⚙️ **Propiedades de la secuencia de comandos:**
 
-1. Entra a <https://console.cloud.google.com/> → **Crear proyecto** →
-   `FinanzasMaker`.
-2. **APIs y servicios → Pantalla de consentimiento de OAuth** → *Externo* →
-   nombre `FinanzasMaker`, tu correo en soporte y contacto → Guardar. En
-   **Usuarios de prueba** agrega tu Gmail.
-3. **Credenciales → Crear credenciales → ID de cliente de OAuth** →
-   *Aplicación web*. En **Orígenes de JavaScript autorizados** agrega:
-   - `https://seiler18.github.io`
-   - `http://localhost:5173` (para desarrollo)
-4. Copia el **ID de cliente** (termina en `.apps.googleusercontent.com`).
-5. En Apps Script: ⚙️ **Configuración del proyecto → Propiedades de la
-   secuencia de comandos → Agregar** → propiedad `CLIENT_ID`, valor: el ID.
+   | Propiedad | Valor |
+   |---|---|
+   | `SUPABASE_URL` | `https://<ref>.supabase.co` |
+   | `SUPABASE_CLAVE` | una clave **secreta** creada solo para esto (Supabase → Settings → API Keys → *Create new secret key*, nombre `apps-script`) |
+   | `SUPABASE_USUARIO` | el UID de tu usuario (paso 1.5) |
+   | `CLIENT_ID` | el ID de cliente de Google (paso 2) |
 
-### 4. Publicar el backend
+4. Ejecuta **`probarSupabase`** y autoriza. Google avisa *«no verificó esta
+   app»*: es tuya → *Configuración avanzada → Ir a FinanzasMaker → Permitir*.
+5. Ejecuta **`empezarDeCero`**, **`empezarAccionesDeCero`** e **`instalar`**
+   (siembran la configuración y las reglas, y dejan los tres disparadores).
+6. **Implementar → Nueva implementación → Aplicación web**, *Ejecutar como:*
+   Yo, *Acceso:* Cualquier usuario. La URL `/exec` va en `src/config.js`
+   (`API_URL`): la usa solo el botón *Revisar correos ahora*, y sin un
+   inicio de sesión de Google tuyo no hace nada.
 
-1. En Apps Script: **Implementar → Nueva implementación** → tipo
-   **Aplicación web**. *Ejecutar como:* **Yo**. *Quién tiene acceso:*
-   **Cualquier usuario**.
-2. Copia la URL que termina en `/exec`.
-
-«Cualquier usuario» es necesario para que la página pueda llamarlo, pero sin
-un inicio de sesión de Google **tuyo** el backend no entrega ni un dato
-(ver [SECURITY.md](SECURITY.md)).
-
-### 5. Conectar la página
-
-En [`src/config.js`](src/config.js) pon `API_URL` (la URL `/exec`) y
-`CLIENT_ID`. Sube el cambio a `main` y GitHub Actions publica la página en
-`https://seiler18.github.io/FinanzasMaker/`.
-
-Si `ensayo` o `procesarCorreos` terminan en 0, ejecuta **`diagnostico`**: en
-el registro de ejecución muestra lo que el script lee de Config, la búsqueda
-exacta que hace en Gmail y cuántos correos encuentra. **`reiniciarImportacion`**
-vuelve a importar todo desde `desde` sin duplicar lo ya registrado.
-
-La primera importación (todo 2026) puede tomar varias horas de disparador
-si hay muchos correos: cada ejecución trabaja 1,5 minutos y sigue en la
-siguiente. Para adelantarla, ejecuta `procesarCorreos` a mano unas veces.
+**Opcional:** `ensayo` escribe en la pestaña **Ensayo** qué haría con cada
+correo, sin registrar ni borrar. Si algo sale en 0: `diagnostico`.
 
 **Cuotas de Google.** Una cuenta gmail.com gratuita tiene 90 minutos al día de
-disparadores y unas 20.000 lecturas de Gmail al día. Con 48 pasadas diarias el
-script se queda lejos: una pasada sin correos nuevos tarda segundos, ninguna
-trabaja más de 1,5 minutos, si en el día ya sumó 60 minutos espera a mañana,
-y lo ignorado (publicidad, alertas) no se vuelve a abrir en cada pasada. Pasarse
-no bloquea Gmail: solo detiene el script hasta el día siguiente. Para cambiar
-la frecuencia de una planilla ya instalada: `programarDisparador`.
+disparadores. La revisión de correos trabaja a lo más 1,5 minutos por vez y,
+si en el día ya sumó 60, espera a mañana; las tareas de Inversiones duran
+segundos. Pasarse no bloquea Gmail: solo detiene el script hasta el día siguiente.
+
+### 4. La página
+
+Sube a `main`: GitHub Actions corre el check, las pruebas y publica en
+`https://seiler18.github.io/FinanzasMaker/`.
+
+## Pasar de la v1 a la v2
+
+La v1 guardaba todo en dos planillas (FinanzasMaker y la de gestor-acciones).
+El trabajador nuevo **no procesa nada hasta que se migra** (propiedades
+`MIGRADO` y `MIGRADO_ACCIONES`): así lo de los últimos días no entra dos veces.
+
+1. `npx supabase config push` en esta carpeta (ingreso con Google y registro
+   cerrado). Muestra cada cambio y pide confirmar.
+2. En Supabase, la clave secreta `apps-script` (paso 3.3 de arriba).
+3. En el Apps Script de la planilla **FinanzasMaker**:
+   1. Reemplaza `Code` y `appsscript.json`; crea `Supabase`, `Acciones` y
+      `Migrar`. `Lectores` no cambió.
+   2. Propiedades: `SUPABASE_URL`, `SUPABASE_CLAVE`, `SUPABASE_USUARIO` y
+      `PLANILLA_ACCIONES` (la URL de la hoja «Fintual - Monitoreo en vivo»).
+      `CLIENT_ID` ya estaba.
+   3. Ejecuta, en orden y mirando el registro de cada uno: **`probarSupabase`**
+      (autoriza los permisos nuevos), **`migrarASupabase`**,
+      **`migrarAccionesASupabase`** e **`instalar`**.
+   4. **Implementar → Gestionar implementaciones → ✏️ → Versión: Nueva
+      versión → Implementar** (la URL no cambia).
+4. En el Apps Script de la hoja de **gestor-acciones**: **Activadores** → borra
+   los dos. Si no, sigue leyendo Fintual y avisando por su cuenta.
+5. Publica la página (push a `main`).
+
+Las planillas no se tocan: quedan como respaldo.
 
 ## Notificaciones del celular (v2, en relevamiento)
 
@@ -188,21 +223,25 @@ avisos a tu cuenta. Si el celular se pierde, se revoca el dispositivo
 - **Movimientos:** todo el periodo con filtros. Toca uno para cambiarle tipo
   o categoría; con *«Aplicar a todo lo de…»* se guarda una regla y lo que
   llegue después de ese comercio ya viene bien clasificado.
-- **Por revisar:** los correos bancarios que no reconocí con seguridad.
+- **Por revisar:** los correos bancarios que no se reconocieron con seguridad.
+  Si decides borrar el correo, se va a la papelera en la próxima revisión.
 - **Agregar:** lo que no llega por correo.
-- **Consejos:** presupuestos excedidos, tasa de ahorro, proyección del mes,
-  categorías que subieron, cobros que se repiten, gastos hormiga, cuotas y
-  efectivo.
-- **Ajustes:** presupuestos por categoría y *Revisar correos ahora*.
+- **Cuotas** y **Consejos:** compras en cuotas con su impuesto de timbres;
+  presupuestos excedidos, proyección del mes, cobros que se repiten, gastos hormiga.
+- **Ajustes:** *Revisar correos ahora*, lo que llegó del **celular** (para
+  comprobar la macro), la **configuración** (titular, cuentas externas,
+  vendedores cripto, umbrales de Inversiones…) y los presupuestos.
+- **Inversiones** (botón arriba): posiciones, resultado por activo,
+  dividendos, dólares, alertas y movimientos de la cartera.
 
 ## Desarrollo
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173 — sin config.js abre en modo demo
-npm test         # lectores + flujo del backend + cálculos + cuerpo de las notificaciones
-npm run test:base  # la base de Supabase en un Postgres desechable: RLS, privilegios, políticas
-npm run build    # check + test + test:base + build (lo mismo que corre en Actions)
+npm run dev        # http://localhost:5173 — con ?demo, datos inventados
+npm test           # lectores, trabajador (con Supabase falso), Inversiones, reglas, cálculos
+npm run test:base  # la base en un Postgres desechable: RLS, privilegios, políticas
+npm run build      # check + test + test:base + build (lo mismo que corre en Actions)
 ```
 
 Supabase (la clave de la base sale del `.env`, nunca de la línea de comandos):

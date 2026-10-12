@@ -14,8 +14,8 @@ correo real**, no contra la idea de cómo debería ser.
   (los avisos suelen estar en la papelera) y leer el mensaje en `PLAIN_TEXT`.
   Si la parte de texto plano viene vacía o trae solo el asunto (le pasa a
   Copec Pay), usar `FULL_CONTENT` y pasar el HTML a texto.
-- Si no: pedirle al usuario el texto del correo, o que mire la fila en
-  «Revisar» (`extracto`).
+- Si no: pedirle al usuario el texto del correo, o que mire la tarjeta en
+  «Por revisar» (el `extracto` de la tabla `revisar`).
 - Guardar todo correo real **fuera** del repositorio mientras se trabaja
   (`correos-crudos/` está en `.gitignore`).
 
@@ -34,7 +34,7 @@ correo real**, no contra la idea de cómo debería ser.
   largo. RUT → `11.111.111-1`. Nombre del empleador → «EMPRESA DEMO».
 - Montos, fechas, comercios y el texto fijo de la plantilla → **exactos**.
 - `espera` acepta `estado` (`ok` por defecto, `ignorar`, `revisar`), los campos
-  del movimiento y `inv: {…}` para la hoja de inversiones.
+  del movimiento y `inv: {…}` para la tabla `inversiones`.
 
 `npm run check` rechaza números largos y RUT que no sean relleno.
 
@@ -65,12 +65,14 @@ banco (el primero que calza gana):
   destinatario más el recibo del otro banco), revisar si `esDuplicado_` lo
   cubre y agregar una prueba.
 - Dominio nuevo: agregarlo a `REMITENTES` en `backend/Code.gs`.
-- Categoría por comercio: una fila en `REGLAS_BASE` (o, en producción, en la
-  pestaña Reglas de la planilla, que manda sobre la base).
+- Categoría por comercio: una fila en `REGLAS_BASE` (siembra la tabla `reglas`
+  de una cuenta nueva). En producción manda la tabla `reglas` del dueño: se
+  crea desde la página con *«Aplicar a todo lo de…»* en Movimientos.
 
 ## 4. Probar
 
-`npm test`. El fixture real debe pasar. Si el formato tiene variantes que no
+`npm test`. El fixture real debe pasar, y `tests/backend.test.mjs` sigue
+probando que lo leído llega a la base (Supabase falso) antes de la papelera. Si el formato tiene variantes que no
 tienes como correo real, agrega un caso sintético en `CASOS` de
 `tests/lectores.test.mjs`, con datos inventados.
 

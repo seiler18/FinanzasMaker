@@ -1,342 +1,308 @@
-// Pruebas de backend/Code.gs (+ Lectores.gs) con simulaciones mínimas de
-// Apps Script: hoja en memoria, Gmail falso, caché, propiedades y tokeninfo.
+// Pruebas de backend/Code.gs + Supabase.gs + Migrar.gs (+ Lectores.gs) con un
+// Apps Script y un Supabase de mentira (tests/apps-script-falso.mjs).
 //
-// Lo que más importa proteger aquí es el orden «escribir → borrar»: un
-// correo solo va a la papelera si su fila ya quedó en la hoja.
-import fs from 'node:fs'
-import vm from 'node:vm'
-import crypto from 'node:crypto'
+// Lo que más importa proteger aquí es el orden «escribir → borrar»: un correo
+// solo va a la papelera si su fila ya quedó en la base. Y, desde que escribe
+// con la clave secreta (que se salta la RLS), que toda consulta lleve el
+// filtro del dueño.
 import assert from 'node:assert/strict'
+import { crearEntorno, planilla, USUARIO } from './apps-script-falso.mjs'
 
-const leerSrc = (f) => fs.readFileSync(new URL('../backend/' + f, import.meta.url), 'utf8')
-
-/* ---------- simulaciones ---------- */
-const firmar = (b) => [...b].map((x) => (x > 127 ? x - 256 : x))
-const aBuf = (x) => (typeof x === 'string' ? Buffer.from(x, 'utf8') : Buffer.from(x.map((b) => (b + 256) % 256)))
-
-class Hoja {
-  constructor(n) { this.n = n; this.d = []; this.crudo = [] }
-  getLastRow() { return this.d.length }
-  getMaxRows() { return 1000 }
-  getRange(r, c, nr = 1, nc = 1) {
-    const h = this
-    return {
-      getValues() {
-        const out = []
-        for (let i = 0; i < nr; i++) { const f = []; for (let j = 0; j < nc; j++) f.push(h.d[r - 1 + i]?.[c - 1 + j] ?? ''); out.push(f) }
-        return out
-      },
-      setValues(v) {
-        if (h.falla) throw new Error('Sheets no responde')
-        v.forEach((fila, i) => fila.forEach((x, j) => h.set(r + i, c + j, x))); return this
-      },
-      setValue(x) { h.set(r, c, x); return this },
-      setNumberFormat() { return this }, setFontWeight() { return this },
-    }
-  }
-  // Como Sheets: un texto con apóstrofo inicial se guarda como texto SIN
-  // el apóstrofo; y un texto con forma de fecha, sin apóstrofo, se vuelve
-  // Date (así se rompió «desde» en la primera instalación real).
-  set(r, c, x) {
-    while (this.d.length < r) { this.d.push([]); this.crudo.push([]) }
-    const f = this.d[r - 1]; while (f.length < c) f.push('')
-    this.crudo[r - 1][c - 1] = x
-    if (typeof x === 'string' && x.startsWith("'")) f[c - 1] = x.slice(1)
-    else if (typeof x === 'string' && /^\d{4}[/-]\d{2}[/-]\d{2}( \d{2}:\d{2})?$/.test(x)) f[c - 1] = new Date(x.replace(/\//g, '-').replace(' ', 'T') + (x.length > 10 ? ':00-03:00' : 'T00:00:00-03:00'))
-    else f[c - 1] = x
-  }
-  deleteRows(i, n) { this.d.splice(i - 1, n); this.crudo.splice(i - 1, n) }
-  clearContents() { this.d = []; this.crudo = [] }
-  setFrozenRows() {}
-}
-
-let hojas, cache, props, correos, fetches, reloj, logs
-const ss = {
-  getSheetByName: (n) => hojas[n] || null,
-  insertSheet: (n) => (hojas[n] = new Hoja(n)),
-}
-
-class Msg {
-  constructor(o) { Object.assign(this, { papelera: false, ...o }) }
-  getId() { return this.id }
-  getFrom() { return this.de }
-  getSubject() { return this.asunto }
-  getDate() { return new Date(this.fecha) }
-  getPlainBody() { this.abierto = true; return this.texto }
-  getBody() { return this.html || '' }
-  isDraft() { return false }
-  isInTrash() { return this.papelera }
-  moveToTrash() { this.orden.push('papelera:' + this.id); this.papelera = true }
-}
-
-const orden = []
-const G = {
-  console: { log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push('ERR ' + a.join(' ')) },
-  SpreadsheetApp: { getActive: () => ss, flush: () => orden.push('flush') },
-  CacheService: { getScriptCache: () => ({ get: (k) => cache.get(k) ?? null, put: (k, v) => cache.set(k, v) }) },
-  PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => props.get(k) ?? null, setProperty: (k, v) => props.set(k, v), deleteProperty: (k) => props.delete(k) }) },
-  LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
-  ContentService: { MimeType: { JSON: 'json' }, createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) },
-  Session: { getEffectiveUser: () => ({ getEmail: () => 'Duenio@Gmail.com' }) },
-  ScriptApp: {
-    getProjectTriggers: () => [], deleteTrigger() {},
-    newTrigger: (fn) => ({ timeBased: () => ({ everyMinutes: (n) => ({ create() { G.ScriptApp.creado = fn + ' cada ' + n } }) }) }),
-  },
-  Utilities: {
-    DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
-    computeDigest: (a, s) => firmar(crypto.createHash('sha256').update(aBuf(s)).digest()),
-    base64DecodeWebSafe: (s) => firmar(Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64')),
-    newBlob: (b) => ({ getDataAsString: () => aBuf(b).toString('utf8') }),
-    getUuid: () => crypto.randomUUID(),
-    formatDate: (d, tz, f) => {
-      const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-        .formatToParts(d).reduce((o, x) => ((o[x.type] = x.value), o), {})
-      return f.replace('yyyy', p.year).replace('MM', p.month).replace('dd', p.day).replace('HH', p.hour === '24' ? '00' : p.hour).replace('mm', p.minute)
-    },
-  },
-  UrlFetchApp: {
-    fetch: (url) => {
-      fetches++
-      const t = decodeURIComponent(url.split('id_token=')[1])
-      const carga = JSON.parse(Buffer.from(t.split('.')[1], 'base64url').toString())
-      const valida = t.split('.')[2] === 'firma-buena'
-      return { getResponseCode: () => (valida ? 200 : 400), getContentText: () => JSON.stringify({ ...carga, iss: 'https://accounts.google.com', email_verified: 'true' }) }
-    },
-  },
-  GmailApp: {
-    search: (q, inicio, max) => {
-      G.GmailApp.ultimaConsulta = q
-      // Un hilo por correo, lo más nuevo primero, como Gmail.
-      const hilos = [...correos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).map((m) => ({ getMessages: () => [m] }))
-      return hilos.slice(inicio, inicio + max)
-    },
-    getMessageById: (id) => correos.find((m) => m.id === id),
-  },
-}
-const ctx = vm.createContext(G)
-vm.runInContext(leerSrc('Lectores.gs') + '\n' + leerSrc('Code.gs') + '\n;globalThis.__ = { ACCIONES, HOJAS };', ctx)
-
+let e
 function reiniciar() {
-  hojas = {}; cache = new Map(); props = new Map(); correos = []; fetches = 0; logs = []; orden.length = 0
-  G.instalar()
-  props.set('CLIENT_ID', 'cliente-123.apps.googleusercontent.com')
+  e = crearEntorno()
+  e.conectar()
+  e.props.set('MIGRADO', 'si')
+  e.G.instalar()
+  e.props.set('CLIENT_ID', 'cliente-123.apps.googleusercontent.com')
 }
-const filas = (n) => {
-  const h = hojas[n]; if (!h || h.d.length < 2) return []
-  const cab = h.d[0]; return h.d.slice(1).map((f) => Object.fromEntries(cab.map((k, i) => [k, f[i]])))
-}
-let seq = 0
-function correo(de, asunto, texto, fecha = '2026-09-18T12:00:00Z') {
-  const m = new Msg({ id: 'g' + (++seq), de: `Banco <${de}>`, asunto, texto, fecha, orden })
-  correos.push(m); return m
-}
-const compraTenpo = (monto, comercio = 'FERRETERIA SUR SANTIAGO CHL', fecha) => correo('no-reply@tenpo.cl', 'Comprobante de compra con tu tarjeta de crédito',
+const G = () => e.G
+const cfg = (clave, valor) => { const f = e.filas('config').find((c) => c.clave === clave); if (f) f.valor = valor; else e.filas('config').push({ usuario: USUARIO, clave, valor }) }
+const compraTenpo = (monto, comercio = 'FERRETERIA SUR SANTIAGO CHL', fecha) => e.correo('no-reply@tenpo.cl', 'Comprobante de compra con tu tarjeta de crédito',
   `La compra por $${monto} con tu tarjeta de crédito Tenpo fue exitosa. Monto transacción: $${monto} Comercio: ${comercio} Cuotas: 1`, fecha)
 const token = (carga, firma = 'firma-buena') => [Buffer.from('{"alg":"RS256"}').toString('base64url'), Buffer.from(JSON.stringify(carga)).toString('base64url'), firma].join('.')
 const valido = () => token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600 })
-const api = (accion, datos = {}, credencial = valido()) => G.doPost({ postData: { contents: JSON.stringify({ accion, credencial, ...datos }) } })
+const api = (accion, datos = {}, credencial = valido()) => e.G.doPost({ postData: { contents: JSON.stringify({ accion, credencial, ...datos }) } })
 
-const HOJAS_N = G.__.HOJAS.movimientos.length
 let ok = 0
 const fallos = []
 function prueba(nombre, fn) {
   reiniciar()
-  try { fn(); ok++ } catch (e) { fallos.push(`✗ ${nombre}\n    ${e.stack.split('\n').slice(0, 3).join('\n    ')}`) }
+  try { fn(); ok++ } catch (err) { fallos.push(`✗ ${nombre}\n    ${err.stack.split('\n').slice(0, 3).join('\n    ')}`) }
 }
 
 /* ---------- instalación ---------- */
-prueba('instalar crea las hojas, la config y las reglas base', () => {
-  for (const n of ['Movimientos', 'Inversiones', 'Revisar', 'Correos', 'Reglas', 'Presupuestos', 'Config']) assert.ok(hojas[n], n)
-  assert.equal(props.get('PROPIETARIO'), 'duenio@gmail.com')
-  assert.ok(filas('Reglas').length > 50)
-  assert.equal(filas('Config').find((c) => c.clave === 'borrar_correos').valor, 'si')
+prueba('instalar siembra la configuración y las reglas base en la base, y deja los tres disparadores', () => {
+  assert.equal(e.props.get('PROPIETARIO'), 'duenio@gmail.com')
+  assert.ok(e.filas('reglas').length > 50)
+  assert.equal(e.filas('config').find((c) => c.clave === 'borrar_correos').valor, 'si')
+  assert.ok(e.filas('config').every((c) => c.usuario === USUARIO))
+  assert.deepEqual(e.disparadores, ['procesarCorreos cada 30 min', 'actualizarAcciones cada 1 h', 'alertasAcciones cada 4 h'])
+})
+prueba('instalar dos veces no duplica la configuración ni las reglas', () => {
+  const n = e.filas('reglas').length
+  G().instalar()
+  assert.equal(e.filas('reglas').length, n)
+})
+prueba('sin las propiedades de Supabase, falla con un mensaje claro', () => {
+  e.props.delete('SUPABASE_CLAVE')
+  assert.throws(() => G().procesarCorreos(), /SUPABASE_CLAVE/)
+})
+prueba('sin migrar, el trabajador no procesa nada', () => {
+  e.props.delete('MIGRADO')
+  compraTenpo('12.000')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 0)
+  assert.ok(!e.correos[0].papelera)
+  assert.match(e.logs.join('\n'), /migrarASupabase/)
+  assert.deepEqual(api('sincronizar').resumen, { ocupado: true })
 })
 
 /* ---------- procesamiento ---------- */
 prueba('registra, escribe y DESPUÉS borra', () => {
   compraTenpo('12.000')
-  G.procesarCorreos()
-  const movs = filas('Movimientos')
+  G().procesarCorreos()
+  const movs = e.filas('movimientos')
   assert.equal(movs.length, 1)
   assert.equal(movs[0].monto, 12000)
   assert.equal(movs[0].origen, 'correo')
-  assert.equal(filas('Correos')[0].resultado, 'registrado')
-  assert.ok(correos[0].papelera)
-  assert.ok(orden.indexOf('flush') < orden.indexOf('papelera:' + correos[0].id), 'la papelera antes del flush')
+  assert.equal(movs[0].usuario, USUARIO)
+  assert.equal(e.filas('correos')[0].resultado, 'registrado')
+  assert.ok(e.correos[0].papelera)
+  assert.ok(e.orden.indexOf('escribe:movimientos') < e.orden.indexOf('papelera:' + e.correos[0].id), 'la papelera antes de escribir')
+  assert.ok(e.orden.indexOf('escribe:correos') < e.orden.indexOf('papelera:' + e.correos[0].id), 'la papelera antes de la bitácora')
 })
-prueba('si falla la escritura, no se borra nada', () => {
+prueba('si la base no confirma la escritura, no se borra nada', () => {
   compraTenpo('12.000')
-  G.procesar_({ presupuestoMs: 1000 }) // crea las hojas y deja el cursor
-  hojas.Movimientos.falla = true
+  G().procesarCorreos()
   compraTenpo('13.000', 'OTRO SANTIAGO CHL', '2026-09-19T12:00:00Z')
-  props.delete('PASADA')
-  hojas.Correos.d.splice(1) // que vuelva a mirar los dos
-  assert.throws(() => G.procesarCorreos())
-  assert.ok(correos.every((m) => !m.papelera || m.id === 'g' + (seq - 1)), 'solo el ya registrado antes está en la papelera')
-  assert.ok(!correos[1].papelera)
+  e.props.delete('PASADA')
+  e.supabase.falla = (metodo, tabla) => metodo === 'post' && tabla === 'movimientos'
+  assert.throws(() => G().procesarCorreos(), /Supabase POST movimientos → 500/)
+  assert.ok(!e.correos[1].papelera)
+  assert.equal(e.filas('correos').length, 1, 'el que falló no queda en la bitácora: se reintenta')
+  e.supabase.falla = null
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 2)
+  assert.ok(e.correos[1].papelera)
+})
+prueba('si falla la bitácora, tampoco se borra', () => {
+  compraTenpo('12.000')
+  e.supabase.falla = (metodo, tabla) => metodo === 'post' && tabla === 'correos'
+  assert.throws(() => G().procesarCorreos())
+  assert.ok(!e.correos[0].papelera)
+})
+prueba('toda consulta a una tabla del dueño lleva su filtro, y toda fila su usuario', () => {
+  compraTenpo('12.000')
+  e.correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000 a Pedro')
+  G().procesarCorreos()
+  G().reclasificarExternas()
+  const globales = ['acciones_precios', 'acciones_mapa']
+  for (const p of e.supabase.pedidos.filter((x) => x.metodo !== 'post' && !globales.includes(x.tabla))) {
+    assert.equal(p.params.get('usuario'), 'eq.' + USUARIO, `${p.metodo} ${p.tabla} sin filtro de usuario`)
+  }
+  for (const t of ['movimientos', 'correos', 'revisar', 'config', 'reglas', 'estado_trabajador']) {
+    assert.ok(e.filas(t).length > 0, t)
+    assert.ok(e.filas(t).every((f) => f.usuario === USUARIO), `${t} con fila sin usuario`)
+  }
+})
+prueba('un lote con filas de distinta forma entra igual (columns + missing=default)', () => {
+  G().agregarFilas_('acciones_operaciones', [{ fecha: '2026-06-04', tipo: 'compraUsd', usd: 100 }, { fecha: '2026-06-05', tipo: 'compra', cantidad: 1, usd: 2, gmail_id: 'x' }])
+  assert.equal(e.filas('acciones_operaciones').length, 2)
+  const p = e.supabase.pedidos.at(-1)
+  assert.match(p.params.get('columns'), /cantidad/)
 })
 prueba('con borrar_correos = no, el correo queda', () => {
-  const cfg = hojas.Config.d.findIndex((f) => f[0] === 'borrar_correos')
-  hojas.Config.d[cfg][1] = 'no'
+  cfg('borrar_correos', 'no')
   compraTenpo('9.990')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 1)
-  assert.ok(!correos[0].papelera)
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 1)
+  assert.ok(!e.correos[0].papelera)
 })
-prueba('lo que no se entiende va a Revisar y NO se borra', () => {
-  correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000 a Pedro')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 0)
-  const r = filas('Revisar')
+prueba('lo que no se entiende va a revisar y NO se borra', () => {
+  e.correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000 a Pedro')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 0)
+  const r = e.filas('revisar')
   assert.equal(r.length, 1)
   assert.equal(r[0].estado, 'pendiente')
   assert.equal(r[0].monto, 45000)
-  assert.ok(!correos[0].papelera)
+  assert.ok(!e.correos[0].papelera)
 })
 prueba('publicidad e ignorados no dejan rastro ni se borran', () => {
-  correo('mensajeria@correobancoestado.cl', 'Jesus, ahorra un 20%', 'Descuento con Rutpay. Anular su suscripción')
-  correo('no-reply@tenpo.cl', 'Estado de cuenta-Tarjeta de Crédito', 'Ya está disponible')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length + filas('Revisar').length + filas('Correos').length, 0)
-  assert.ok(correos.every((m) => !m.papelera))
+  e.correo('mensajeria@correobancoestado.cl', 'Jesus, ahorra un 20%', 'Descuento con Rutpay. Anular su suscripción')
+  e.correo('no-reply@tenpo.cl', 'Estado de cuenta-Tarjeta de Crédito', 'Ya está disponible')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length + e.filas('revisar').length + e.filas('correos').length, 0)
+  assert.ok(e.correos.every((m) => !m.papelera))
 })
 prueba('un correo ya procesado no se registra dos veces', () => {
   compraTenpo('5.000')
-  G.procesarCorreos()
-  correos[0].papelera = true
-  props.delete('PASADA')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 1)
+  G().procesarCorreos()
+  e.correos[0].papelera = true
+  e.props.delete('PASADA')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 1)
+  // Y lo ya visto se pregunta a la base solo por los ids de la página.
+  const consulta = e.supabase.pedidos.filter((p) => p.tabla === 'correos' && p.metodo === 'get').at(-1)
+  assert.match(consulta.params.get('gmail_id'), /^in\.\("g1"\)$/)
 })
 prueba('los correos anteriores a «desde» se saltan', () => {
   compraTenpo('5.000', 'VIEJO SANTIAGO CHL', '2025-12-31T02:00:00Z') // 30-12 23:00 en Chile
   compraTenpo('6.000', 'NUEVO SANTIAGO CHL', '2026-01-01T04:00:00Z')
-  G.procesarCorreos()
-  assert.deepEqual(filas('Movimientos').map((m) => m.monto), [6000])
+  G().procesarCorreos()
+  assert.deepEqual(e.filas('movimientos').map((m) => m.monto), [6000])
 })
 prueba('la consulta incluye la papelera y los bancos sin lector', () => {
-  G.procesarCorreos()
-  assert.match(G.GmailApp.ultimaConsulta, /in:anywhere/)
-  assert.match(G.GmailApp.ultimaConsulta, /-in:spam/)
-  assert.match(G.GmailApp.ultimaConsulta, /after:2026\/01\/01/)
-  assert.match(G.GmailApp.ultimaConsulta, /subject:comprobante/)
+  G().procesarCorreos()
+  assert.match(G().GmailApp.ultimaConsulta, /in:anywhere/)
+  assert.match(G().GmailApp.ultimaConsulta, /-in:spam/)
+  assert.match(G().GmailApp.ultimaConsulta, /after:2026\/01\/01/)
+  assert.match(G().GmailApp.ultimaConsulta, /subject:comprobante/)
 })
-prueba('pasada larga: continúa donde quedó y al terminar avanza el cursor', () => {
+prueba('pasada larga: continúa donde quedó, al terminar avanza el cursor y la página lo ve', () => {
   for (let i = 0; i < 90; i++) compraTenpo(`${1000 + i}`, `TIENDA ${i} SANTIAGO CHL`, new Date(Date.UTC(2026, 1, 1) + i * 3600e3).toISOString())
-  G.procesar_({ presupuestoMs: -1 }) // sin tiempo: hace una vuelta y deja la pasada abierta
-  const abierta = JSON.parse(props.get('PASADA'))
+  G().procesar_({ presupuestoMs: -1 }) // sin tiempo: hace una vuelta y deja la pasada abierta
+  const abierta = JSON.parse(e.props.get('PASADA'))
   assert.ok(abierta.inicio > 0)
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 90)
-  const cerrada = JSON.parse(props.get('PASADA'))
+  assert.equal(e.filas('estado_trabajador')[0].importando, true)
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 90)
+  const cerrada = JSON.parse(e.props.get('PASADA'))
   assert.equal(cerrada.inicio, 0)
   assert.match(cerrada.desde, /^\d+$/)
+  const est = e.filas('estado_trabajador')
+  assert.equal(est.length, 1)
+  assert.equal(est[0].importando, false)
+  assert.match(est[0].ultima, /^\d{4}-\d{2}-\d{2}T/)
+  assert.equal(typeof est[0].resumen.registrados, 'number')
 })
 prueba('duplicado entre bancos: se anota, no se suma, y el correo se borra', () => {
-  correo('no-reply@tenpo.cl', 'Comprobante de transferencia - Tenpo',
+  e.correo('no-reply@tenpo.cl', 'Comprobante de transferencia - Tenpo',
     'Comprobante de recibo transferencia La transferencia de MARIO ANDRESSOTOPEREZ por 5.520 a tu cuenta Tenpo fue exitosa Monto transferencia: $5.520', '2026-09-14T12:30:00Z')
-  correo('notificaciones@cl.bancofalabella.com', 'Aviso de transferencia de fondos recibida',
+  e.correo('notificaciones@cl.bancofalabella.com', 'Aviso de transferencia de fondos recibida',
     'nuestro(a) cliente MARIO ANDRES SOTO ha instruido una transferencia de fondos a su cuenta con el siguiente detalle: Monto $5.520', '2026-09-14T12:28:00Z')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 1)
-  assert.equal(filas('Correos').filter((c) => c.resultado === 'duplicado').length, 1)
-  assert.ok(correos.every((m) => m.papelera))
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 1)
+  assert.equal(e.filas('correos').filter((c) => c.resultado === 'duplicado').length, 1)
+  assert.ok(e.correos.every((m) => m.papelera))
 })
-prueba('ensayo: informa sin registrar, sin borrar y sin mover el cursor', () => {
+prueba('ensayo: informa en la hoja sin registrar, sin borrar y sin mover el cursor', () => {
   compraTenpo('7.000')
-  correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000')
-  G.ensayo()
-  assert.equal(filas('Movimientos').length, 0)
-  assert.equal(filas('Revisar').length, 0)
-  assert.ok(correos.every((m) => !m.papelera))
-  assert.equal(props.get('PASADA'), undefined)
-  const e = filas('Ensayo')
-  assert.deepEqual(e.map((f) => f.resultado).sort(), ['movimiento', 'revisar'])
+  e.correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000')
+  G().ensayo()
+  assert.equal(e.filas('movimientos').length, 0)
+  assert.equal(e.filas('revisar').length, 0)
+  assert.ok(e.correos.every((m) => !m.papelera))
+  assert.equal(e.props.get('PASADA'), undefined)
+  const h = e.ss.hojas.Ensayo
+  const cab = h.d[0]
+  assert.deepEqual(h.d.slice(1).map((f) => f[cab.indexOf('resultado')]).sort(), ['movimiento', 'revisar'])
 })
-prueba('un asunto con fórmula se guarda neutralizado', () => {
-  correo('avisos@santander.cl', '=IMPORTXML("http://x","//a") comprobante', 'Se ha realizado una transferencia por $1.000')
-  G.procesarCorreos()
-  const col = hojas.Revisar.d[0].indexOf('asunto')
-  assert.ok(String(hojas.Revisar.crudo[1][col]).startsWith("'="))
+prueba('en la hoja Ensayo, un asunto con fórmula queda neutralizado', () => {
+  e.correo('avisos@santander.cl', '=IMPORTXML("http://x","//a") comprobante', 'Se ha realizado una transferencia por $1.000')
+  G().ensayo()
+  const h = e.ss.hojas.Ensayo
+  assert.ok(String(h.crudo[1][h.d[0].indexOf('asunto')]).startsWith("'="))
 })
-
-prueba('«desde» convertido en fecha por Sheets igual busca bien', () => {
-  const i = hojas.Config.d.findIndex((f) => f[0] === 'desde')
-  hojas.Config.d[i][1] = new Date('2026-01-01T00:00:00-03:00')
-  compraTenpo('4.000')
-  G.procesarCorreos()
-  assert.match(G.GmailApp.ultimaConsulta, /after:2026\/01\/01 /)
-  assert.equal(filas('Movimientos').length, 1)
-})
-prueba('una pasada vieja sin «base» (la de la instalación rota) se reinicia', () => {
-  props.set('PASADA', JSON.stringify({ desde: String(Math.floor(Date.now() / 1000) - 3600), inicio: 0, comenzo: 0 }))
+prueba('una pasada vieja sin «base» se reinicia', () => {
+  e.props.set('PASADA', JSON.stringify({ desde: String(Math.floor(Date.now() / 1000) - 3600), inicio: 0, comenzo: 0 }))
   compraTenpo('4.000', 'VIEJA SANTIAGO CHL', '2026-02-01T12:00:00Z')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 1)
-  assert.match(G.GmailApp.ultimaConsulta, /after:2026\/01\/01 /)
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 1)
+  assert.match(G().GmailApp.ultimaConsulta, /after:2026\/01\/01 /)
 })
-prueba('cambiar «desde» en Config reimporta desde la fecha nueva', () => {
-  G.procesarCorreos()
-  const i = hojas.Config.d.findIndex((f) => f[0] === 'desde')
-  hojas.Config.d[i][1] = '2025/06/01'
-  G.procesarCorreos()
-  assert.match(G.GmailApp.ultimaConsulta, /after:2025\/06\/01 /)
+prueba('cambiar «desde» en la configuración reimporta desde la fecha nueva', () => {
+  G().procesarCorreos()
+  cfg('desde', '2025/06/01')
+  G().procesarCorreos()
+  assert.match(G().GmailApp.ultimaConsulta, /after:2025\/06\/01 /)
 })
 prueba('correos que no son de bancos no se abren', () => {
-  const m = correo('notifications@github.com', 'Aviso de pago de Actions', 'Pago de $5.000')
-  G.procesarCorreos()
+  const m = e.correo('notifications@github.com', 'Aviso de pago de Actions', 'Pago de $5.000')
+  G().procesarCorreos()
   assert.ok(!m.abierto)
   assert.ok(!m.papelera)
 })
-prueba('fechas e ids quedan como texto en la hoja', () => {
-  compraTenpo('4.000')
-  G.procesarCorreos()
-  const m = filas('Movimientos')[0]
-  assert.equal(typeof m.fecha, 'string')
+prueba('la fecha queda en el formato de la base y lo largo se recorta', () => {
+  compraTenpo('4.000', 'X'.repeat(300) + ' SANTIAGO CHL')
+  G().procesarCorreos()
+  const m = e.filas('movimientos')[0]
   assert.match(m.fecha, /^2026-09-18 \d{2}:\d{2}$/)
-  assert.equal(typeof filas('Correos')[0].gmail_id, 'string')
+  assert.equal(m.contraparte.length, 200)
+  assert.equal(m.cuotas, 1)
+  assert.equal(m.monto_original, null, "'' pasa a null en una columna numérica")
+  assert.equal(typeof e.filas('correos')[0].gmail_id, 'string')
 })
 prueba('reiniciarImportacion borra el cursor', () => {
-  G.procesarCorreos()
-  assert.ok(props.get('PASADA'))
-  G.reiniciarImportacion()
-  assert.equal(props.get('PASADA'), undefined)
+  G().procesarCorreos()
+  assert.ok(e.props.get('PASADA'))
+  G().reiniciarImportacion()
+  assert.equal(e.props.get('PASADA'), undefined)
+})
+
+/* ---------- lo que decide la página ---------- */
+prueba('lo marcado para borrar en revisar se va a la papelera en la pasada siguiente, una vez', () => {
+  e.correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000')
+  G().procesarCorreos()
+  const r = e.filas('revisar')[0]
+  assert.ok(!e.correos[0].papelera)
+  Object.assign(r, { estado: 'descartado', borrar_correo: true })
+  G().procesarCorreos()
+  assert.ok(e.correos[0].papelera)
+  assert.equal(r.correo_borrado, true)
+  e.correos[0].papelera = false
+  G().procesarCorreos()
+  assert.ok(!e.correos[0].papelera, 'ya anotado: no se vuelve a tocar')
+})
+prueba('un correo marcado que ya no existe se anota igual y no traba la pasada', () => {
+  e.filas('revisar').push({ usuario: USUARIO, gmail_id: 'no-existe', estado: 'registrado', borrar_correo: true, correo_borrado: false })
+  compraTenpo('1.000')
+  G().procesarCorreos()
+  assert.equal(e.filas('revisar')[0].correo_borrado, true)
+  assert.equal(e.filas('movimientos').length, 1)
+})
+prueba('eliminar en la página quita el movimiento pero la bitácora impide reimportarlo', () => {
+  compraTenpo('1.000')
+  G().procesarCorreos()
+  e.supabase.tablas.movimientos = []
+  e.correos[0].papelera = true
+  e.props.delete('PASADA')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 0)
 })
 
 /* ---------- frecuencia y cuotas de Google ---------- */
-prueba('el disparador queda cada 30 minutos', () => {
-  assert.equal(G.ScriptApp.creado, 'procesarCorreos cada 30')
-})
 prueba('con el tope diario de disparador usado, la pasada espera a mañana', () => {
   compraTenpo('8.000')
-  const hoy = G.Utilities.formatDate(new Date(), 'America/Santiago', 'yyyy-MM-dd')
-  props.set('USO', JSON.stringify({ dia: hoy, ms: 60 * 60 * 1000 }))
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 0)
-  props.set('USO', JSON.stringify({ dia: '2000-01-01', ms: 60 * 60 * 1000 })) // otro día: vuelve a cero
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 1)
-  assert.equal(JSON.parse(props.get('USO')).dia, hoy)
+  const hoy = G().Utilities.formatDate(new Date(), 'America/Santiago', 'yyyy-MM-dd')
+  e.props.set('USO', JSON.stringify({ dia: hoy, ms: 60 * 60 * 1000 }))
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 0)
+  e.props.set('USO', JSON.stringify({ dia: '2000-01-01', ms: 60 * 60 * 1000 })) // otro día: vuelve a cero
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 1)
+  assert.equal(JSON.parse(e.props.get('USO')).dia, hoy)
 })
 prueba('un correo ignorado no se vuelve a abrir en la pasada siguiente', () => {
-  const m = correo('no-reply@tenpo.cl', 'Estado de cuenta-Tarjeta de Crédito', 'Ya está disponible')
-  G.procesarCorreos()
+  const m = e.correo('no-reply@tenpo.cl', 'Estado de cuenta-Tarjeta de Crédito', 'Ya está disponible')
+  G().procesarCorreos()
   assert.ok(m.abierto)
   m.abierto = false
-  props.delete('PASADA')
-  G.procesarCorreos()
+  e.props.delete('PASADA')
+  G().procesarCorreos()
   assert.ok(!m.abierto, 'se abrió otra vez')
   assert.ok(!m.papelera)
 })
 
-/* ---------- Binance ---------- */
+/* ---------- Binance y cuentas externas ---------- */
 prueba('remesa por Binance: la compra P2P no suma y el envío de USDT es el gasto', () => {
-  correo('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
+  e.correo('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
     '¡Listo! Tu transferencia se envió con éxito Monto $25.000 Cuenta destino: Leveltech SPA Cuenta Corriente ****0000 BCI/MACHBANK N° transacción: 000000 Comentario: pago', '2026-09-28T17:22:50Z')
-  correo('do-not-reply@ses.binance.com', '[Binance]Payment Transaction Detail - 2026-09-28 17:27:48 (UTC)',
+  e.correo('do-not-reply@ses.binance.com', '[Binance]Payment Transaction Detail - 2026-09-28 17:27:48 (UTC)',
     'Payment Transaction Detail You made the following payment: Time: 2026-09-28 17:27:48(UTC) Amount: 40 USDT', '2026-09-28T17:27:49Z')
-  G.procesarCorreos()
-  const movs = filas('Movimientos')
+  G().procesarCorreos()
+  const movs = e.filas('movimientos')
   const compra = movs.find((m) => m.banco === 'Copec Pay')
   const envio = movs.find((m) => m.banco === 'Binance')
   assert.equal(compra.tipo, 'interna')
@@ -345,182 +311,149 @@ prueba('remesa por Binance: la compra P2P no suma y el envío de USDT es el gast
   assert.equal(envio.monto, 38000)
   assert.equal(envio.categoria, 'Remesas')
   assert.equal(envio.fecha, '2026-09-28 14:27', 'hora de Chile, no la UTC del cuerpo')
-  assert.ok(correos.every((m) => m.papelera))
+  assert.ok(e.correos.every((m) => m.papelera))
 })
 prueba('reclasificarCripto corrige una compra P2P que entró como gasto', () => {
-  correo('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
+  e.correo('mensajeria@copecpay.cl', 'Tu transferencia se realizó con éxito',
     '¡Listo! Tu transferencia se envió con éxito Monto $25.000 Cuenta destino: Leveltech SPA Cuenta Corriente ****0000 BCI/MACHBANK N° transacción: 000000')
-  const i = hojas.Config.d.findIndex((f) => f[0] === 'vendedores_cripto')
-  hojas.Config.d[i][1] = ''
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos')[0].tipo, 'gasto')
-  hojas.Config.d[i][1] = 'Leveltech'
-  G.reclasificarCripto()
-  assert.equal(filas('Movimientos')[0].tipo, 'interna')
-  assert.equal(filas('Movimientos')[0].categoria, 'Compra de cripto')
+  cfg('vendedores_cripto', '')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos')[0].tipo, 'gasto')
+  cfg('vendedores_cripto', 'Leveltech')
+  G().reclasificarCripto()
+  assert.equal(e.filas('movimientos')[0].tipo, 'interna')
+  assert.equal(e.filas('movimientos')[0].categoria, 'Compra de cripto')
 })
-
 prueba('sueldo que pasa de Mercado Pago a Copec Pay entra como ingreso', () => {
-  correo('info@mercadopago.cl', '¡Enviamos tu transferencia!',
+  e.correo('info@mercadopago.cl', '¡Enviamos tu transferencia!',
     'Ya enviamos tu transferencia de $ 1.096.130 Datos del beneficiario Nombre y apellido: Jesus Seiler Velasquez Entidad: Copec Pay Número de cuenta: 000')
-  G.procesarCorreos()
-  const m = filas('Movimientos')[0]
+  G().procesarCorreos()
+  const m = e.filas('movimientos')[0]
   assert.equal(m.tipo, 'ingreso')
   assert.equal(m.categoria, 'Desde Mercado Pago')
 })
 prueba('reclasificarExternas corrige lo registrado antes como interno', () => {
-  const i = hojas.Config.d.findIndex((f) => f[0] === 'cuentas_externas')
-  if (i === -1) hojas.Config.d.push(['cuentas_externas', ''])
-  else hojas.Config.d[i][1] = ''
-  correo('info@mercadopago.cl', '¡Enviamos tu transferencia!',
+  cfg('cuentas_externas', '')
+  e.correo('info@mercadopago.cl', '¡Enviamos tu transferencia!',
     'Ya enviamos tu transferencia de $ 900.000 Datos del beneficiario Nombre y apellido: Jesus Seiler Entidad: MACHBANK/BCI')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos')[0].tipo, 'interna')
-  const j = hojas.Config.d.findIndex((f) => f[0] === 'cuentas_externas')
-  hojas.Config.d[j][1] = 'Mercado Pago'
-  G.reclasificarExternas()
-  assert.equal(filas('Movimientos')[0].tipo, 'ingreso')
-  G.reclasificarExternas()
-  assert.equal(filas('Movimientos')[0].tipo, 'ingreso')
+  G().procesarCorreos()
+  assert.equal(e.filas('movimientos')[0].tipo, 'interna')
+  cfg('cuentas_externas', 'Mercado Pago')
+  G().reclasificarExternas()
+  assert.equal(e.filas('movimientos')[0].tipo, 'ingreso')
+  G().reclasificarExternas()
+  assert.equal(e.filas('movimientos')[0].tipo, 'ingreso')
 })
 
-/* ---------- identidad ---------- */
-prueba('sin credencial o con una ajena no hay datos', () => {
-  assert.equal(api('datos', {}, '').sesion, false)
-  assert.equal(api('datos', {}, 'no-es-un-jwt').sesion, false)
+/* ---------- identidad («Revisar correos ahora») ---------- */
+prueba('sin credencial o con una ajena no se procesa nada', () => {
+  assert.equal(api('sincronizar', {}, '').sesion, false)
+  assert.equal(api('sincronizar', {}, 'no-es-un-jwt').sesion, false)
   const otro = token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'intruso@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600 })
-  assert.equal(api('datos', {}, otro).sesion, false)
+  assert.equal(api('sincronizar', {}, otro).sesion, false)
   const otraApp = token({ aud: 'otra.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600 })
-  assert.equal(api('datos', {}, otraApp).sesion, false)
+  assert.equal(api('sincronizar', {}, otraApp).sesion, false)
   const vencido = token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) - 10 })
-  assert.equal(api('datos', {}, vencido).sesion, false)
-  assert.equal(fetches, 0, 'lo que se descarta localmente no gasta llamadas a Google')
+  assert.equal(api('sincronizar', {}, vencido).sesion, false)
+  assert.equal(e.fetchesGoogle, 0, 'lo que se descarta localmente no gasta llamadas a Google')
 })
 prueba('firma inválida: Google la rechaza', () => {
   const falso = token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600 }, 'firma-mala')
-  assert.equal(api('datos', {}, falso).sesion, false)
-  assert.equal(fetches, 1)
+  assert.equal(api('sincronizar', {}, falso).sesion, false)
+  assert.equal(e.fetchesGoogle, 1)
 })
 prueba('token válido: una sola verificación y luego caché', () => {
   const t = valido()
-  assert.equal(api('datos', {}, t).ok, true)
-  assert.equal(api('datos', {}, t).ok, true)
-  assert.equal(fetches, 1)
+  assert.equal(api('sincronizar', {}, t).ok, true)
+  assert.equal(api('sincronizar', {}, t).ok, true)
+  assert.equal(e.fetchesGoogle, 1)
 })
 prueba('freno: más de 30 verificaciones por minuto se cortan', () => {
   for (let i = 0; i < 35; i++) {
-    api('datos', {}, token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600, n: i }, 'firma-mala'))
+    api('sincronizar', {}, token({ aud: 'cliente-123.apps.googleusercontent.com', email: 'duenio@gmail.com', exp: Math.floor(Date.now() / 1000) + 3600, n: i }, 'firma-mala'))
   }
-  assert.equal(fetches, 30)
+  assert.equal(e.fetchesGoogle, 30)
 })
-prueba('acción desconocida', () => {
-  assert.equal(api('borrarTodo').error, 'Acción no válida')
-})
-
-/* ---------- acciones ---------- */
-prueba('agregar un movimiento manual y categorizarlo', () => {
-  const r = api('agregar', { mov: { fecha: '2026-09-20', tipo: 'gasto', monto: 4500, contraparte: 'Feria Copec', banco: 'Efectivo' } })
-  assert.equal(r.ok, true, r.error)
-  const m = filas('Movimientos')[0]
-  assert.equal(m.origen, 'manual')
-  assert.equal(m.categoria, 'Combustible')
-  assert.equal(m.fecha, '2026-09-20 12:00')
-})
-prueba('agregar valida monto, fecha y tipo', () => {
-  assert.equal(api('agregar', { mov: { fecha: '2026-09-20', tipo: 'gasto', monto: -1 } }).error, 'Monto no válido')
-  assert.match(api('agregar', { mov: { fecha: 'ayer', tipo: 'gasto', monto: 1 } }).error, /Fecha/)
-  assert.equal(api('agregar', { mov: { fecha: '2026-09-20', tipo: 'robo', monto: 1 } }).error, 'Tipo no válido')
-})
-prueba('editar con regla recategoriza los de la misma contraparte', () => {
-  compraTenpo('1.000', 'DON PEPE SANTIAGO CHL', '2026-09-01T12:00:00Z')
-  compraTenpo('2.000', 'DON PEPE SANTIAGO CHL', '2026-09-02T12:00:00Z')
-  compraTenpo('3.000', 'OTRA COSA SANTIAGO CHL', '2026-09-03T12:00:00Z')
-  G.procesarCorreos()
-  const id = filas('Movimientos').find((m) => m.monto === 1000).id
-  const r = api('editar', { id, categoria: 'Comida', regla: true })
-  assert.equal(r.aplicados, 1)
-  assert.deepEqual(filas('Movimientos').map((m) => m.categoria).sort(), ['Comida', 'Comida', 'Otros'])
-  assert.ok(filas('Reglas').some((x) => x.patron === 'DON PEPE SANTIAGO' && x.categoria === 'Comida'))
-})
-prueba('un movimiento de correo no deja cambiar su monto', () => {
-  compraTenpo('1.000')
-  G.procesarCorreos()
-  api('editar', { id: filas('Movimientos')[0].id, monto: 999999 })
-  assert.equal(filas('Movimientos')[0].monto, 1000)
-})
-prueba('fecha contable: un movimiento de correo puede contar en otro día, y se puede quitar', () => {
-  compraTenpo('1.000')
-  G.procesarCorreos()
-  const id = filas('Movimientos')[0].id
-  assert.equal(api('editar', { id, fecha_contable: '2026-10-01' }).ok, true)
-  assert.equal(filas('Movimientos')[0].fecha_contable, '2026-10-01')
-  assert.match(filas('Movimientos')[0].fecha, /^2026-09-18/, 'la fecha real no se toca')
-  assert.equal(api('datos').movimientos[0].fecha_contable, '2026-10-01')
-  assert.equal(api('editar', { id, fecha_contable: '' }).ok, true)
-  assert.equal(api('datos').movimientos[0].fecha_contable, '')
-  assert.match(api('editar', { id, fecha_contable: 'ayer' }).error, /Fecha/)
-})
-prueba('fecha contable: una planilla anterior a la columna recibe su encabezado', () => {
-  compraTenpo('1.000')
-  G.procesarCorreos()
-  hojas['Movimientos'].d[0].length = HOJAS_N - 1
-  vm.runInContext('Object.keys(cabeceraAlDia_).forEach((k) => delete cabeceraAlDia_[k])', ctx)
-  assert.equal(api('datos').ok, true)
-  assert.equal(hojas['Movimientos'].d[0][HOJAS_N - 1], 'fecha_contable')
-})
-prueba('revisar → registrar: crea el movimiento y borra el correo', () => {
-  correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000 a Pedro')
-  G.procesarCorreos()
-  const gid = filas('Revisar')[0].gmail_id
-  const r = api('revisar', { gmail_id: gid, decision: 'registrar', mov: { contraparte: 'Pedro', tipo: 'gasto', monto: 45000 } })
-  assert.equal(r.ok, true, r.error)
-  assert.equal(r.borrado, true)
-  assert.equal(filas('Movimientos')[0].contraparte, 'Pedro')
-  assert.equal(filas('Revisar')[0].estado, 'registrado')
-  assert.equal(filas('Correos')[0].resultado, 'registrado')
-  assert.ok(correos[0].papelera)
-  assert.equal(api('datos').revisar.length, 0)
-})
-prueba('revisar → descartar deja el correo salvo que se pida borrar', () => {
-  correo('avisos@santander.cl', 'Comprobante de transferencia', 'Se ha realizado una transferencia por $45.000')
-  correo('avisos@santander.cl', 'Comprobante de pago', 'Se ha realizado un pago por $10.000', '2026-09-17T12:00:00Z')
-  G.procesarCorreos()
-  const [a, b] = filas('Revisar')
-  api('revisar', { gmail_id: a.gmail_id, decision: 'descartar' })
-  api('revisar', { gmail_id: b.gmail_id, decision: 'descartar', borrar: true })
-  assert.equal(correos.find((m) => m.id === a.gmail_id).papelera, false)
-  assert.equal(correos.find((m) => m.id === b.gmail_id).papelera, true)
-  assert.equal(filas('Movimientos').length, 0)
-})
-prueba('presupuesto: crear, cambiar y quitar', () => {
-  api('presupuesto', { categoria: 'Comida', monto: 100000 })
-  api('presupuesto', { categoria: 'Comida', monto: 80000 })
-  assert.deepEqual(filas('Presupuestos').map((p) => p.monto_mensual), [80000])
-  api('presupuesto', { categoria: 'Comida', monto: 0 })
-  assert.equal(filas('Presupuestos').length, 0)
-})
-prueba('datos no expone el id de Gmail de los movimientos', () => {
-  compraTenpo('1.000')
-  G.procesarCorreos()
-  const d = api('datos')
-  assert.equal(d.movimientos.length, 1)
-  assert.equal(d.movimientos[0].gmail_id, undefined)
-  assert.equal(d.estado.borrar, true)
-})
-prueba('eliminar quita el movimiento pero la bitácora impide reimportarlo', () => {
-  compraTenpo('1.000')
-  G.procesarCorreos()
-  api('eliminar', { id: filas('Movimientos')[0].id })
-  correos[0].papelera = true
-  props.delete('PASADA')
-  G.procesarCorreos()
-  assert.equal(filas('Movimientos').length, 0)
+prueba('la API ya no entrega datos: eso es Supabase', () => {
+  for (const accion of ['datos', 'agregar', 'editar', 'eliminar', 'revisar', 'presupuesto', 'borrarTodo']) {
+    assert.equal(api(accion).error, 'Acción no válida', accion)
+  }
 })
 prueba('sincronizar desde la página', () => {
   compraTenpo('1.000')
   const r = api('sincronizar')
   assert.equal(r.resumen.registrados, 1)
   assert.equal(r.resumen.completa, true)
+})
+
+/* ---------- migración desde la planilla ---------- */
+function planillaVieja() {
+  return planilla({
+    Movimientos: [
+      ['id', 'fecha', 'banco', 'producto', 'tipo', 'monto', 'moneda', 'monto_original', 'contraparte', 'categoria', 'cuotas', 'detalle', 'nota', 'origen', 'gmail_id', 'registrado', 'fecha_contable'],
+      ['M1', '2026-09-01 10:00', 'Tenpo', 'Cuenta', 'gasto', 5000, 'CLP', '', 'JUMBO', 'Supermercado', '', '', '', 'correo', 'g-a', '2026-09-01 10:05', ''],
+      ['M2', new Date('2026-09-02T15:30:00Z'), 'MACH', 'Tarjeta de crédito', 'gasto', 90000, 'CLP', '', 'PARIS', 'Compras', 3, '', 'regalo', 'correo', 'g-b', '', '2026-10-01'],
+      ['M3', '2026-09-03', 'Efectivo', 'Cuenta', 'gasto', 1200, 'CLP', '', 'Feria', 'Comida', '', '', '', 'manual', '', '', ''],
+      ['', 'mal', '', '', 'gasto', 1, '', '', '', '', '', '', '', '', '', '', ''],
+      ['M5', '2026-09-04 09:00', 'Tenpo', 'Cuenta', 'regalo', 1, 'CLP', '', '', '', '', '', '', 'correo', '', '', ''],
+    ],
+    Inversiones: [['id', 'fecha', 'plataforma', 'operacion', 'instrumento', 'monto', 'moneda', 'detalle', 'gmail_id', 'registrado'],
+      ['I1', '2026-09-05 11:00', 'Fintual', 'aporte', 'Objetivo', 100000, 'CLP', '', 'g-c', '']],
+    Revisar: [['gmail_id', 'fecha', 'remitente', 'asunto', 'motivo', 'tipo', 'monto', 'contraparte', 'banco', 'extracto', 'estado'],
+      ['g-d', '2026-09-06 08:00', 'avisos@x.cl', 'Comprobante', 'Sin lector', 'gasto', 45000, '', 'X', '...', 'pendiente']],
+    Correos: [['gmail_id', 'fecha', 'remitente', 'asunto', 'resultado', 'lector', 'referencia', 'procesado'],
+      ['g-a', '2026-09-01 10:00', 'no-reply@tenpo.cl', 'Compra', 'registrado', 'tenpo-compra', 'M1', '2026-09-01 10:05'],
+      [18012345678, '2026-09-02 12:30', 'mach', 'Compra', 'registrado', 'mach-compra', 'M2', '']],
+    Reglas: [['patron', 'categoria', 'tipo'], ['don pepe', 'Comida', ''], ['fintual', 'Inversiones', 'inversion']],
+    Presupuestos: [['categoria', 'monto_mensual'], ['Comida', 90000], ['Nada', 0]],
+    Config: [['clave', 'valor'], ['titular', 'Jesus Seiler'], ['desde', new Date('2026-01-01T03:00:00Z')], ['borrar_correos', 'si']],
+  })
+}
+prueba('migrarASupabase pasa las hojas a la base, salta lo ilegible y abre el paso al trabajador', () => {
+  e = crearEntorno()
+  e.conectar()
+  e.ss = planillaVieja()
+  e.G.SpreadsheetApp.getActive = () => e.ss
+  e.props.set('ULTIMA', '2026-09-30T12:00:00.000Z')
+  compraTenpo('1.000')
+  e.G.procesarCorreos()
+  assert.equal(e.filas('movimientos').length, 0, 'antes de migrar no se procesa')
+
+  e.G.migrarASupabase()
+  assert.equal(e.props.get('MIGRADO'), 'si')
+  const movs = e.filas('movimientos')
+  assert.deepEqual(movs.map((m) => m.id), ['M1', 'M2', 'M3'])
+  // 15:30 UTC del 2 de septiembre: Chile aún no pasa al horario de verano (UTC−4).
+  assert.equal(movs[1].fecha, '2026-09-02 11:30', 'la Date de la hoja, en hora de Chile')
+  assert.equal(movs[1].cuotas, 3)
+  assert.equal(movs[1].fecha_contable, '2026-10-01')
+  assert.equal(movs[2].fecha, '2026-09-03 12:00')
+  assert.ok(movs.every((m) => m.usuario === USUARIO))
+  assert.equal(e.filas('inversiones').length, 1)
+  assert.equal(e.filas('revisar')[0].monto, 45000)
+  assert.deepEqual(e.filas('correos').map((c) => c.gmail_id), ['g-a', '18012345678'], 'un id que Sheets volvió número, de vuelta a texto')
+  assert.deepEqual(e.filas('reglas').map((r) => r.patron), ['don pepe', 'fintual'], 'en su orden')
+  assert.deepEqual(e.filas('presupuestos').map((p) => p.categoria), ['Comida'])
+  assert.equal(e.filas('config').find((c) => c.clave === 'desde').valor, '2026/01/01')
+  assert.equal(e.filas('estado_trabajador')[0].ultima, '2026-09-30T12:00:00.000Z')
+  assert.match(e.logs.join('\n'), /2 fila\(s\) saltada\(s\)/)
+  assert.throws(() => e.G.migrarASupabase(), /Ya se migró/)
+})
+prueba('migrarASupabase no duplica las reglas si la base ya tenía', () => {
+  e = crearEntorno()
+  e.conectar()
+  e.ss = planillaVieja()
+  e.G.SpreadsheetApp.getActive = () => e.ss
+  e.filas('reglas').push({ id: 1, usuario: USUARIO, patron: 'jumbo', categoria: 'Supermercado', tipo: '' })
+  e.G.migrarASupabase()
+  assert.deepEqual(e.filas('reglas').map((r) => r.patron), ['jumbo'])
+})
+prueba('empezarDeCero abre el paso sin traer nada y siembra lo base', () => {
+  e = crearEntorno()
+  e.conectar()
+  e.G.empezarDeCero()
+  assert.equal(e.props.get('MIGRADO'), 'si')
+  assert.ok(e.filas('reglas').length > 50)
 })
 
 console.log(`backend: ${ok} pruebas ok`)

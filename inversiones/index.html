@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Inversiones · FinanzasMaker</title>
+    <meta name="description" content="Inversiones de FinanzasMaker: posiciones, resultados, dividendos y movimientos de una cartera de acciones, leídos de los correos de la corredora.">
+    <meta name="robots" content="noindex">
+    <meta name="referrer" content="no-referrer">
+    <meta name="color-scheme" content="light dark">
+    <!-- Tarjeta al compartir el enlace. og:image debe ser URL ABSOLUTA: WhatsApp
+         y LinkedIn no resuelven relativas. La imagen es public/og.jpg. -->
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_CL">
+    <meta property="og:site_name" content="FinanzasMaker">
+    <meta property="og:title" content="Inversiones · FinanzasMaker">
+    <meta property="og:description" content="Dashboard de una cartera de acciones: posiciones, resultados, dividendos y movimientos, leídos de los correos de la corredora. Demo con datos inventados.">
+    <meta property="og:url" content="https://seiler18.github.io/FinanzasMaker/inversiones/">
+    <meta property="og:image" content="https://seiler18.github.io/FinanzasMaker/og.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Portada de FinanzasMaker">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Inversiones · FinanzasMaker">
+    <meta name="twitter:description" content="Dashboard de una cartera de acciones: posiciones, resultados, dividendos y movimientos, leídos de los correos de la corredora. Demo con datos inventados.">
+    <meta name="twitter:image" content="https://seiler18.github.io/FinanzasMaker/og.jpg">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  </head>
+  <body>
+    <header class="cabecera">
+      <div class="cabecera-in">
+        <a class="btn btn-sec volver" href="../">← Finanzas</a>
+        <h1 class="marca">Inversiones</h1>
+        <p id="estado" class="estado" role="status">Cargando…</p>
+        <button type="button" id="btn-acceso" class="btn" hidden>Entrar con clave</button>
+        <button type="button" id="btn-tema" class="btn btn-icono boton-tema"></button>
+      </div>
+    </header>
+
+    <main id="app" class="contenido">
+      <noscript>Esta página necesita JavaScript para mostrar el dashboard.</noscript>
+    </main>
+
+    <!-- Pie de autoría: mismos datos que el pie del hub (seiler18.github.io,
+         src/data/site.js) y que el de FinanzasMaker. Íconos de marca en SVG
+         propio (Simple Icons, CC0): la CSP no deja cargar Font Awesome. -->
+    <footer class="pie">
+      <p class="pie-fuente">
+        Los datos salen de los correos de Fintual que lee el trabajador de FinanzasMaker; los precios, de Yahoo
+        Finance, con hasta una hora de retraso. Es un registro personal, no asesoría financiera.
+      </p>
+      <div class="pie-in">
+        <div class="pie-autor">
+          <span class="pie-mono" aria-hidden="true">JS</span>
+          <div>
+            <p class="pie-hecho">Diseñado y desarrollado por <a href="https://seiler18.github.io/" target="_blank" rel="noopener noreferrer">Jesús Seiler</a></p>
+            <p class="pie-lema">«Normas, sistemas y sitios que se sostienen»</p>
+          </div>
+        </div>
+        <nav class="pie-enlaces" aria-label="Del autor">
+          <a href="https://seiler18.github.io/" target="_blank" rel="noopener noreferrer">Todo lo que hago</a>
+          <a href="https://seiler18.github.io/Curriculo/" target="_blank" rel="noopener noreferrer">Currículum</a>
+          <a href="https://github.com/seiler18/FinanzasMaker" target="_blank" rel="noopener noreferrer">Código en GitHub</a>
+        </nav>
+        <div class="pie-redes">
+          <a href="https://www.linkedin.com/in/ichbinseiler/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg></a>
+          <a href="https://github.com/seiler18" target="_blank" rel="noopener noreferrer" aria-label="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.82-.26.82-.58l-.01-2.04c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.34-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .32.21.7.82.58A12 12 0 0 0 12 .3"/></svg></a>
+          <a href="https://gitlab.com/seiler18" target="_blank" rel="noopener noreferrer" aria-label="GitLab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m23.6 9.59-.03-.09L20.3.98a.85.85 0 0 0-1.63.1l-2.2 6.74H7.54L5.33 1.07a.86.86 0 0 0-1.63-.09L.43 9.5l-.03.09a6.07 6.07 0 0 0 2.01 7.01l.01.01.03.02 4.98 3.73 2.46 1.86 1.5 1.13a1 1 0 0 0 1.22 0l1.5-1.13 2.46-1.86 5-3.75.02-.01a6.07 6.07 0 0 0 2.01-7z"/></svg></a>
+        </div>
+      </div>
+      <p class="pie-legal">© <span id="anio">2026</span> Jesús Seiler. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Detalle de un activo: lo llena main.js (abrirActivo) al tocar una fila. -->
+    <dialog id="dlg-activo" class="hoja" aria-labelledby="det-titulo"></dialog>
+
+    <dialog id="dlg-ingreso" aria-labelledby="dlg-titulo">
+      <div class="form-ingreso">
+        <h2 id="dlg-titulo">Entrar</h2>
+        <p class="dlg-ayuda">Con la misma cuenta de Google que usas en Finanzas.</p>
+        <div id="boton-google" class="boton-google"></div>
+        <p id="ingreso-error" class="error" role="alert" hidden></p>
+        <div class="dlg-acciones">
+          <button type="button" id="btn-cancelar" class="btn btn-sec">Cancelar</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Cinta de navegación inferior: solo se ve en el celular (app.css). Cada
+         botón lleva a una sección de la página; main.js (conectarNavegacion)
+         marca la que está a la vista. -->
+    <nav id="nav-inferior" class="pestanas" aria-label="Secciones">
+      <button type="button" class="pestana" data-nav="h-resumen"><span class="pestana-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span><span class="pestana-etq">Resumen</span></button>
+      <button type="button" class="pestana" data-nav="h-cartera"><span class="pestana-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect x="2" y="6" width="20" height="14" rx="2"/></svg></span><span class="pestana-etq">Cartera</span></button>
+      <button type="button" class="pestana" data-nav="h-resultado"><span class="pestana-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></span><span class="pestana-etq">Resultado</span></button>
+      <button type="button" class="pestana" data-nav="h-div"><span class="pestana-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.4 18.1"/><path d="M7 6h1v4"/></svg></span><span class="pestana-etq">Dividendos</span></button>
+      <button type="button" class="pestana" data-nav="h-alertas"><span class="pestana-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="pestana-etq">Alertas</span></button>
+      <button type="button" class="pestana" data-nav="h-mov"><span class="pestana-icono"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span><span class="pestana-etq">Movim.</span></button>
+    </nav>
+
+    <div id="tip" class="tip" role="tooltip" hidden></div>
+    <script type="module" src="/src/inversiones/main.js"></script>
+  </body>
+</html>

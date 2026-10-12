@@ -1,29 +1,33 @@
 import { CLIENT_ID } from '../config.js'
+import { supa } from './supa.js'
 
-/* «Iniciar sesión con Google» (Google Identity Services).
+/* «Iniciar sesión con Google» → sesión de Supabase.
 
-   Google entrega un ID token (JWT firmado, dura 1 hora) que dice quién eres
-   y para qué aplicación se emitió. No da acceso a tu Gmail ni a nada: es una
-   credencial de identidad. El backend lo verifica contra Google y compara
-   el correo con el del dueño de la planilla.
+   Google entrega un ID token (JWT firmado, dura 1 hora) que dice quién eres y
+   para qué aplicación se emitió. No da acceso a tu Gmail ni a nada. La página
+   se lo pasa a Supabase (signInWithIdToken), que verifica la firma con Google,
+   que el token sea para CLIENT_ID y que el nonce calce, y devuelve una sesión.
+   La base solo deja entrar a correos de la tabla `permitidos` (migración 0001).
 
-   Se guarda en sessionStorage: se va al cerrar la pestaña. Cuando vence, el
-   backend responde `sesion: false` y la página vuelve a pedir el ingreso. */
+   El nonce: un valor al azar que la página inventa en cada carga. Google lo
+   firma dentro del token (en hash) y Supabase compara con el original. Así un
+   token robado de otra página no sirve aquí.
+
+   El token de Google se guarda además en sessionStorage para una sola cosa:
+   «Revisar correos ahora», que llama al Apps Script, y el Apps Script lo
+   valida por su cuenta (identidad_ en backend/Code.gs). */
 
 const CLAVE = 'fm_credencial'
 const GIS = 'https://accounts.google.com/gsi/client'
 
 export const credencial = () => { try { return sessionStorage.getItem(CLAVE) } catch { return null } }
-export const olvidar = () => { try { sessionStorage.removeItem(CLAVE) } catch { /* modo privado */ } }
 const guardar = (t) => { try { sessionStorage.setItem(CLAVE, t) } catch { /* modo privado */ } }
+export const olvidar = () => { try { sessionStorage.removeItem(CLAVE) } catch { /* modo privado */ } }
 
-// Vencido o a punto de vencer: mejor pedirlo de nuevo antes de llamar.
-export function vigente() {
-  const t = credencial()
-  if (!t) return false
+export async function haySesion() {
   try {
-    const carga = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
-    return carga.exp * 1000 > Date.now() + 60_000
+    const { data } = await supa().auth.getSession()
+    return Boolean(data.session)
   } catch { return false }
 }
 
@@ -40,12 +44,33 @@ function cargarGis() {
   return cargado
 }
 
-export async function botonIngreso(contenedor, alEntrar) {
+async function nuevoNonce() {
+  const bruto = crypto.randomUUID() + crypto.randomUUID()
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(bruto))
+  return { bruto, hash: [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('') }
+}
+
+// Lo que responde Auth cuando el correo no está en `permitidos` o el
+// registro está cerrado; al usuario le basta saber que esa cuenta no entra.
+function mensaje(error) {
+  const t = String(error?.message || '')
+  if (/registro-cerrado|signups not allowed|database error saving new user/i.test(t)) return 'Esa cuenta de Google no tiene acceso'
+  return 'No se pudo iniciar sesión: ' + t
+}
+
+export async function botonIngreso(contenedor, alEntrar, alFallar = () => {}) {
   await cargarGis()
+  const nonce = await nuevoNonce()
   const g = window.google.accounts.id
   g.initialize({
     client_id: CLIENT_ID,
-    callback: (r) => { guardar(r.credential); alEntrar() },
+    nonce: nonce.hash,
+    callback: async (r) => {
+      guardar(r.credential)
+      const { error } = await supa().auth.signInWithIdToken({ provider: 'google', token: r.credential, nonce: nonce.bruto })
+      if (error) { olvidar(); alFallar(mensaje(error)); return }
+      alEntrar()
+    },
     auto_select: true,
     cancel_on_tap_outside: false,
     use_fedcm_for_prompt: true,
@@ -54,7 +79,8 @@ export async function botonIngreso(contenedor, alEntrar) {
   g.prompt()
 }
 
-export function salir() {
+export async function salir() {
   olvidar()
+  try { await supa().auth.signOut({ scope: 'local' }) } catch { /* sin red: la sesión local igual se borra */ }
   try { window.google?.accounts.id.disableAutoSelect() } catch { /* sin GIS */ }
 }

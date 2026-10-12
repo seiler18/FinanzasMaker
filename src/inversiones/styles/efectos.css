@@ -1,0 +1,119 @@
+/* ============================================================
+   EFECTOS DE INTERACCIÓN — lo que añade a movimiento.css y tablero.css.
+
+   Aquí YA había: secciones que aparecen, cifras que cuentan, barras, arcos y
+   sparklines que se dibujan, y luz que sigue al puntero en los mosaicos. Esto
+   solo suma lo que faltaba, y casi todo cuelga de la temática: el tono del
+   resultado (sube / baja) y el momento en que la cifra termina de contar.
+
+   Solo tokens. Con «menos movimiento» el bloque de movimiento.css apaga toda
+   animación y los tokens de duración valen 0, así que nada de esto se mueve.
+   ============================================================ */
+
+/* ---------- Fondo de puntos del resultado total ----------
+   Lo monta lib/fondo-hero.js. z-index -1 dentro del `isolation` de .hero: queda
+   por encima del halo (.hero::before, también -1 pero anterior en el DOM) y
+   por debajo del texto. La máscara lo concentra en la esquina de la cifra y lo
+   apaga hacia los bordes: sin ella acabaría en línea recta contra el marco. */
+.hero-puntos {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  mask-image: radial-gradient(90% 130% at 25% 15%, black 18%, transparent 78%);
+  -webkit-mask-image: radial-gradient(90% 130% at 25% 15%, black 18%, transparent 78%);
+}
+
+/* ---------- Luz que sigue al puntero también en las tres partes ----------
+   Misma receta que `.tile::before` (tablero.css); main.js reparte --mx/--my. */
+.parte { position: relative; overflow: hidden; }
+.parte > * { position: relative; }
+.parte::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0), color-mix(in srgb, var(--primario) 14%, transparent), transparent 70%);
+  transition: opacity var(--dur-medio) var(--curva);
+}
+@media (hover: hover) { .parte:hover::before { opacity: 1; } }
+
+/* ---------- El resultado aterriza ----------
+   Cuando la cifra grande termina de contar (--dur-cuenta), el marco de la
+   tarjeta respira UNA vez en el tono del resultado. Ata el final del conteo al
+   signo: verde si gana, rojo si pierde, nada si está en cero. Anima box-shadow,
+   como `destello` en movimiento.css: repinta una tarjeta durante ~0,9 s. */
+.hero-sube   { --pulso: color-mix(in srgb, var(--texto-sube) 32%, transparent); }
+.hero-baja   { --pulso: color-mix(in srgb, var(--texto-baja) 32%, transparent); }
+.hero-neutro { --pulso: transparent; }
+@keyframes aterriza {
+  0%   { box-shadow: 0 0 0 0 var(--pulso), var(--sombra); }
+  40%  { box-shadow: 0 0 0 8px var(--pulso), var(--sombra); }
+  100% { box-shadow: 0 0 0 0 transparent, var(--sombra); }
+}
+.revela.visible .hero { animation: aterriza var(--dur-cuenta) var(--curva) var(--dur-cuenta) both; }
+
+/* ---------- Flecha de tendencia ----------
+   ▲ / ▼ delante del porcentaje, que entra desde el lado hacia el que va: sube
+   desde abajo, baja desde arriba. Es además una señal que no depende del color.
+   La segunda declaración de `content` marca la flecha como decorativa (texto
+   alternativo vacío); si el navegador no la entiende, ignora esa línea y queda
+   la primera. */
+.hero-pct.sube::before,
+.hero-pct.baja::before {
+  display: inline-block;
+  margin-right: 0.3em;
+  font-size: 0.7em;
+  vertical-align: 0.1em;
+}
+.hero-pct.sube::before { content: '▲'; content: '▲' / ''; }
+.hero-pct.baja::before { content: '▼'; content: '▼' / ''; }
+@keyframes flecha-sube { from { opacity: 0; transform: translateY(0.6em); } }
+@keyframes flecha-baja { from { opacity: 0; transform: translateY(-0.6em); } }
+.revela.visible .hero-pct.sube::before { animation: flecha-sube var(--dur-entra) var(--resorte) var(--dur-cuenta) both; }
+.revela.visible .hero-pct.baja::before { animation: flecha-baja var(--dur-entra) var(--resorte) var(--dur-cuenta) both; }
+
+/* ---------- Imán ----------
+   `translate` es una propiedad aparte de `transform`. Se añade a la lista de
+   transiciones del botón (la de .btn solo trae background y border-color). */
+#btn-acceso,
+.mas {
+  translate: var(--mag-x, 0) var(--mag-y, 0);
+  transition: background var(--dur), border-color var(--dur), translate var(--dur) var(--curva);
+}
+
+/* ---------- Chispas ----------
+   Fixed y por encima de todo, salvo de un <dialog> abierto, que va en la capa
+   superior del navegador y nada lo cubre: por eso solo se usan en botones de
+   la página, no en los de los diálogos. */
+.chispa {
+  position: fixed;
+  z-index: 2000;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: var(--serie-2);
+}
+
+/* ---------- Destello en el nombre ----------
+   EXCEPCIÓN a «solo transform y opacity»: un destello sobre texto solo se
+   puede hacer moviendo el fondo recortado al texto. Repinta UN elemento de una
+   línea y el barrido dura ~2,4 s de cada 7 (el resto queda quieto). Propiedades
+   sueltas, nunca el atajo `background`: reiniciaría el `background-clip`. La
+   capa de abajo es el color de texto de siempre, así el nombre cambia solo con
+   el tema; la de arriba, el destello en verde de ganancia. */
+.marca {
+  background-image:
+    linear-gradient(105deg, transparent 42%, var(--brillo-texto) 50%, transparent 58%),
+    linear-gradient(var(--texto), var(--texto));
+  background-size: 250% 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  background-position: 120% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brillo-marca var(--ciclo-brillo) linear var(--espera-brillo) infinite;
+}
+@keyframes brillo-marca {
+  0%   { background-position: 120% 0, 0 0; }
+  35%  { background-position: -20% 0, 0 0; }
+  100% { background-position: -20% 0, 0 0; }
+}
