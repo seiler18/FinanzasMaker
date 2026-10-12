@@ -146,36 +146,17 @@ MacroDroid. La primera notificación real (MACH) llegó a la base el mismo día.
 - gestor-acciones queda para archivar en cuanto Inversiones ande con datos
   reales.
 
+## Cierre (2026-10-12)
+
+- Publicado en `main` (el despliegue pasó con todas las pruebas, también las
+  de la base en Linux) y comprobado por Jesús con su cuenta.
+- gestor-acciones archivado (su hito 0008), y sus enlaces en el hub, el
+  Currículo y el inventario de `../CLAUDE.md` apuntan a FinanzasMaker.
+
 ## Pendiente
 
-- **El cambio, del lado del usuario** (README, «Pasar de la v1 a la v2»):
-  - `npx supabase config push`;
-  - la clave `apps-script`;
-  - pegar los `.gs`, las propiedades y la URL de la hoja de gestor-acciones;
-  - `probarSupabase`, `migrarASupabase`, `migrarAccionesASupabase`,
-    `instalar`;
-  - una versión nueva de la implementación;
-  - borrar los disparadores de la hoja de gestor-acciones.
-- **Después del cambio, del lado del agente:**
-  - verificar los conteos en la base;
-  - unir `v2` a `main` y publicar;
-  - archivar gestor-acciones;
-  - mover sus enlaces en los tres sitios del portafolio y el inventario de
-    `../CLAUDE.md`.
-- **Lectores de notificaciones**, con la semana de relevamiento.
-- **Cartolas, la página instalable en el celular y la app Android propia.**
+- **Lectores de notificaciones**, con una semana de avisos reales (desde el
+  2026-10-12). Hoy llegan crudas a la tabla `notificaciones`.
+- **Cartolas** (PDF o Excel) para lo que no avisa nadie.
+- **La página instalable en el celular** y, más adelante, la app Android propia.
 - **Auditoría de ciberseguridad completa.**
-- **Quitar `spreadsheets.readonly` del manifiesto tras migrar.**
-
-## Cómo fue el cambio (2026-10-12)
-
-- La migración de Finanzas salió a la primera: 315 movimientos, 53
-  inversiones, 11 por revisar, 378 correos en la bitácora, 107 reglas.
-- La de acciones falló dos veces por cosas que las pruebas no veían:
-  1. `openByUrl` pide el permiso completo de planillas.
-  2. La hoja Mapa traía un nombre repetido y Postgres rechaza una misma
-     clave dos veces en un `ON CONFLICT`. Ahora el último gana.
-- Tras el segundo fallo la migración quedó **repetible**: si cortó a medias,
-  las operaciones ya escritas no se tocan y se completa lo demás.
-- Quedaron 132 operaciones, 32 activos en el mapa (uno era el repetido), 76
-  alertas y 29 precios.
