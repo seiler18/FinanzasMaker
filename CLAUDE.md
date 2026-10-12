@@ -11,6 +11,14 @@ Hermano de `../VentasMaker/` (misma arquitectura: Vite sin framework, Apps
 Script sobre Sheets, CSP estricta, deploy por Actions). Instalación: `README.md`.
 Seguridad: `SECURITY.md`.
 
+**En transición a la v2 (hito 0010).** La base pasa a Supabase (proyecto
+`mbcswbrmgfgmpsssnfzh`), entra un canal sin correo (las notificaciones del
+celular, por MacroDroid) y gestor-acciones se une como la sección
+«Inversiones». Hoy en Supabase solo están el blindaje y las notificaciones
+crudas. La página y los correos siguen en Apps Script hasta el día del
+cambio; después Apps Script queda solo como trabajador de fondo (Gmail,
+precios, alertas) que escribe en Supabase.
+
 ## Mapa
 
 | Qué | Dónde |
@@ -27,6 +35,10 @@ Seguridad: `SECURITY.md`.
 | Inicio de sesión con Google | `src/lib/sesion.js` |
 | CSP | `vite.config.js` (solo en build) |
 | Correos reales anonimizados | `tests/fixtures/*.json` |
+| Esquema de Supabase: blindaje, registro cerrado, dispositivos, notificaciones | `supabase/migrations/NNNN_*.sql` |
+| Recepción de notificaciones del celular; lector del cuerpo | `supabase/functions/notificacion/{index.ts,cuerpo.js}` |
+| Pruebas de la base (Postgres desechable) y lo mínimo de Supabase que imitan | `tests/base.test.mjs`, `supabase/pruebas/supabase-minimo.sql` |
+| Dar de alta un celular (la clave va a `.env`) | `scripts/crear-dispositivo.mjs` |
 
 ## Procedimientos y memoria
 
@@ -80,11 +92,33 @@ Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
    `Code.gs`). Lo prueba `tests/backend.test.mjs`.
 10. Tras cambiar `Code.gs` o `Lectores.gs`, redesplegar la aplicación web como
    **versión nueva** de la misma implementación (si no, la URL cambia).
+11. **Supabase: la clave pública no abre nada.**
+   - `anon` no tiene privilegios en `public`: la página lee con sesión y
+     mandan las políticas.
+   - Toda tabla nueva va en una migración con RLS, políticas
+     `usuario = (select auth.uid())` y su caso en `tests/base.test.mjs`,
+     entrando con el rol equivocado.
+   - Toda función `security definer` fija `search_path` y revoca `execute`
+     de `public` y `anon` con nombre.
+   - Una migración aplicada no se edita: se escribe la siguiente.
+   - El registro está cerrado: la base solo acepta correos de `permitidos`.
+
+   Las pruebas fallan si una tabla queda sin RLS, si `anon` puede algo o si
+   aparece una función `security definer` nueva al alcance de
+   `authenticated`.
+12. **Ningún secreto sale de `.env`.** Ahí están la clave de la base y la de
+   cada celular. No se imprimen ni se pegan en la terminal: los scripts las
+   leen de ahí. La clave de servicio solo existe en Supabase (la usa la
+   función) y, más adelante, en las propiedades del script de Apps Script.
 
 ## Verificación
 
 `npm test` corre los lectores (casos sintéticos + fixtures reales), el flujo
-del backend con Gmail simulado y los cálculos. `npm run build` incluye check y
-test. La prueba contra los correos reales es `ensayo()` en el editor de Apps
+del backend con Gmail simulado, los cálculos y el lector del cuerpo de las
+notificaciones. `npm run test:base` levanta un Postgres 17 desechable, le
+aplica las migraciones y prueba RLS, privilegios y políticas.
+`npm run build` incluye check, test y test:base. Contra la base real, lo
+verificable es por HTTP: que la clave publicable reciba 401 y que el
+registro devuelva `registro-cerrado`. La prueba contra los correos reales es `ensayo()` en el editor de Apps
 Script: escribe en la hoja «Ensayo» qué haría con cada correo, sin registrar
 ni borrar. La revisión visual de la página la hace el usuario.

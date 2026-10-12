@@ -133,6 +133,53 @@ y lo ignorado (publicidad, alertas) no se vuelve a abrir en cada pasada. Pasarse
 no bloquea Gmail: solo detiene el script hasta el día siguiente. Para cambiar
 la frecuencia de una planilla ya instalada: `programarDisparador`.
 
+## Notificaciones del celular (v2, en relevamiento)
+
+La v2 deja de depender del correo: las apps de los bancos avisan cada
+movimiento con una notificación, y **MacroDroid** (Android) se la manda a la
+base de Supabase. Por ahora solo se guardan tal cual llegan; con una semana
+de avisos reales se escriben los lectores (hito 0010).
+
+**Antes:** el celular tiene que estar dado de alta. La clave queda en `.env`
+y no se imprime:
+
+```bash
+node scripts/crear-dispositivo.mjs <tu-correo> "Celular Android"
+```
+
+**En el celular:**
+
+1. Instala [MacroDroid](https://play.google.com/store/apps/details?id=com.arlosoft.macrodroid)
+   (ArloSoft). La versión gratis alcanza: es una sola macro.
+2. Ajustes de Android → Batería → MacroDroid → **Sin restricciones**. Si no,
+   Android la duerme y se pierden avisos.
+3. Macro nueva → **Disparador** → *Notificación* → *Notificación recibida*:
+   - Aplicaciones: tus bancos y billeteras (Tenpo, MACH, Mercado Pago,
+     Copec Pay, BancoEstado, BCI, Fintual, Binance…).
+   - Contenido: *Cualquiera*. Marca *Ignorar notificaciones en curso*, si
+     aparece.
+   - MacroDroid pedirá el **acceso a notificaciones**: concédelo.
+4. **Acción** → *Interacción web* → *Solicitud HTTP*:
+   - Método `POST`
+   - URL `https://mbcswbrmgfgmpsssnfzh.supabase.co/functions/v1/notificacion`
+   - Cabecera: nombre `x-clave`, valor = `CLAVE_DISPOSITIVO_CELULAR_ANDROID`
+     de tu `.env`.
+   - Cuerpo, tipo `text/plain`, **exactamente** estas cinco líneas (las
+     llaves son la «magia de texto» de MacroDroid):
+     ```
+     {not_app_package}
+     {not_title}
+     {notification}
+     --
+     {not_text_big}
+     ```
+5. Guarda la macro. La próxima notificación de un banco debería aparecer en
+   la tabla `notificaciones` (panel de Supabase → Table Editor).
+
+La clave identifica al celular, no lee nada: con ella solo se pueden mandar
+avisos a tu cuenta. Si el celular se pierde, se revoca el dispositivo
+(`revocado` en `dispositivos`) y se crea otro.
+
 ## Uso
 
 - **Resumen:** ingresos, gastos, ahorro e inversión del día, el mes o el año;
@@ -153,8 +200,20 @@ la frecuencia de una planilla ya instalada: `programarDisparador`.
 ```bash
 npm install
 npm run dev      # http://localhost:5173 — sin config.js abre en modo demo
-npm test         # lectores + flujo del backend + cálculos
-npm run build    # check + test + build (lo mismo que corre en Actions)
+npm test         # lectores + flujo del backend + cálculos + cuerpo de las notificaciones
+npm run test:base  # la base de Supabase en un Postgres desechable: RLS, privilegios, políticas
+npm run build    # check + test + test:base + build (lo mismo que corre en Actions)
 ```
+
+Supabase (la clave de la base sale del `.env`, nunca de la línea de comandos):
+
+```bash
+export SUPABASE_DB_PASSWORD="$(grep '^CLAVE_BASE_DATOS_FINANZASMAKER=' .env | cut -d= -f2-)"
+npx supabase db push                                    # aplica supabase/migrations/
+npx supabase functions deploy notificacion --use-api    # sin Docker
+```
+
+Para que alguien más pueda crear cuenta, su correo va primero en la tabla
+`permitidos` (SQL Editor): la base rechaza cualquier otro registro.
 
 Para sumar un banco o un formato de correo: `.claude/skills/agregar-banco/`.

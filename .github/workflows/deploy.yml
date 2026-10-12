@@ -34,6 +34,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
+      # La única excepción a --ignore-scripts, con nombre: el Postgres
+      # desechable de `npm run test:base` trae sus binarios en el paquete, pero
+      # npm no publica enlaces simbólicos y su postinstall
+      # (scripts/hydrate-symlinks.js, revisado: solo recrea los enlaces de
+      # native/pg-symlinks.json) los rehace. Sin él, Postgres no arranca en Linux.
+      - run: npm rebuild @embedded-postgres/linux-x64
       - run: npm audit --audit-level=high
       - run: npm run build
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3

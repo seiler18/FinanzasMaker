@@ -50,7 +50,32 @@ rechaza números largos sin enmascarar y RUT.
 
 **CI.** Igual que VentasMaker: el trabajo que compila no puede escribir; el que
 publica solo escribe en Pages. `npm ci --ignore-scripts`, `npm audit`,
-acciones fijadas por SHA.
+acciones fijadas por SHA. La única excepción con nombre es
+`npm rebuild @embedded-postgres/linux-x64`: su postinstall solo recrea los
+enlaces simbólicos de los binarios del Postgres de las pruebas.
+
+**Supabase (v2, hito 0010).** La clave publicable va en la página y es
+pública por diseño; la seguridad la dan los privilegios y las políticas:
+- `anon` no tiene ningún privilegio en `public` (0001). Sin sesión no se lee
+  ni se llama nada, aunque una tabla nueva olvide su política.
+- Toda tabla tiene RLS. Un disparador de eventos lo activa al crearla, y
+  `tests/base.test.mjs` falla si falta. Las políticas son
+  `usuario = (select auth.uid())`.
+- **Registro cerrado en la base:** un disparador en `auth.users` rechaza todo
+  correo que no esté en `permitidos`, venga por Google, correo, teléfono o
+  anónimo. El mensaje no revela cómo funciona por dentro (0003).
+- **Celular (MacroDroid):**
+  - Entra por una sola función HTTP sin JWT, con una clave de 64 hex en la
+    cabecera `x-clave`.
+  - La base guarda solo su SHA-256, tiene un tope de 60 avisos por minuto
+    por celular y se revoca por dispositivo.
+  - La clave solo sirve para **mandar** avisos a esa cuenta, no para leer.
+  - Los avisos se guardan como texto no confiable: se pintarán escapados,
+    como los correos.
+- **La clave de servicio** existe solo en Supabase (la usa la función). Más
+  adelante estará también en las propiedades del script de Apps Script.
+  `npm run check` rechaza claves `sb_secret_` y JWT en el repo.
+- **Pendiente:** la auditoría completa de ciberseguridad al terminar la v2.
 
 ## Riesgos aceptados
 

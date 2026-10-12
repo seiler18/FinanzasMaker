@@ -43,9 +43,14 @@ for (const f of archivos(join(raiz, 'src'), ['.js'])) {
 }
 
 // 3
-const SECRETOS = [/gh[opsu]_[A-Za-z0-9]{30,}/, /AIza[0-9A-Za-z_-]{35}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /GOCSPX-[A-Za-z0-9_-]{20,}/]
+// Las dos últimas son de Supabase: la clave secreta nueva y cualquier JWT
+// (la service_role antigua es uno). La página usa la clave publicable
+// (sb_publishable_…), que no es un JWT: un JWT en el repo es una fuga.
+const SECRETOS = [/gh[opsu]_[A-Za-z0-9]{30,}/, /AIza[0-9A-Za-z_-]{35}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /GOCSPX-[A-Za-z0-9_-]{20,}/,
+                  /sb_secret_[A-Za-z0-9_-]{10,}/, /eyJhbGciOi[A-Za-z0-9_-]+.eyJ[A-Za-z0-9_-]+.[A-Za-z0-9_-]{20,}/]
 const revisar = [...archivos(join(raiz, 'src'), ['.js', '.css']), ...archivos(join(raiz, 'backend'), ['.gs', '.json']),
-                 ...archivos(join(raiz, 'tests'), ['.mjs', '.json']), join(raiz, 'index.html')].filter(existsSync)
+                 ...archivos(join(raiz, 'tests'), ['.mjs', '.json']), ...archivos(join(raiz, 'supabase'), ['.sql', '.ts', '.js', '.toml']),
+                 ...archivos(join(raiz, 'scripts'), ['.js', '.mjs']), join(raiz, 'index.html')].filter(existsSync)
 for (const f of revisar) {
   if (SECRETOS.some((r) => r.test(readFileSync(f, 'utf8')))) fallos.push(`${f}: posible secreto en el código`)
 }
