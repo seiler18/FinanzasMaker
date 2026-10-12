@@ -120,6 +120,6 @@ enlaces simbólicos de los binarios del Postgres de las pruebas.
 | A2 | El script pide el permiso completo de Gmail (`mail.google.com`) | `GmailApp` no ofrece uno más chico que permita mandar a la papelera; con él también manda las alertas, sin pedir otro permiso |
 | A3 | Un correo falso que imite a un banco podría crear un movimiento falso | Solo si viene desde el dominio del banco; Gmail marca como spam lo que falla SPF/DKIM, y la búsqueda excluye spam. El daño es un número mal, que se corrige o elimina |
 | A4 | La sesión de Supabase vive en `sessionStorage` | Nada en el navegador es inmune a un XSS; la otra mitad de la defensa es que no haya XSS (escape y CSP) |
-| A5 | El manifiesto pide acceso a tus planillas (`spreadsheets`) | Solo lo usa `migrarAccionesASupabase` para abrir la hoja de gestor-acciones: `SpreadsheetApp.openByUrl` no acepta el permiso de solo lectura. Tras migrar se quita del manifiesto y queda `spreadsheets.currentonly` |
+| A5 | `migrarAccionesASupabase` necesitó el permiso completo de planillas (`openByUrl` no acepta el de solo lectura) | Era solo para la migración, hecha el 2026-10-12; ya se quitó del manifiesto y queda `spreadsheets.currentonly` |
 | A6 | Las notificaciones crudas guardan el texto completo del aviso (montos, comercios, a veces nombres) | Son tus datos, en tu base con RLS; se necesitan enteras para escribir los lectores |
 | A7 | Los precios salen de un endpoint no oficial de Yahoo | Si cambia o falla, queda el último precio con su hora; no afecta a las finanzas |

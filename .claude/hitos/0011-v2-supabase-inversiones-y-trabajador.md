@@ -1,7 +1,7 @@
 # 0011 — La v2 completa: la página en Supabase, Inversiones adentro y el trabajador
 
 - **Fecha:** 2026-10-12
-- **Estado:** listo en la rama `v2`; falta el cambio en producción (pasos del usuario en el README, «Pasar de la v1 a la v2»)
+- **Estado:** migrado el 2026-10-12 (315 movimientos, 53 inversiones, 132 operaciones de acciones); publicado
 - **Commits:** los de la rama `v2`
 
 ## Contexto
@@ -127,8 +127,9 @@ MacroDroid. La primera notificación real (MACH) llegó a la base el mismo día.
   Gmail ya estaba; `MailApp` habría pedido `script.send_mail`.
 - **Un correo de Fintual ilegible se avisa una vez.** La hoja avisaba en cada
   corrida porque no lo marcaba como visto.
-- **`spreadsheets.readonly` en el manifiesto** para leer la hoja de
-  gestor-acciones al migrar. Se puede quitar después (SECURITY.md, A5).
+- **Permiso completo de planillas, solo para migrar.** `openByUrl` no acepta
+  `spreadsheets.readonly` (lo descubrió la primera corrida real). Se quitó del
+  manifiesto al terminar.
 - **El ingreso con Google no se aplicó desde aquí.** `supabase config push`
   lo bloqueó el clasificador de permisos de Claude Code, dos veces, aun con
   el diff revisado. Queda revisado en `supabase/config.toml` para que lo
@@ -165,3 +166,16 @@ MacroDroid. La primera notificación real (MACH) llegó a la base el mismo día.
 - **Cartolas, la página instalable en el celular y la app Android propia.**
 - **Auditoría de ciberseguridad completa.**
 - **Quitar `spreadsheets.readonly` del manifiesto tras migrar.**
+
+## Cómo fue el cambio (2026-10-12)
+
+- La migración de Finanzas salió a la primera: 315 movimientos, 53
+  inversiones, 11 por revisar, 378 correos en la bitácora, 107 reglas.
+- La de acciones falló dos veces por cosas que las pruebas no veían:
+  1. `openByUrl` pide el permiso completo de planillas.
+  2. La hoja Mapa traía un nombre repetido y Postgres rechaza una misma
+     clave dos veces en un `ON CONFLICT`. Ahora el último gana.
+- Tras el segundo fallo la migración quedó **repetible**: si cortó a medias,
+  las operaciones ya escritas no se tocan y se completa lo demás.
+- Quedaron 132 operaciones, 32 activos en el mapa (uno era el repetido), 76
+  alertas y 29 precios.
