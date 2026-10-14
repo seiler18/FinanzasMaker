@@ -36,6 +36,6 @@ export async function trozosDelPdf(bytes, clave) {
   try {
     return await trozos(doc)
   } finally {
-    doc.destroy()
+    await doc.loadingTask.destroy()
   }
 }

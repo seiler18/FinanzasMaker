@@ -20,7 +20,11 @@ Sigue al hito 0011. Jesús pidió:
 
 **Cartolas (Agregar → Subir una cartola).**
 
-- El PDF se abre en el navegador con pdf.js (5.7.284, fijado). Se carga recién
+- El PDF se abre en el navegador con pdf.js (6.3.289, fijado). El primer
+  intento usó la 5.7.284 y `npm audit` en CI frenó la publicación:
+  GHSA-hq66-cqwq-w95j, ejecución de JavaScript al abrir un PDF malicioso,
+  corregida desde la 6.2.108. La 6 exige Node 22.13 (`engines`) y cierra el
+  documento con `loadingTask.destroy()`. Se carga recién
   al elegir un archivo. Si el PDF tiene clave, se pide y no se guarda.
 - `src/lib/cartolas/tabla.js` arma la tabla con los trozos de texto y su
   posición: líneas por altura, columnas por los títulos de cada página y

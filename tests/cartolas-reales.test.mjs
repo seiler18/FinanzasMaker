@@ -49,7 +49,7 @@ for (const f of pdfs) {
     if (e instanceof ErrorCartola && !/No reconozco/.test(e.message)) console.log(`  ✓ ${f}: no se importa (${e.message.split(':')[0]})`)
     else fallos.push(`✗ ${f}: ${e.message}`)
   } finally {
-    await doc.destroy()
+    await doc.loadingTask.destroy()
   }
 }
 
