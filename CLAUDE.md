@@ -72,6 +72,7 @@ algo con sustancia, registra el hito.
 | Dejar constancia de lo hecho | `registrar-hito` |
 
 Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
+Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
 
 ## Reglas
 

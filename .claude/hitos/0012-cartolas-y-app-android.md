@@ -1,7 +1,7 @@
 # 0012 — Cartolas en PDF, la hora del aviso y la app Android
 
 - **Fecha:** 2026-10-14
-- **Estado:** en la rama `cartolas-y-app`, por publicar; la migración 0006 y la función `notificacion`, por desplegar (falta `npx supabase login` en este PC)
+- **Estado:** página publicada el 2026-10-14; la migración 0006 y la función `notificacion`, por desplegar (falta `npx supabase login` en este PC)
 - **Commits:** los de la rama `cartolas-y-app`
 
 ## Contexto
