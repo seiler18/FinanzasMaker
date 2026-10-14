@@ -305,6 +305,23 @@ test('registrar_notificacion: la misma notificación en el mismo minuto entra un
   })
 })
 
+test('registrar_notificacion: con la hora del celular, el mismo aviso reenviado después es repetido', async () => {
+  const uid = await crearUsuario()
+  const clave = await comoConfirmado(uid, async () => (await sql.query("select crear_dispositivo('celular') as c")).rows[0].c)
+  const hace2h = Date.now() - 2 * 3600e3
+  const con = (publicada, texto = 'Compraste $1.000 en COMERCIO') =>
+    sql.query('select registrar_notificacion($1, $2, $3, $4, $5, $6) as r', [clave, 'com.tenpo.app', 'Compra', texto, '', publicada])
+  await como('servicio', async () => {
+    assert.equal((await con(hace2h)).rows[0].r, 'nueva')
+    assert.equal((await con(hace2h)).rows[0].r, 'repetida')
+    // Un reloj absurdo (un día en el futuro) se ignora: cuenta la hora de llegada.
+    assert.equal((await con(Date.now() + 86400e3, 'Compraste $2.000 en OTRO')).rows[0].r, 'nueva')
+    const { rows } = await sql.query('select publicada from notificaciones order by id')
+    assert.ok(Math.abs(rows[0].publicada.getTime() - hace2h) < 2)
+    assert.equal(rows[1].publicada, null)
+  })
+})
+
 test('registrar_notificacion: tope de 60 por minuto por celular', async () => {
   const uid = await crearUsuario()
   const clave = await comoConfirmado(uid, async () => (await sql.query("select crear_dispositivo('celular') as c")).rows[0].c)

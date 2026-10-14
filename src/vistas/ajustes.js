@@ -2,11 +2,16 @@ import { html, pintar, aviso, $ } from '../lib/dom.js'
 import { clp } from '../lib/formato.js'
 import { CONFIG_BASE } from '../lib/config-base.js'
 
-// Nombre legible de la app que mandó la notificación (MacroDroid manda el
-// paquete de Android). Lo que no calce se muestra tal cual.
-const APPS = [[/tenpo/i, 'Tenpo'], [/mach/i, 'MACH'], [/mercadopago/i, 'Mercado Pago'], [/copec/i, 'Copec Pay'],
+// Nombre legible de la app que mandó la notificación (llega el paquete de
+// Android). Lo que no calce se muestra tal cual.
+const APPS = [[/seiler18\.finanzasmaker/i, 'App FinanzasMaker'], [/tenpo/i, 'Tenpo'], [/mach/i, 'MACH'], [/mercadopago/i, 'Mercado Pago'], [/copec/i, 'Copec Pay'],
   [/bancoestado/i, 'BancoEstado'], [/fintual/i, 'Fintual'], [/binance/i, 'Binance'], [/bci/i, 'BCI'], [/falabella/i, 'Falabella']]
 const nombreApp = (p) => APPS.find(([re]) => re.test(p))?.[1] || p
+
+// La app Android (repo FinanzasMaker-android) recibe la clave por este
+// enlace: scheme finanzasmaker, host vincular, extra «clave». Si ya tenía una,
+// pide confirmación antes de reemplazarla.
+const enlaceVincular = (clave) => `intent://vincular#Intent;scheme=finanzasmaker;package=io.github.seiler18.finanzasmaker;S.clave=${clave};end`
 
 function hace(iso) {
   if (!iso) return 'nunca'
@@ -35,9 +40,10 @@ export function ajustes(el, app) {
     </section>
 
     <section class="panel">
-      <header class="panel-cab"><h2>Celular</h2><p class="tenue">Las notificaciones de tus bancos que manda MacroDroid</p></header>
+      <header class="panel-cab"><h2>Celular</h2><p class="tenue">Las notificaciones de tus bancos que manda la app FinanzasMaker (o MacroDroid)</p></header>
       <div id="celular"><p class="tenue">Cargando…</p></div>
-      <div class="acciones"><button class="btn btn-borde" id="refrescar-celular">Actualizar</button></div>
+      <div id="vincular-paso"></div>
+      <div class="acciones">${app.demo ? '' : html`<button class="btn btn-primario" id="vincular">Vincular la app</button>`}<button class="btn btn-borde" id="refrescar-celular">Actualizar</button></div>
     </section>
 
     <section class="panel">
@@ -69,8 +75,9 @@ export function ajustes(el, app) {
       const disp = c.dispositivos.filter((d) => !d.revocado)
       pintar(caja, html`
         <dl class="datos-estado">
-          ${disp.length ? disp.map((d) => html`<dt>${d.nombre}</dt><dd>último aviso: ${hace(d.ultimo_uso)}</dd>`) : html`<dt>Dispositivos</dt><dd>ninguno dado de alta</dd>`}
-          <dt>Recibidas</dt><dd>${c.total} notificación${c.total === 1 ? '' : 'es'}</dd>
+          ${disp.length ? disp.map((d) => html`<dt>${d.nombre}</dt><dd>último aviso: ${hace(d.ultimo_uso)}
+            <button type="button" class="btn btn-chico btn-borde" data-revocar="${d.id}" data-nombre="${d.nombre}">Revocar</button></dd>`) : html`<dt>Dispositivos</dt><dd>ninguno dado de alta</dd>`}
+          <dt>Recibidas</dt><dd>${c.total} ${c.total === 1 ? 'notificación' : 'notificaciones'}</dd>
         </dl>
         ${c.notificaciones.length ? html`<ul class="movs">${c.notificaciones.map((n) => html`
           <li><div class="mov">
@@ -84,6 +91,39 @@ export function ajustes(el, app) {
   }
   pintarCelular()
   $('#refrescar-celular', el).addEventListener('click', pintarCelular)
+
+  $('#celular', el).addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-revocar]')
+    if (!b) return
+    if (!confirm(`¿Revocar «${b.dataset.nombre}»? Su clave deja de servir en el acto; para volver a usarlo hay que vincularlo de nuevo.`)) return
+    b.disabled = true
+    try {
+      await app.llamar('revocar', { id: b.dataset.revocar })
+      aviso('Celular revocado')
+      pintarCelular()
+    } catch (err) { aviso(err.message, 'error'); b.disabled = false }
+  })
+
+  // La clave se muestra UNA vez, aquí; la página no la guarda. Quien la tiene
+  // solo puede mandar avisos a esta cuenta, y se revoca con un clic.
+  $('#vincular', el)?.addEventListener('click', async (e) => {
+    const b = e.currentTarget
+    b.disabled = true
+    try {
+      const { clave, nombre } = await app.llamar('vincular', { nombre: 'App Android' })
+      pintar($('#vincular-paso', el), html`
+        <div class="vincular">
+          <p>Lista la clave de «${nombre}». <b>Se muestra solo esta vez.</b></p>
+          <p class="tenue">Desde el celular donde instalaste la app, toca «Abrir la app y vincular». Si lo ves en el computador o no abre, copia la clave y pégala en la app con «Pegar clave».</p>
+          <div class="acciones"><a class="btn btn-primario" href="${enlaceVincular(clave)}">Abrir la app y vincular</a><button type="button" class="btn btn-borde" id="copiar-clave">Copiar clave</button></div>
+        </div>`)
+      $('#copiar-clave', el).addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(clave); aviso('Clave copiada') } catch { aviso('No se pudo copiar', 'error') }
+      })
+      pintarCelular()
+    } catch (err) { aviso(err.message, 'error') }
+    b.disabled = false
+  })
 
   $('#sincronizar', el).addEventListener('click', async (e) => {
     const b = e.currentTarget

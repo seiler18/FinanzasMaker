@@ -12,8 +12,11 @@
      cual dentro del cuerpo: una comilla o un salto de línea en el aviso del
      banco rompería un JSON escrito a mano, y el aviso se perdería.
 
-   - application/json, para una app propia más adelante:
-       { "paquete", "titulo", "texto", "texto_largo" }
+   - application/json, el de la app FinanzasMaker para Android:
+       { "paquete", "titulo", "texto", "texto_largo", "publicada" }
+     `publicada` es el postTime de la notificación en milisegundos (opcional).
+     Lo que no sea un entero positivo se descarta (null); la base decide si
+     es creíble (supabase/migrations/0006_hora_del_aviso.sql).
 
    Lanza Error si no hay paquete: sin saber de qué app viene, el aviso no sirve. */
 
@@ -33,7 +36,7 @@ export function leerCuerpo(bruto, tipo = '') {
   if (/application\/json/i.test(tipo)) {
     const j = JSON.parse(bruto)
     if (!j || typeof j !== 'object' || Array.isArray(j)) throw new Error('JSON no es un objeto')
-    d = { paquete: j.paquete, titulo: j.titulo, texto: j.texto, texto_largo: j.texto_largo }
+    d = { paquete: j.paquete, titulo: j.titulo, texto: j.texto, texto_largo: j.texto_largo, publicada: j.publicada }
   } else {
     const lineas = String(bruto).replace(/\r\n?/g, '\n').split('\n')
     const corte = lineas.findIndex((l, i) => i >= 2 && l.trim() === '--')
@@ -44,5 +47,6 @@ export function leerCuerpo(bruto, tipo = '') {
   const r = {}
   for (const k of Object.keys(LIMITES)) r[k] = sinVariable(limpio(d[k], LIMITES[k]))
   if (!/^[A-Za-z0-9_.]+$/.test(r.paquete)) throw new Error('Paquete no válido')
+  r.publicada = Number.isSafeInteger(d.publicada) && d.publicada > 0 ? d.publicada : null
   return r
 }

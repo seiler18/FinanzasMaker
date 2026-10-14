@@ -65,3 +65,22 @@ export function validarMov(x, reglas) {
   if (!m.categoria) categorizar(m, reglas)
   return m
 }
+
+/* Un movimiento que viene de una cartola (src/lib/cartolas/clasificar.js).
+   Llega ya clasificado; aquí solo se acota. */
+export function validarMovCartola(x) {
+  const cuotas = x.cuotas == null || x.cuotas === '' ? null : Math.round(Number(x.cuotas))
+  const m = {
+    fecha: fechaValida(x.fecha),
+    banco: texto(x.banco, 40),
+    producto: texto(x.producto, 40) || 'Cuenta',
+    tipo: validarTipo(String(x.tipo || '')),
+    monto: enteroPositivo(x.monto),
+    contraparte: texto(x.contraparte, 80),
+    categoria: texto(x.categoria, 40) || 'Otros',
+    cuotas: cuotas != null && cuotas >= 0 && cuotas <= 99 ? cuotas : null,
+    detalle: texto(x.detalle, 200),
+  }
+  if (!m.banco) falla('Falta el banco de la cartola')
+  return m
+}

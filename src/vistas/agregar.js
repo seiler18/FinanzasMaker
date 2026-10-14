@@ -1,9 +1,11 @@
-import { html, pintar, aviso } from '../lib/dom.js'
+import { html, pintar, aviso, $ } from '../lib/dom.js'
 import { TIPOS, hoyISO } from '../lib/analisis.js'
 import { soltarChispas } from '../lib/efectos.js'
+import { panelCartola } from './cartola.js'
 
 /* Registro a mano: lo que no llega por correo (efectivo, CencoPay, compras
-   con Mercado Pago, un banco que no avisa). */
+   con Mercado Pago, un banco que no avisa). Debajo, subir una cartola: lo
+   que se escapó de los avisos, de una vez (src/vistas/cartola.js). */
 
 export function agregar(el, app) {
   const categorias = app.categorias()
@@ -25,7 +27,9 @@ export function agregar(el, app) {
       <datalist id="cats-agregar">${categorias.map((c) => html`<option value="${c}">`)}</datalist>
       <datalist id="bancos-agregar">${bancos.map((b) => html`<option value="${b}">`)}</datalist>
       <div class="acciones"><span class="separa"></span><button class="btn btn-primario">Guardar</button></div>
-    </form>`)
+    </form>
+    <section class="panel" id="panel-cartola"></section>`)
+  panelCartola($('#panel-cartola', el), app)
 
   const form = el.querySelector('form')
   form.addEventListener('submit', async (e) => {

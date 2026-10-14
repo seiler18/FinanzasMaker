@@ -109,10 +109,13 @@ const app = {
     guardarPref(app.periodo)
     conTransicion(dir, render)
   },
+  // Devuelve los datos nuevos: una vista recibe una COPIA de app (render), y
+  // si no repinta (pintarDespues = false) su `datos` sigue siendo el de antes.
   async recargar(pintarDespues = true) {
     app.datos = await llamar('datos')
     if (pintarDespues) render()
     else pintarPestanas()
+    return app.datos
   },
   categorias() {
     const s = new Set(app.datos.movimientos.map((m) => m.categoria).filter(Boolean))

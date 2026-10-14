@@ -17,8 +17,13 @@ La v2 (hitos 0010 y 0011) tiene tres piezas:
   - cada hora lee las operaciones de Fintual y los precios de Yahoo;
   - cada 4 h avisa las señales de la cartera.
   Escribe con una clave secreta (se salta la RLS) y filtra él por usuario.
-- **Celular: MacroDroid** manda las notificaciones de los bancos a la
-  función `notificacion`. Por ahora se guardan crudas (relevamiento).
+- **Celular: la app FinanzasMaker para Android** (repo privado
+  `seiler18/FinanzasMaker-android`, carpeta `../FinanzasMaker-android/`)
+  manda las notificaciones de los bancos a la función `notificacion`;
+  reemplaza a MacroDroid. Por ahora se guardan crudas (relevamiento).
+
+Además, la página lee **cartolas y estados de cuenta en PDF** (Agregar →
+Subir una cartola), en el navegador, para lo que ningún aviso trajo (hito 0012).
 
 Hermano de `../VentasMaker/` (Vite sin framework, CSP estricta, deploy por
 Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
@@ -49,7 +54,10 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 | Correos reales anonimizados | `tests/fixtures/*.json` |
 | Apps Script y Supabase de mentira para probar los `.gs` | `tests/apps-script-falso.mjs` |
 | Pruebas de la base (Postgres desechable) y lo mínimo de Supabase | `tests/base.test.mjs`, `supabase/pruebas/supabase-minimo.sql` |
-| Dar de alta un celular (la clave va a `.env`) | `scripts/crear-dispositivo.mjs` |
+| Vincular y revocar celulares desde la página (enlace `intent://` a la app) | `src/vistas/ajustes.js` (`enlaceVincular`), acciones `vincular`/`revocar` en `src/lib/datos.js` |
+| Dar de alta un celular a mano (la clave va a `.env`) | `scripts/crear-dispositivo.mjs` |
+| Cartolas: tabla de un PDF, formatos (con su cuadre), clasificar, cruzar con lo registrado | `src/lib/cartolas/{tabla,formatos,clasificar,cruzar}.js`; pdf.js se carga solo al subir una (`pdf.js`); vista `src/vistas/cartola.js` |
+| PDF reales de cartolas (solo en la máquina del dueño, ignorados por git; claves en `.env`) | `cartolas/` |
 
 ## Procedimientos y memoria
 
@@ -136,7 +144,9 @@ Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
   - las gemelas (`reglas`, `inversiones-cartera`);
   - el contrato de la demo de Inversiones;
   - los cálculos;
-  - el cuerpo de las notificaciones.
+  - el cuerpo de las notificaciones;
+  - las cartolas: sintéticas (`cartolas.test.mjs`) y, si existe la carpeta
+    `cartolas/`, los PDF reales, que deben cuadrar al peso con sus totales.
 - **`npm run test:base`:** un Postgres 17 desechable con las migraciones.
   Prueba RLS, privilegios, políticas y `decidir_revisar`.
 - **`npm run build`:** incluye check, test y test:base.

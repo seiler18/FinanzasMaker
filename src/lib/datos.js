@@ -6,7 +6,7 @@
    Quien entra aquí ya tiene sesión: la RLS de cada tabla deja ver y tocar
    solo lo del dueño (supabase/migrations/0004_finanzas.sql). */
 import { supa } from './supa.js'
-import { validarMov, validarTipo, texto, enteroPositivo, fechaValida, ahoraChile, ErrorValidacion } from './validar.js'
+import { validarMov, validarMovCartola, validarTipo, texto, enteroPositivo, fechaValida, ahoraChile, ErrorValidacion } from './validar.js'
 import { clave } from './reglas.js'
 import { CONFIG_BASE, conBase } from './config-base.js'
 
@@ -27,6 +27,7 @@ function traducir(e) {
   const code = String(e?.code || '')
   if (/^PGRST30/.test(code) || /jwt (expired|is invalid|malformed)/i.test(msg)) return new ErrorDatos('Inicia sesión de nuevo', { sesion: true })
   if (msg.includes('ya-no-pendiente')) return new ErrorDatos('Ya no está pendiente')
+  if (msg.includes('demasiados-dispositivos')) return new ErrorDatos('Ya hay 5 celulares activos: revoca uno antes de vincular otro')
   if (code === '42501') return new ErrorDatos('Sin permiso para eso')
   if (code === '23514') return new ErrorDatos('La base rechazó un dato con formato no válido')
   if (/failed to fetch|networkerror|load failed/i.test(msg)) return new ErrorDatos('Sin conexión con el servidor')
@@ -56,6 +57,20 @@ const deInv = (f) => ({ ...f, monto: Number(f.monto) || 0 })
 const deRev = (f) => ({ ...f, monto: f.monto == null ? '' : Number(f.monto) })
 
 const reglasDelDueno = () => todas(() => supa().from('reglas').select('patron, categoria, tipo').order('id'))
+
+async function usuario() {
+  const { data } = await supa().auth.getSession()
+  const id = data?.session?.user?.id
+  if (!id) throw new ErrorDatos('Inicia sesión de nuevo', { sesion: true })
+  return id
+}
+
+/* El id de un movimiento de cartola: siempre el mismo para la misma fila del
+   mismo dueño (src/lib/cartolas/clasificar.js arma la clave). */
+export async function idCartola(uid, clave) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${uid}|${clave}`))
+  return 'C' + [...new Uint8Array(h)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
 
 export const ACCIONES = {
   async datos() {
@@ -178,7 +193,46 @@ export const ACCIONES = {
     return {}
   },
 
-  /* Lo que llegó del celular: para comprobar que la macro funciona. */
+  /* Agregar lo que el dueño eligió de una cartola (src/vistas/cartola.js).
+     Con id fijo y «on conflict do nothing»: subir la misma cartola dos veces
+     no duplica nada. */
+  async importar_cartola(b) {
+    const uid = await usuario()
+    const registrado = ahoraChile()
+    const filas = []
+    const ids = new Set()
+    for (const x of (b.movs || []).slice(0, 1000)) {
+      const id = await idCartola(uid, texto(x.clave, 300))
+      if (ids.has(id)) continue
+      ids.add(id)
+      filas.push({ id, ...validarMovCartola(x), origen: 'cartola', registrado })
+    }
+    let agregados = 0
+    for (let i = 0; i < filas.length; i += 200) {
+      const r = await q(supa().from('movimientos').upsert(filas.slice(i, i + 200), { onConflict: 'id', ignoreDuplicates: true }).select('id'))
+      agregados += r.length
+    }
+    return { agregados, repetidos: filas.length - agregados }
+  },
+
+  /* Dar de alta un celular (la app FinanzasMaker para Android). La clave sale
+     UNA vez: la página se la pasa a la app y no la guarda. */
+  async vincular(b) {
+    const nombre = texto(b.nombre, 60) || 'App Android'
+    const clave = String(await q(supa().rpc('crear_dispositivo', { _nombre: nombre })))
+    if (!/^[0-9a-f]{64}$/.test(clave)) throw new ErrorDatos('La base no devolvió una clave válida')
+    return { clave, nombre }
+  },
+
+  /* Revocar un celular: su clave deja de servir en el acto. */
+  async revocar(b) {
+    const filas = await q(supa().from('dispositivos').update({ revocado: new Date().toISOString() })
+      .eq('id', texto(b.id, 40)).is('revocado', null).select('id'))
+    if (!filas.length) throw new ErrorDatos('Ese celular ya no está activo')
+    return {}
+  },
+
+  /* Lo que llegó del celular: para comprobar que la app (o la macro) funciona. */
   async celular() {
     const sb = supa()
     const [dispositivos, notificaciones, total] = await Promise.all([

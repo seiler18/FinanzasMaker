@@ -16,3 +16,8 @@ estados-de-cuenta/
 
 # Ajustes de Claude Code de esta máquina (los del repo van en .claude/settings.json)
 .claude/settings.local.json
+# Cartolas y estados de cuenta en PDF: solo en esta máquina, jamás en el repo.
+# El importador de la página los lee en el navegador; las pruebas con PDF
+# reales (tests/cartolas-reales.test.mjs) los buscan aquí y se saltan si no están.
+/cartolas/
+*.pdf

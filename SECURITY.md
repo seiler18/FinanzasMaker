@@ -75,14 +75,28 @@ diseño; la seguridad la dan los privilegios y las políticas.
 - La tabla `correos` conserva remitente, asunto y fecha de cada correo
   procesado: el respaldo que queda cuando el correo ya no existe.
 
-**El celular (MacroDroid).**
+**El celular (la app FinanzasMaker para Android, o MacroDroid).**
 
 - Entra por una sola función HTTP sin JWT, con una clave de 64 hex en la
   cabecera `x-clave`.
+- La clave se crea en Ajustes → Celular → «Vincular la app», se muestra una
+  sola vez y la página no la guarda. Llega a la app por un enlace `intent://`
+  (o copiada a mano); la app pide confirmar antes de reemplazar una clave que
+  ya tenía, porque cualquier sitio podría abrir ese enlace. Se revoca desde
+  la misma sección.
+- `publicada` (la hora del aviso según el celular) se acepta solo entre 30
+  días atrás y 10 minutos adelante; si no, cuenta la hora de llegada.
 - La base guarda solo su SHA-256, tiene un tope de 60 avisos por minuto por
   celular y se revoca por dispositivo.
 - La clave solo sirve para **mandar** avisos a esa cuenta, no para leer.
 - La función no escribe el contenido en los logs.
+
+**Cartolas (PDF).** Se abren en el navegador con pdf.js: el archivo y su
+clave no salen del equipo ni se guardan. A la base llegan solo los movimientos
+que el dueño marca. pdf.js corre sin `eval` y con su worker servido desde la
+misma página (la CSP no cambió). Los PDF de prueba viven en `cartolas/`,
+ignorada por git; `tests/cartolas-reales.test.mjs` lee sus claves de `.env`
+sin imprimirlas.
 
 **Datos no confiables.** Todo texto de un correo o de una notificación se pinta
 con la plantilla `html` que escapa; en la hoja «Ensayo», `celda_()` neutraliza

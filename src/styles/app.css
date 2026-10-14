@@ -165,6 +165,25 @@ tbody th { font-weight: 500; }
 .mov-monto b.monto-menos { color: var(--menos); font-weight: 700; }
 .mov-interna .mov-monto b, .mov-pago_tarjeta .mov-monto b { color: var(--texto-tenue); font-weight: 500; }
 
+/* ----- Subir una cartola (src/vistas/cartola.js) ----- */
+.cartola-resumen { margin: 12px 0 4px; font-size: var(--txt-menudo); }
+.cartola-resumen p { margin: 0 0 8px; }
+.cartola-resumen select { font: inherit; }
+.cartola-cuadre { padding: 8px 12px; border-radius: var(--radio); }
+.cartola-cuadre.cuadra { background: var(--ok-tenue); color: var(--ok); }
+.cartola-cuadre.no-cuadra { background: var(--aviso-tenue); color: var(--aviso); }
+.mov-elegir { cursor: pointer; }
+.mov-elegir input { flex: none; width: 20px; height: 20px; accent-color: var(--primario); }
+.mov-elegir .mov-txt { flex: 1; }
+.cartola-titulo { text-transform: none; }
+.cartola-grupo { margin-top: 14px; }
+.cartola-grupo summary { cursor: pointer; font-size: var(--txt-menudo); color: var(--texto-tenue); font-weight: 600; padding: 6px 0; }
+
+/* ----- Vincular la app del celular (Ajustes) ----- */
+.datos-estado dd .btn-chico { margin-left: 8px; }
+.vincular { margin: 4px 0 12px; padding: 12px 14px; border: 1px solid var(--borde); border-radius: var(--radio); font-size: var(--txt-menudo); }
+.vincular p { margin: 0 0 8px; }
+
 /* ----- Diálogo ----- */
 .dialogo { border: 0; border-radius: var(--radio); padding: 0; width: min(100% - 32px, 480px); background: var(--surface); color: var(--texto); box-shadow: var(--sombra); }
 .dialogo::backdrop { background: var(--velo-modal); }

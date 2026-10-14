@@ -139,7 +139,30 @@ export async function demoLlamar(accion, d) {
       db.estado.borrar = db.config.borrar_correos.toLowerCase() === 'si'
       return { ok: true }
     }
+    case 'importar_cartola': {
+      let agregados = 0
+      for (const x of d.movs || []) {
+        const id = 'DC' + x.clave
+        if (db.movimientos.some((m) => m.id === id)) continue
+        const { clave, ...mov } = x
+        db.movimientos.push({ id, moneda: 'CLP', nota: '', origen: 'cartola', ...mov, fecha: `${x.fecha.slice(0, 10)} 12:00`, cuotas: x.cuotas ?? '' })
+        agregados++
+      }
+      return { ok: true, agregados, repetidos: (d.movs || []).length - agregados }
+    }
     case 'celular': return { ok: true, ...structuredClone(db.celular) }
+    // Una clave de mentira (64 ceros): en la demo no hay base que la reconozca.
+    case 'vincular': {
+      const nombre = String(d.nombre || '').trim() || 'App Android'
+      db.celular.dispositivos.push({ id: 'demo-d' + Date.now(), nombre, creado: new Date().toISOString(), ultimo_uso: null, revocado: null })
+      return { ok: true, clave: '0'.repeat(64), nombre }
+    }
+    case 'revocar': {
+      const x = db.celular.dispositivos.find((x) => x.id === d.id && !x.revocado)
+      if (!x) throw new Error('Ese celular ya no está activo')
+      x.revocado = new Date().toISOString()
+      return { ok: true }
+    }
     case 'sincronizar': return { ok: true, resumen: { registrados: 0, revisar: 0, duplicados: 0, borrados: 0, completa: true }, estado: db.estado }
     default: throw new Error('Acción no válida')
   }

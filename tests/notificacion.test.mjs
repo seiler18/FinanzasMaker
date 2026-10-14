@@ -1,5 +1,5 @@
 // Pruebas de supabase/functions/notificacion/cuerpo.js: cómo se lee lo que
-// manda MacroDroid desde el celular.
+// manda el celular (MacroDroid en texto, la app FinanzasMaker en JSON).
 import assert from 'node:assert/strict'
 import { leerCuerpo } from '../supabase/functions/notificacion/cuerpo.js'
 
@@ -9,7 +9,7 @@ function prueba(nombre, fn) { try { fn(); ok++ } catch (e) { fallos.push(`✗ ${
 
 prueba('texto: paquete, título y texto en líneas', () => {
   assert.deepEqual(leerCuerpo('com.tenpo.app\nCompra aprobada\nCompraste $5.990 en JUMBO'), {
-    paquete: 'com.tenpo.app', titulo: 'Compra aprobada', texto: 'Compraste $5.990 en JUMBO', texto_largo: '',
+    paquete: 'com.tenpo.app', titulo: 'Compra aprobada', texto: 'Compraste $5.990 en JUMBO', texto_largo: '', publicada: null,
   })
 })
 
@@ -31,9 +31,16 @@ prueba('texto: una variable de MacroDroid sin reemplazar no se guarda como conte
   assert.equal(r.texto_largo, '')
 })
 
-prueba('json: la forma de una app propia', () => {
-  const r = leerCuerpo(JSON.stringify({ paquete: 'com.tenpo.app', titulo: 'T', texto: 'X', texto_largo: 'Y', otro: 1 }), 'application/json; charset=utf-8')
-  assert.deepEqual(r, { paquete: 'com.tenpo.app', titulo: 'T', texto: 'X', texto_largo: 'Y' })
+prueba('json: la forma de la app FinanzasMaker, con la hora del aviso', () => {
+  const r = leerCuerpo(JSON.stringify({ paquete: 'com.tenpo.app', titulo: 'T', texto: 'X', texto_largo: 'Y', publicada: 1792000000123, otro: 1 }), 'application/json; charset=utf-8')
+  assert.deepEqual(r, { paquete: 'com.tenpo.app', titulo: 'T', texto: 'X', texto_largo: 'Y', publicada: 1792000000123 })
+})
+
+prueba('json: una hora que no es un entero positivo se descarta', () => {
+  for (const publicada of [undefined, null, '1792000000123', 1.5, -1, 0, 1e300, true]) {
+    const r = leerCuerpo(JSON.stringify({ paquete: 'com.tenpo.app', titulo: 'T', publicada }), 'application/json')
+    assert.equal(r.publicada, null, String(publicada))
+  }
 })
 
 prueba('limpia caracteres de control y recorta a los límites de la tabla', () => {

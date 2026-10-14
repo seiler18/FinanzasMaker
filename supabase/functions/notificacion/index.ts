@@ -1,8 +1,9 @@
-/* Recibe cada notificación de las apps de los bancos desde el celular
-   (MacroDroid) y la guarda cruda con registrar_notificacion()
-   (supabase/migrations/0002_notificaciones.sql).
+/* Recibe cada notificación de las apps de los bancos desde el celular (la
+   app FinanzasMaker para Android, o MacroDroid) y la guarda cruda con
+   registrar_notificacion() (supabase/migrations/0002_notificaciones.sql y
+   0006_hora_del_aviso.sql).
 
-   Sin JWT (`verify_jwt = false` en supabase/config.toml): MacroDroid no tiene
+   Sin JWT (`verify_jwt = false` en supabase/config.toml): el celular no tiene
    sesión de Supabase. Lo que identifica al celular es la cabecera `x-clave`,
    64 caracteres al azar; la base guarda solo su SHA-256 y la compara allí.
 
@@ -46,6 +47,7 @@ Deno.serve(async (req) => {
     headers: { apikey: CLAVE_SERVICIO, authorization: `Bearer ${CLAVE_SERVICIO}`, 'content-type': 'application/json' },
     body: JSON.stringify({
       _clave: clave, _paquete: datos.paquete, _titulo: datos.titulo, _texto: datos.texto, _texto_largo: datos.texto_largo,
+      _publicada: datos.publicada,
     }),
   })
 

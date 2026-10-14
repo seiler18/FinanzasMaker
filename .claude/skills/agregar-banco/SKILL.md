@@ -80,3 +80,21 @@ tienes como correo real, agrega un caso sintético en `CASOS` de
 
 Skill `desplegar-backend`. Después, en «Por revisar», los correos de ese banco
 que ya estaban ahí se registran a mano. Los nuevos entran solos.
+
+## Un formato de cartola (PDF) nuevo
+
+La cartola no es un correo: se lee en la página (`src/lib/cartolas/`).
+
+1. Deja el PDF en `cartolas/` (ignorada por git) y, si tiene clave, agrégala
+   a `.env` con cualquier nombre: las pruebas prueban todas sin imprimirlas.
+2. Mira la forma con los trozos de pdf.js (texto, x, y): títulos de columna,
+   dónde declara sus totales y cómo sigue una descripción larga.
+3. Agrega el formato a `FORMATOS` en `formatos.js`: `es(texto)` por algo que
+   solo esa cartola dice, `leer()` con las columnas (`defs`) y los totales que
+   la cartola declara. Si los montos cortos caen en la columna vecina, usa el
+   modo `'tramo'`.
+4. `node tests/cartolas-reales.test.mjs` tiene que decir que **cuadra al peso**.
+   Si no cuadra, se leyó mal: no se ofrece nada a medias.
+5. Una prueba sintética en `tests/cartolas.test.mjs`, con nombres y montos
+   inventados, y el banco en la lista de `src/vistas/cartola.js` y en el
+   texto de ayuda del panel.
