@@ -18,30 +18,36 @@ En Agregar → Subir una cartola, subirlas y revisar:
 Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
 (`?demo`). Para repetir la prueba automática, dejarlas en `cartolas/`.
 
-## 2. Desplegar los lectores de avisos (hito 0014)
+## 2. Comprobar los lectores de avisos con una compra real (hito 0014)
 
-El orden importa: primero la base, después la función. Al revés, la función
-llamaría a `aplicar_aviso` antes de que exista.
+La migración 0007 y la función `notificacion` (versión 4) ya están desplegadas
+(2026-10-14). Falta verlas funcionar:
 
-```
-npx supabase db push
-npx supabase functions deploy notificacion --use-api
-```
+1. Hacer una compra chica con MACH o Tenpo, o recibir una transferencia en MACH.
+2. En la página debe aparecer como movimiento a los segundos, con su categoría.
+3. Cuando llegue el correo (hasta 30 min), **no** debe aparecer una segunda
+   fila: la existente se completa con el comercio y las cuotas.
+4. Pedirle a Claude que revise en la base el aviso y el movimiento
+   (`notificaciones.estado`, `movimientos.origen`).
 
-Para comprobarlo, hacer una compra chica con MACH o Tenpo: debe aparecer como
-movimiento en la página a los segundos, y el correo que llega después no debe
-duplicarla.
+Si un aviso queda `cruda`, es un formato que aún no se lee: dejar su texto
+como fixture en `tests/avisos.test.mjs` y sumar el lector.
 
 ## 2b. Más formatos de aviso
 
-Cada banco o formato nuevo se suma a `lectores.js` con su prueba en
-`tests/avisos.test.mjs`. Faltan las transferencias enviadas de MACH, Copec
-Pay, Mercado Pago y BancoEstado: hace falta un aviso real de cada uno.
+Faltan las transferencias enviadas de MACH, Copec Pay, Mercado Pago y
+BancoEstado; hace falta un aviso real de cada uno. También el cashback
+depositado de MACH, que se dejó crudo a propósito (hito 0014).
 
 ## 3. Más adelante
 
-- **Salir del todo de Apps Script:** Fintual, precios (Yahoo) y alertas
-  pasan a funciones de Supabase con programación. Después, el correo.
+- **Salir del todo de Apps Script**, por fases y cuando la anterior esté probada:
+  1. los avisos cubren compras y transferencias (hecho, falta verlo con datos reales);
+  2. Fintual, precios (Yahoo) y alertas pasan a funciones de Supabase con
+     programación (`pg_cron`);
+  3. apagar los disparadores y el correo.
+- **No guardar los códigos de validación** que llegan en avisos (Tenpo): hoy
+  quedan crudos en `notificaciones`.
 - **Otras cartolas** vistas en el correo: Santander, Prex y Tenpo Inversiones.
   Dejar el PDF en `cartolas/` y su clave en `.env`, y pedir que se agregue
   el formato (skill `agregar-banco`).
