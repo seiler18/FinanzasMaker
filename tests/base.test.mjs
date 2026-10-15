@@ -490,3 +490,127 @@ test('inversiones: un mismo correo de Fintual entra una vez', async () => {
     await sql.query('rollback')
   }
 })
+
+// ---------------------------------------------------------------------------
+// Movimientos desde los avisos del celular (0007)
+// ---------------------------------------------------------------------------
+
+async function celular() {
+  const uid = await crearUsuario()
+  const clave = await comoConfirmado(uid, async () => (await sql.query("select crear_dispositivo('celular') as c")).rows[0].c)
+  return { uid, clave }
+}
+
+const MACH_COMPRA = { fecha: '2026-10-14 19:53', banco: 'MACH', producto: 'Tarjeta de crédito', tipo: 'gasto', monto: 85112, contraparte: 'SKY AIRLINES BSP', categoria: 'Viajes', cuotas: 1, detalle: 'Tarjeta virtual' }
+
+/* Guarda el aviso crudo y lo tramita, como hace la función `notificacion`. */
+async function aviso(clave, texto, mov, estado = 'registrada') {
+  await sql.query('select registrar_notificacion($1, $2, $3, $4, $5)', [clave, 'cl.bci.sismo.mach', 'MACHBANK', texto, ''])
+  return (await sql.query('select aplicar_aviso($1, $2, $3, $4, $5, $6) as r', [clave, 'cl.bci.sismo.mach', 'MACHBANK', texto, estado, mov ? JSON.stringify(mov) : null])).rows[0].r
+}
+
+const filaCorreo = (uid, extra = {}) => sql.query(
+  `insert into movimientos (usuario, fecha, banco, producto, tipo, monto, contraparte, categoria, cuotas, origen, gmail_id)
+   values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'correo', $10)`,
+  [uid, extra.fecha ?? '2026-10-14 19:50', extra.banco ?? 'MACH', extra.producto ?? 'Tarjeta de crédito', extra.tipo ?? 'gasto', extra.monto ?? 85112,
+    extra.contraparte ?? 'SKY AIRLINES', extra.categoria ?? 'Viajes', 'cuotas' in extra ? extra.cuotas : 3, extra.gmail_id ?? 'g1'])
+
+test('avisos: solo la clave de servicio llama a aplicar_aviso y contexto_aviso', async () => {
+  const { uid, clave } = await celular()
+  for (const quien of [uid, null]) {
+    await como(quien, async () => {
+      assert.equal((await falla('select aplicar_aviso($1, $2, $3, $4, $5)', [clave, 'x', 'x', 'x', 'ignorada']))?.code, '42501')
+      assert.equal((await falla('select contexto_aviso($1)', [clave]))?.code, '42501')
+    })
+  }
+  await como('servicio', async () => {
+    assert.match((await falla('select aplicar_aviso($1, $2, $3, $4, $5)', ['0'.repeat(64), 'x', 'x', 'x', 'ignorada']))?.message ?? '', /clave-invalida/)
+    assert.match((await falla('select contexto_aviso($1)', ['0'.repeat(64)]))?.message ?? '', /clave-invalida/)
+  })
+})
+
+test('avisos: el aviso crea el movimiento; el correo que llega después lo completa y no lo duplica', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    assert.equal(await aviso(clave, 'compra 1', MACH_COMPRA), 'nueva')
+    let m = (await sql.query('select * from movimientos where usuario = $1', [uid])).rows
+    assert.equal(m.length, 1)
+    assert.equal(m[0].origen, 'notificacion')
+    const id = m[0].id
+
+    await filaCorreo(uid) // el correo: 3 cuotas, comercio exacto, 3 minutos antes
+    m = (await sql.query('select * from movimientos where usuario = $1', [uid])).rows
+    assert.equal(m.length, 1, 'no se duplica')
+    assert.equal(m[0].id, id)
+    assert.equal(m[0].origen, 'correo')
+    assert.equal(m[0].cuotas, 3)
+    assert.equal(m[0].contraparte, 'SKY AIRLINES')
+    assert.equal(m[0].gmail_id, 'g1')
+    const n = (await sql.query('select estado, movimiento from notificaciones where usuario = $1', [uid])).rows
+    assert.deepEqual(n, [{ estado: 'registrada', movimiento: id }])
+
+    // Una segunda compra igual, de verdad distinta, sí entra.
+    await filaCorreo(uid, { gmail_id: 'g2' })
+    assert.equal((await sql.query('select 1 from movimientos where usuario = $1', [uid])).rowCount, 2)
+  })
+})
+
+test('avisos: si el correo llegó primero, el aviso no crea otro movimiento, y una segunda compra igual sí', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await filaCorreo(uid)
+    assert.equal(await aviso(clave, 'compra 1', MACH_COMPRA), 'ya-estaba')
+    assert.equal((await sql.query('select 1 from movimientos where usuario = $1', [uid])).rowCount, 1)
+    // El mismo correo ya está reclamado por el primer aviso: el segundo es otra compra.
+    assert.equal(await aviso(clave, 'compra 2', MACH_COMPRA), 'nueva')
+    assert.equal((await sql.query('select 1 from movimientos where usuario = $1', [uid])).rowCount, 2)
+  })
+})
+
+test('avisos: banco, monto, sentido, producto u hora distintos no se confunden con el correo', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await aviso(clave, 'compra 1', MACH_COMPRA)
+    await filaCorreo(uid, { banco: 'Tenpo', gmail_id: 'a' })
+    await filaCorreo(uid, { monto: 85113, gmail_id: 'b' })
+    await filaCorreo(uid, { tipo: 'ingreso', gmail_id: 'c' })
+    await filaCorreo(uid, { fecha: '2026-10-14 23:59', gmail_id: 'd' })
+    await filaCorreo(uid, { producto: 'Cuenta', gmail_id: 'e' })
+    const { rows } = await sql.query('select origen from movimientos where usuario = $1', [uid])
+    assert.equal(rows.length, 6)
+    assert.equal(rows.filter((r) => r.origen === 'notificacion').length, 1)
+  })
+})
+
+test('avisos: el gasto del aviso se corrige a interna cuando el correo dice que era entre tus cuentas', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await aviso(clave, 'transferencia', { fecha: '2026-10-14 20:00', banco: 'Tenpo', producto: 'Cuenta', tipo: 'gasto', monto: 8000, contraparte: '', categoria: 'Otros', cuotas: null, detalle: '' })
+    await filaCorreo(uid, { fecha: '2026-10-14 20:00', banco: 'Tenpo', producto: 'Cuenta', tipo: 'interna', monto: 8000, contraparte: 'Jesus Seiler', categoria: 'Entre mis cuentas', cuotas: null })
+    const { rows } = await sql.query('select tipo, contraparte from movimientos where usuario = $1', [uid])
+    assert.deepEqual(rows, [{ tipo: 'interna', contraparte: 'Jesus Seiler' }])
+  })
+})
+
+test('avisos: el ruido se marca ignorado y un formato desconocido queda crudo', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    assert.equal(await aviso(clave, 'sesion', null, 'ignorada'), 'ignorada')
+    await sql.query('select registrar_notificacion($1, $2, $3, $4, $5)', [clave, 'cl.bci.sismo.mach', 'MACHBANK', 'algo nuevo', ''])
+    assert.equal((await sql.query('select aplicar_aviso($1, $2, $3, $4, $5) as r', [clave, 'cl.bci.sismo.mach', 'MACHBANK', 'algo nuevo', 'cruda'])).rows[0].r, 'cruda')
+    const { rows } = await sql.query('select estado from notificaciones where usuario = $1 order by id', [uid])
+    assert.deepEqual(rows.map((r) => r.estado), ['ignorada', 'cruda'])
+    // Un aviso que no se guardó antes no se tramita.
+    assert.equal((await sql.query('select aplicar_aviso($1, $2, $3, $4, $5) as r', [clave, 'cl.bci.sismo.mach', 'MACHBANK', 'nunca llegó', 'ignorada'])).rows[0].r, 'sin-aviso')
+  })
+})
+
+test('avisos: un movimiento inválido lo rechaza la tabla y el aviso queda crudo', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await sql.query('select registrar_notificacion($1, $2, $3, $4, $5)', [clave, 'cl.bci.sismo.mach', 'MACHBANK', 'x', ''])
+    const e = await falla('select aplicar_aviso($1, $2, $3, $4, $5, $6)', [clave, 'cl.bci.sismo.mach', 'MACHBANK', 'x', 'registrada', JSON.stringify({ ...MACH_COMPRA, tipo: 'regalo' })])
+    assert.equal(e?.code, '23514')
+    assert.equal((await sql.query('select estado from notificaciones where usuario = $1', [uid])).rows[0].estado, 'cruda')
+  })
+})

@@ -34,6 +34,8 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 |---|---|
 | Esquema: blindaje y registro cerrado, notificaciones, finanzas, inversiones | `supabase/migrations/NNNN_*.sql` |
 | Recepción de notificaciones del celular; lector del cuerpo | `supabase/functions/notificacion/{index.ts,cuerpo.js}` |
+| Avisos del celular → movimientos (lectores por banco; `reglas.js` es copia de `src/lib/reglas.js`) | `supabase/functions/notificacion/{lectores.js,reglas.js}`, tests en `tests/avisos.test.mjs` |
+| Un mismo movimiento por aviso y por correo: `aplicar_aviso` y el trigger `absorber_aviso` | `supabase/migrations/0007_movimientos_desde_avisos.sql` |
 | Ingreso con Google y registro cerrado (lo que sube `config push`) | `supabase/config.toml` (`[auth]`, `[auth.external.google]`) |
 | Trabajador: pasada de correos, disparadores, «Revisar correos ahora», identidad | `backend/Code.gs` (`procesar_`, `borrarDecididos_`, `ACCIONES`, `identidad_`) |
 | Lectores de correos (uno por formato) y red genérica; reglas base | `backend/Lectores.gs` |
@@ -121,7 +123,7 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
      únicas sin dueño (`GLOBALES`).
    - Una columna nueva va también en `COLUMNAS`: si no, no se escribe.
 10. **Gemelas que deben calzar** (cada par tiene su prueba):
-    - `src/lib/reglas.js` ↔ `categorizar_`;
+    - `src/lib/reglas.js` ↔ `categorizar_` ↔ `supabase/functions/notificacion/reglas.js` (copia idéntica: la función no puede importar de `src/`);
     - `config-base.js` ↔ `CONFIG_BASE`;
     - `src/inversiones/lib/cartera.js` ↔ `costoMovilAcciones_`. El costo
       promedio es **móvil**, el que tenías el día de cada venta;

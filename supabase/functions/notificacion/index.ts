@@ -9,6 +9,8 @@
 
    No registra el contenido en los logs: es el texto de los avisos del banco. */
 import { leerCuerpo } from './cuerpo.js'
+import { leerAviso } from './lectores.js'
+import { categorizar } from './reglas.js'
 
 const URL_BASE = Deno.env.get('SUPABASE_URL') ?? ''
 const CLAVE_SERVICIO = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -23,6 +25,40 @@ const ERRORES: [string, number, string][] = [
   ['demasiadas', 429, 'Demasiadas notificaciones en un minuto'],
   ['paquete-vacio', 400, 'Falta el paquete de la app'],
 ]
+
+// Llama a una función de la base con la clave de servicio.
+const rpc = (nombre: string, args: Record<string, unknown>) =>
+  fetch(`${URL_BASE}/rest/v1/rpc/${nombre}`, {
+    method: 'POST',
+    headers: { apikey: CLAVE_SERVICIO, authorization: `Bearer ${CLAVE_SERVICIO}`, 'content-type': 'application/json' },
+    body: JSON.stringify(args),
+  })
+
+/* Convierte el aviso recién guardado en movimiento (lectores.js). Nunca lanza:
+   el aviso ya está a salvo en `notificaciones` y, si algo falla aquí, queda
+   cruda para volver a leerla; que el celular reciba un error solo haría que la
+   reenviara. Tampoco registra el contenido en los logs. */
+async function tramitar(clave: string, d: ReturnType<typeof leerCuerpo>): Promise<string> {
+  try {
+    const leido = leerAviso({ ...d, recibida: Date.now() })
+    if (leido === null) return 'cruda'
+    let args: Record<string, unknown> = { _clave: clave, _paquete: d.paquete, _titulo: d.titulo, _texto: d.texto }
+    if ('ignorar' in leido) {
+      args = { ...args, _estado: 'ignorada' }
+    } else {
+      const c = await rpc('contexto_aviso', { _clave: clave })
+      if (!c.ok) throw new Error(`contexto ${c.status}`)
+      const { reglas } = await c.json()
+      args = { ...args, _estado: 'registrada', _mov: categorizar({ ...leido.mov }, reglas) }
+    }
+    const r = await rpc('aplicar_aviso', args)
+    if (!r.ok) throw new Error(`aplicar ${r.status}`)
+    return String(await r.json())
+  } catch (e) {
+    console.error('tramitar falló', e instanceof Error ? e.message : '')
+    return 'cruda'
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { ok: false, error: 'Solo POST' })
@@ -53,7 +89,9 @@ Deno.serve(async (req) => {
 
   if (r.ok) {
     const estado = await r.json()
-    return responder(estado === 'nueva' ? 201 : 200, { ok: true, estado })
+    // Una repetida ya se tramitó la primera vez.
+    const aviso = estado === 'nueva' ? await tramitar(clave, datos) : undefined
+    return responder(estado === 'nueva' ? 201 : 200, { ok: true, estado, aviso })
   }
   const err = await r.json().catch(() => ({}))
   const msg = String(err?.message ?? '')

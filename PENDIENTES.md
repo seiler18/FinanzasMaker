@@ -18,12 +18,25 @@ En Agregar → Subir una cartola, subirlas y revisar:
 Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
 (`?demo`). Para repetir la prueba automática, dejarlas en `cartolas/`.
 
-## 2. Lectores de notificaciones (lo que sigue y lo que más pesa)
+## 2. Desplegar los lectores de avisos (hito 0014)
 
-Hoy los avisos de la app llegan **crudos** a la tabla `notificaciones`: la
-página no los muestra como movimientos. Convertirlos es lo que deja de
-depender del correo y de Apps Script. Hay decisiones por tomar (dónde
-corren, cómo se evita contar dos veces la misma compra); ver el hito 0013.
+El orden importa: primero la base, después la función. Al revés, la función
+llamaría a `aplicar_aviso` antes de que exista.
+
+```
+npx supabase db push
+npx supabase functions deploy notificacion --use-api
+```
+
+Para comprobarlo, hacer una compra chica con MACH o Tenpo: debe aparecer como
+movimiento en la página a los segundos, y el correo que llega después no debe
+duplicarla.
+
+## 2b. Más formatos de aviso
+
+Cada banco o formato nuevo se suma a `lectores.js` con su prueba en
+`tests/avisos.test.mjs`. Faltan las transferencias enviadas de MACH, Copec
+Pay, Mercado Pago y BancoEstado: hace falta un aviso real de cada uno.
 
 ## 3. Más adelante
 
