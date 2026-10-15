@@ -51,8 +51,10 @@ depositado de MACH, que se dejó crudo a propósito (hito 0014).
 - **Otras cartolas** vistas en el correo: Santander, Prex y Tenpo Inversiones.
   Dejar el PDF en `cartolas/` y su clave en `.env`, y pedir que se agregue
   el formato (skill `agregar-banco`).
-- **Gradle 8.14.3** de la app: GitHub avisa que está desactualizado. Va en un
-  cambio aparte.
+- **Gradle 9.x de la app, junto con AGP 9.** La app ya está en Gradle 8.14.6
+  (la última de la línea 8). La 9.6 o posterior no funciona con AGP 8.x, y el
+  plugin de Kotlin actual solo declara compatibilidad hasta Gradle 9.0: se suben
+  juntos y verificando, en un cambio aparte.
 - **Play Protect** bloquea la app (firma propia, fuera de Play Store). Hoy está
   apagado el análisis de apps; la salida definitiva es publicarla en Play
   Store (pista interna).
