@@ -13,7 +13,8 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
-| [0012](0012-cartolas-y-app-android.md) | 2026-10-14 | Cartolas en PDF, la hora del aviso y la app Android | página publicada; falta desplegar la 0006 (ver `PENDIENTES.md`) |
+| [0013](0013-despliegue-de-la-0006-y-app-en-uso.md) | 2026-10-14 | La 0006 desplegada y la app Android en uso | completado; faltan las cartolas de cuenta y los lectores |
+| [0012](0012-cartolas-y-app-android.md) | 2026-10-14 | Cartolas en PDF, la hora del aviso y la app Android | completado en el 0013 |
 | [0011](0011-v2-supabase-inversiones-y-trabajador.md) | 2026-10-12 | La v2 completa: la página en Supabase, Inversiones adentro y el trabajador | migrado y publicado |
 | [0010](0010-supabase-y-notificaciones-del-celular.md) | 2026-10-12 | Nace la v2: base en Supabase (RLS, registro cerrado) y notificaciones del celular | en curso (falta la macro y el relevamiento) |
 | [0009](0009-efectos-de-interaccion-y-delta-de-cifras.md) | 2026-10-03 | Efectos de interacción y delta flotante en las cifras | completado (falta visto bueno visual) |
