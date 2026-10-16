@@ -8,9 +8,10 @@ import vm from 'node:vm'
 import { categorizar } from '../src/lib/reglas.js'
 import { CONFIG_BASE, conBase } from '../src/lib/config-base.js'
 import { validarMov, fechaValida, ahoraChile } from '../src/lib/validar.js'
+import { esPropio } from '../supabase/functions/notificacion/lectores.js'
 
 const ctx = vm.createContext({ console })
-vm.runInContext(['Lectores.gs', 'Code.gs'].map((f) => fs.readFileSync(new URL('../backend/' + f, import.meta.url), 'utf8')).join('\n') + '\n;globalThis.__ = { categorizar_, CONFIG_BASE, REGLAS_BASE };', ctx)
+vm.runInContext(['Lectores.gs', 'Code.gs'].map((f) => fs.readFileSync(new URL('../backend/' + f, import.meta.url), 'utf8')).join('\n') + '\n;globalThis.__ = { categorizar_, CONFIG_BASE, REGLAS_BASE, esPropio_ };', ctx)
 const gs = ctx.__
 
 let ok = 0
@@ -41,6 +42,16 @@ prueba('categorizar: la página y el trabajador deciden igual', () => {
     const web = categorizar({ ...c }, reglas)
     const trabajador = JSON.parse(JSON.stringify(gs.categorizar_({ ...c }, reglas)))
     assert.deepEqual({ tipo: web.tipo, categoria: web.categoria }, { tipo: trabajador.tipo, categoria: trabajador.categoria }, JSON.stringify(c))
+  }
+})
+
+// El aviso del celular (lectores.js) y el correo (Lectores.gs) tienen que
+// reconocer al titular igual: si no, la misma transferencia sería interna por
+// un lado y gasto por el otro.
+prueba('esPropio: el aviso y el correo reconocen al titular igual', () => {
+  const nombres = ['JESUS ENRIQUE SEILER VELASQUEZ', 'Jesús Seiler', 'jesusseiler', 'Jesus EnriqueSeilerVelasquez', 'Luis Seiler', 'Jesus', '', 'Seiler Jesus']
+  for (const titular of ['Jesus Seiler', 'Jesús Seiler', '']) {
+    for (const n of nombres) assert.equal(esPropio(n, titular), gs.esPropio_(n, titular), `${n} / ${titular}`)
   }
 })
 

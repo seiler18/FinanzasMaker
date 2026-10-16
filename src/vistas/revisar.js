@@ -3,8 +3,10 @@ import { clp, fechaCorta } from '../lib/formato.js'
 import { TIPOS } from '../lib/analisis.js'
 
 /* Correos que parecen bancarios pero ningún lector entendió: un banco sin
-   lector propio (la red genérica los caza) o un formato que cambió.
-   Nada de esto se registró ni se borró todavía: lo decides aquí. */
+   lector propio (la red genérica los caza) o un formato que cambió. Y, desde
+   la migración 0008, los correos de un banco en «bancos por aviso» que
+   llegaron sin su aviso del celular (su `motivo` lo dice).
+   Nada de esto se registró todavía: lo decides aquí. */
 
 export function revisar(el, app) {
   const pendientes = app.datos.revisar || []
@@ -13,7 +15,8 @@ export function revisar(el, app) {
     return pintar(el, html`<section class="panel"><p class="vacio">No hay correos por revisar. Todo lo que llegó se entendió solo.</p></section>`)
   }
   pintar(el, html`
-    <p class="intro">Estos correos parecen de un banco pero no los reconocí con seguridad. <b>Registrar</b> crea el movimiento
+    <p class="intro">Estos correos no los registré solo: no los reconocí con seguridad, o son de un banco que ya lees por el celular
+      y su aviso no llegó (lo dice cada uno). <b>Registrar</b> crea el movimiento
       ${app.datos.estado?.borrar ? 'y manda el correo a la papelera' : ''}; <b>Descartar</b> lo deja fuera de las cuentas.</p>
     ${pendientes.map((r) => html`
       <form class="panel tarjeta-revisar" data-gid="${r.gmail_id}">

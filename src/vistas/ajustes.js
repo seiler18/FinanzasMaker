@@ -1,6 +1,8 @@
 import { html, pintar, aviso, $ } from '../lib/dom.js'
 import { clp } from '../lib/formato.js'
 import { CONFIG_BASE } from '../lib/config-base.js'
+import { coberturaAvisos } from '../lib/analisis.js'
+import { enLaApp } from '../lib/app-android.js'
 
 // Nombre legible de la app que mandó la notificación (llega el paquete de
 // Android). Lo que no calce se muestra tal cual.
@@ -12,6 +14,9 @@ const nombreApp = (p) => APPS.find(([re]) => re.test(p))?.[1] || p
 // enlace: scheme finanzasmaker, host vincular, extra «clave». Si ya tenía una,
 // pide confirmación antes de reemplazarla.
 const enlaceVincular = (clave) => `intent://vincular#Intent;scheme=finanzasmaker;package=io.github.seiler18.finanzasmaker;S.clave=${clave};end`
+// Dentro de la app, la página es lo que se ve: este enlace vuelve a la
+// pantalla propia de la app (acceso a notificaciones, cola, bancos elegidos).
+const ENLACE_ESTADO_APP = 'intent://estado#Intent;scheme=finanzasmaker;package=io.github.seiler18.finanzasmaker;end'
 
 function hace(iso) {
   if (!iso) return 'nunca'
@@ -43,7 +48,7 @@ export function ajustes(el, app) {
       <header class="panel-cab"><h2>Celular</h2><p class="tenue">Las notificaciones de tus bancos que manda la app FinanzasMaker (o MacroDroid)</p></header>
       <div id="celular"><p class="tenue">Cargando…</p></div>
       <div id="vincular-paso"></div>
-      <div class="acciones">${app.demo ? '' : html`<button class="btn btn-primario" id="vincular">Vincular la app</button>`}<button class="btn btn-borde" id="refrescar-celular">Actualizar</button></div>
+      <div class="acciones">${app.demo ? '' : html`<button class="btn btn-primario" id="vincular">Vincular la app</button>`}<button class="btn btn-borde" id="refrescar-celular">Actualizar</button>${enLaApp() ? html`<a class="btn btn-borde" href="${ENLACE_ESTADO_APP}">Estado de la app</a>` : ''}</div>
     </section>
 
     <section class="panel">
@@ -67,6 +72,24 @@ export function ajustes(el, app) {
       <div class="acciones"><button class="btn btn-borde" id="salir">${app.demo ? 'Salir de la demo' : 'Cerrar sesión'}</button></div>
     </section>`)
 
+  // Qué bancos ya llegan por el celular: con esto se decide cuáles pasar a
+  // «bancos por aviso» (su correo deja de crear movimientos, migración 0008).
+  const porAviso = new Set(String(cfg.bancos_por_aviso || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean))
+  const tablaCobertura = (c) => {
+    const filas = coberturaAvisos(app.datos.movimientos, c.avisados, c.desde)
+    if (!filas.length) return ''
+    return html`
+      <h3 class="subtitulo">Qué llega por el celular <small class="tenue">desde el ${c.desde.split('-').reverse().join('-')}</small></h3>
+      <table class="tabla-cobertura">
+        <thead><tr><th>Banco</th><th>Por aviso</th><th>Solo por correo</th></tr></thead>
+        <tbody>${filas.map((f) => html`<tr>
+          <td>${f.banco}${porAviso.has(f.banco.toLowerCase()) ? html` <small class="etiqueta">por aviso</small>` : ''}</td>
+          <td>${f.aviso}</td><td class="${f.soloCorreo ? 'falta' : ''}">${f.soloCorreo}</td></tr>`)}</tbody>
+      </table>
+      <p class="tenue">Cuando un banco pase un tiempo sin nada «solo por correo», agrégalo a <b>bancos por aviso</b> en Configuración: su correo
+        dejará de crear movimientos, y lo que llegue sin aviso irá a «Por revisar».</p>`
+  }
+
   // El texto de las notificaciones lo escribe un tercero: va por html``, que escapa.
   const pintarCelular = async () => {
     const caja = $('#celular', el)
@@ -84,7 +107,8 @@ export function ajustes(el, app) {
             <span class="mov-txt"><b>${n.titulo || nombreApp(n.paquete)}</b><small>${n.texto}</small></span>
             <span class="mov-monto"><small>${nombreApp(n.paquete)}</small><small>${hace(n.recibida)}</small></span>
           </div></li>`)}</ul>`
-          : html`<p class="vacio">Todavía no llega ninguna. Haz una compra o una transferencia chica: el aviso debería aparecer aquí en segundos.</p>`}`)
+          : html`<p class="vacio">Todavía no llega ninguna. Haz una compra o una transferencia chica: el aviso debería aparecer aquí en segundos.</p>`}
+        ${tablaCobertura(c)}`)
     } catch (err) {
       pintar(caja, html`<p class="vacio">${err.message}</p>`)
     }

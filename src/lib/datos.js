@@ -232,15 +232,26 @@ export const ACCIONES = {
     return {}
   },
 
-  /* Lo que llegó del celular: para comprobar que la app (o la macro) funciona. */
+  /* Lo que llegó del celular: para comprobar que la app (o la macro) funciona.
+     `avisados` (movimientos que reconoció un aviso) y `desde` alimentan la
+     cobertura por banco (coberturaAvisos): cuenta desde el primer aviso que
+     se convirtió en movimiento, y como mucho 30 días. */
   async celular() {
     const sb = supa()
-    const [dispositivos, notificaciones, total] = await Promise.all([
+    const hace30 = new Date(Date.now() - 30 * 864e5)
+    const [dispositivos, notificaciones, total, avisos] = await Promise.all([
       q(sb.from('dispositivos').select('id, nombre, creado, ultimo_uso, revocado').order('creado')),
       q(sb.from('notificaciones').select('id, paquete, titulo, texto, recibida, estado').order('recibida', { ascending: false }).limit(15)),
       sb.from('notificaciones').select('id', { count: 'exact', head: true }).then(({ count, error }) => { if (error) throw traducir(error); return count || 0 }),
+      todas(() => sb.from('notificaciones').select('id, movimiento, recibida').not('movimiento', 'is', null)
+        .gte('recibida', hace30.toISOString()).order('recibida').order('id')),
     ])
-    return { dispositivos, notificaciones, total }
+    const diaChile = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+    return {
+      dispositivos, notificaciones, total,
+      avisados: avisos.map((a) => a.movimiento),
+      desde: avisos.length ? diaChile(avisos[0].recibida) : diaChile(hace30),
+    }
   },
 }
 

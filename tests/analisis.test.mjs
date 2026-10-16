@@ -1,6 +1,6 @@
 // Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
 import assert from 'node:assert/strict'
-import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos, ritmoGasto, proyeccionMes } from '../src/lib/analisis.js'
+import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos, ritmoGasto, proyeccionMes, coberturaAvisos } from '../src/lib/analisis.js'
 import { conSigno, sentidoDe, SENTIDO } from '../src/lib/formato.js'
 
 let ok = 0
@@ -189,4 +189,20 @@ prueba('proyección: un gasto grande al inicio del mes no se multiplica por los 
   assert.ok(p.proy < 800000, `proyección ${p.proy}`)
   assert.ok(p.proy > 500000 + 25000)
   assert.equal(proyeccionMes(movs, '2026-09', '2026-10-05'), null)
+})
+
+prueba('cobertura de los avisos: por aviso, el correo que completó un aviso, y lo que solo trajo el correo', () => {
+  const movs = [
+    m('2026-10-15', 'gasto', 1, { id: 'a', banco: 'MACH', origen: 'notificacion' }),
+    m('2026-10-15', 'gasto', 1, { id: 'b', banco: 'MACH', origen: 'correo' }),
+    m('2026-10-15', 'gasto', 1, { id: 'c', banco: 'MACH', origen: 'correo' }),
+    m('2026-10-16', 'interna', 1, { id: 'd', banco: 'Copec Pay', origen: 'correo' }),
+    m('2026-10-16', 'gasto', 1, { id: 'e', banco: 'Tenpo', origen: 'manual' }),
+    m('2026-10-16', 'gasto', 1, { id: 'f', banco: 'Tenpo', origen: 'cartola' }),
+    m('2026-10-10', 'gasto', 1, { id: 'g', banco: 'MACH', origen: 'correo' }),
+  ]
+  assert.deepEqual(coberturaAvisos(movs, ['b'], '2026-10-14'), [
+    { banco: 'MACH', aviso: 2, soloCorreo: 1 },
+    { banco: 'Copec Pay', aviso: 0, soloCorreo: 1 },
+  ])
 })

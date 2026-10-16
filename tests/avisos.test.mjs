@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { leerAviso, fechaChile } from '../supabase/functions/notificacion/lectores.js'
+import { leerAviso, fechaChile, esPropio } from '../supabase/functions/notificacion/lectores.js'
 
 let ok = 0
 const fallos = []
@@ -71,9 +71,70 @@ prueba('el ruido se ignora: sesión, códigos, promociones y cashback acumulado'
   for (const [p, t, x] of ruido) assert.deepEqual(leer(p, t, x), { ignorar: true }, t)
 })
 
+const BANCOESTADO = 'net.veritran.becl.prod'
+const CTX = { titular: 'Jesus Seiler', externas: 'Mercado Pago' }
+const transferenciaBE = (a, destino) => `Estimado(a) JESUS ENRIQUE SEILER VELASQUEZ, te informamos que con fecha 15/10/2026 16:55:21 has realizado una transferencia a ${a} por $180.840 a su Chequera Electrónica 000000000000 de ${destino}.`
+
+prueba('BancoEstado: transferencia a una cuenta propia es interna y dice a qué banco fue', () => {
+  const r = leerAviso({ paquete: BANCOESTADO, titulo: 'Transferencia', texto: transferenciaBE('Jesus Seiler', 'Bci/machbank'), texto_largo: '', publicada: PUBLICADA, recibida: PUBLICADA }, CTX)
+  assert.deepEqual(r.mov, {
+    fecha: '2026-10-15 16:55', banco: 'BancoEstado', producto: 'Cuenta', tipo: 'interna', monto: 180840,
+    contraparte: 'Jesus Seiler', cuotas: null, detalle: 'Hacia MACH',
+  })
+})
+
+prueba('BancoEstado: transferencia a otra persona es gasto; sin titular nada es propio', () => {
+  const a = { paquete: BANCOESTADO, titulo: 'Transferencia', texto: transferenciaBE('Mario Demo', 'Banco Santander'), texto_largo: '', publicada: PUBLICADA, recibida: PUBLICADA }
+  const r = leerAviso(a, CTX).mov
+  assert.equal(r.tipo, 'gasto')
+  assert.equal(r.contraparte, 'Mario Demo')
+  assert.equal(r.detalle, '')
+  const propia = { ...a, texto: transferenciaBE('Jesus Seiler', 'Tenpo') }
+  assert.equal(leerAviso(propia).mov.tipo, 'gasto', 'sin ctx no se reconoce al titular')
+  assert.equal(leerAviso(propia, { titular: 'Luis Seiler' }).mov.tipo, 'gasto')
+})
+
+prueba('BancoEstado: a tu cuenta externa (Mercado Pago) es gasto «Hacia Mercado Pago»', () => {
+  const r = leerAviso({ paquete: BANCOESTADO, titulo: 'Transferencia', texto: transferenciaBE('Jesus Seiler', 'Mercado Pago'), texto_largo: '', publicada: PUBLICADA, recibida: PUBLICADA }, CTX).mov
+  assert.equal(r.tipo, 'gasto')
+  assert.equal(r.categoria, 'Hacia Mercado Pago')
+})
+
+prueba('esPropio: todas las palabras del titular, sin tildes ni mayúsculas', () => {
+  const lectores = { si: ['JESUS ENRIQUE SEILER VELASQUEZ', 'Jesús Seiler', 'jesusseiler'], no: ['Luis Seiler', 'Jesus', ''] }
+  for (const n of lectores.si) assert.ok(esPropio(n, 'Jesus Seiler'), n)
+  for (const n of lectores.no) assert.ok(!esPropio(n, 'Jesus Seiler'), n)
+  assert.ok(!esPropio('Jesus Seiler', ''))
+})
+
+// Publicidad real de cada app (redacción de avisos vistos en octubre de 2026).
+prueba('la publicidad de los bancos y los recordatorios de pago se ignoran', () => {
+  const publicidad = [
+    ['cl.copec.PagoClick', '¡Consigue $100/lt dcto con MACH! 💜⛽', 'Todos los sábados en combustible pagando con MACH. ¡Carga con el mejor dcto! 🚗🎉'],
+    ['com.cencosud.cencopay', '¡El cashback Club Easy Pro se agotó! 💸', 'El 15% de cashback ya se agotó. Sigue usando Saldo CencoPay y atento a los próximos beneficios. 💙'],
+    ['com.mercadopago.wallet', 'Llegó una cuenta que vence el 24 de octubre', 'Ya puedes programar o hacer tu pago de $ 15.987 a Movistar Hogar.'],
+    [BANCOESTADO, 'MAÑANA VIERNES 40% de descuento 😍', 'Aprovecha y ahorra pagando con Rutpay en Farmacias Ahumada presencial o desde la Mini app. Tope $20.000.'],
+    [BANCOESTADO, 'Solicita tu Avance en Cuotas', 'Obtén un abono inmediato y paga de 4 a 48 cuotas con tus Tarjetas de Crédito BancoEstado.'],
+    [BANCOESTADO, 'Hasta 40% dto. en Cinépolis 🍿', 'Todos los viernes, sábados y domingos, compra hasta 4 entradas 2D por día, pagando con tus Tarjetas BancoEstado.'],
+    [BANCOESTADO, 'Beneficios en Farmacias Ahumada 💊', 'Obtén 30% de dto. en medicamentos pagando con Tarjetas BancoEstado. Tope de $20.000.'],
+    [BANCOESTADO, '🔥 El sonido de Pixies llega a Frutillar', 'Aprovecha un 20% dto. en PuntoTicket con tus Tarjetas BancoEstado, hasta agotar stock.'],
+    ['cl.fintual.fintualapp', 'En vivo: Main Character', '¿Por qué creamos Fintual Sans? Entra al streaming y participa por un objeto de colección.'],
+  ]
+  for (const [p, t, x] of publicidad) assert.deepEqual(leer(p, t, x), { ignorar: true }, t)
+})
+
+prueba('Fintual se lee por correo: su aviso de depósito no trae monto y se ignora', () => {
+  assert.deepEqual(leer('cl.fintual.fintualapp', 'Recibimos tu depósito', 'Se invertirá en Objetivo X'), { ignorar: true })
+})
+
+prueba('un lector del banco va antes que la publicidad', () => {
+  const r = leer(MACH, 'MACHBANK', 'Compra con Tarjeta de Débito ***1234 en FARMACIA DESCUENTO por $1.500')
+  assert.equal(r.mov.monto, 1500)
+})
+
 prueba('lo que no se conoce devuelve null: queda crudo, no se pierde ni se inventa', () => {
   assert.equal(leer(MACH, '¡Tu cashback ya está en tu cuenta!', 'Hemos depositado $946 en tu cuenta corriente. ¡Que los disfrutes!'), null)
-  assert.equal(leer('cl.fintual.fintualapp', 'Recibimos tu depósito', 'Se invertirá en Objetivo X'), null)
+  assert.equal(leer(BANCOESTADO, 'Transferencia recibida', 'Recibiste una transferencia de Mario Demo por $5.000'), null)
   assert.equal(leer(MACH, 'MACHBANK', ''), null)
   assert.equal(leer('com.otra.app', 'Compra', 'Compraste $1.000 en X'), null)
 })

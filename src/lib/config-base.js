@@ -10,6 +10,7 @@ export const CONFIG_BASE = [
   ['borrar_correos', 'si', '«si»: el correo va a la papelera después de registrarlo. «no»: se deja donde está.'],
   ['dolar', '950', 'Pesos por dólar para convertir compras en USD (aproximado).'],
   ['cuentas_externas', 'Mercado Pago', 'Cuentas tuyas que no avisan lo que reciben (separadas por coma): lo que sale de ellas a tus cuentas cuenta como ingreso, y lo que les mandas, como gasto.'],
+  ['bancos_por_aviso', '', 'Bancos que ya se leen por los avisos del celular (separados por coma, como salen en Movimientos: MACH, Tenpo…). Su correo solo completa lo que trajo el aviso; si llega uno sin aviso, va a «Por revisar».'],
   ['vendedores_cripto', 'Leveltech', 'Vendedores de Binance P2P a quienes les compras USDT (separados por coma): esa transferencia pasa a tu cuenta de Binance y no es gasto; el gasto se cuenta cuando el USDT sale por Binance Pay.'],
   ['umbral_venta_pct', '5', 'Inversiones: avisa «¿vender?» cuando una posición gana más de este % sobre su costo.'],
   ['umbral_caida_pct', '3', 'Inversiones: avisa «¿comprar?» cuando un activo cae más de este % en el día.'],

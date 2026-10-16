@@ -1,9 +1,67 @@
 # Pendientes
 
-Lo que queda por hacer a mano o por decidir (hito 0013). Se tacha y se borra
-cuando esté hecho. El repo es público: aquí no van claves.
+Lo que queda por hacer a mano o por decidir (hitos 0013 a 0015). Se tacha y se
+borra cuando esté hecho. El repo es público: aquí no van claves.
 
-## 1. Probar las cartolas de septiembre en la página publicada
+## 1. Desplegar la 0008 y la función (hito 0015)
+
+En este orden (la función nueva pide a la base el titular, que da la 0008):
+
+```
+npx supabase db push
+npx supabase functions deploy notificacion
+```
+
+Después, releer los avisos crudos con los lectores nuevos:
+
+```
+node scripts/releer-avisos.mjs             # ensayo: dice qué haría, no cambia nada
+node scripts/releer-avisos.mjs --aplicar
+```
+
+La transferencia BancoEstado → MACH del 2026-10-15 ($180.840) debe quedar
+como «entre mis cuentas» en los dos bancos. Los crudos viejos de MACH y Tenpo
+(del 12 al 14 de octubre) deberían salir «ya-estaba»: el correo ya los trajo.
+
+`backend/Code.gs` cambió solo en `CONFIG_BASE` (la clave `bancos_por_aviso`):
+el trabajador no la usa, así que se puede pegar en la próxima pasada de
+`desplegar-backend`, sin apuro.
+
+## 2. Publicar la app v0.2.0 (la página dentro de la app)
+
+1. Publicar el hub (`seiler18.github.io`) con `assetlinks.json` y comprobar que
+   `https://seiler18.github.io/.well-known/assetlinks.json` responde 200.
+2. En `FinanzasMaker-android`: skill `publicar-version` (tag `v0.2.0`).
+3. En el celular: instalar el APK **encima** desde Releases. Revisar:
+   - el ícono abre la página, sin barra de URL;
+   - mantener presionado el ícono → «Avisos» abre la pantalla propia;
+   - en la página, Ajustes → Celular → «Estado de la app» también;
+   - atrás desde la página cierra la app;
+   - los avisos siguen llegando (Ajustes → Celular).
+
+## 3. Apagar el correo, banco por banco
+
+En Ajustes → Celular, «Qué llega por el celular» dice por banco cuánto llegó
+por aviso y cuánto solo por correo. Cuando un banco lleve un tiempo sin nada
+«solo por correo», agregarlo en Configuración → `bancos por aviso`. Desde ahí
+su correo solo completa lo que trajo el aviso; lo que llegue sin aviso aparece
+en «Por revisar» con el motivo «Llegó por correo y no por el celular».
+
+Para eso faltan formatos de aviso. Cada uno necesita un aviso real; cuando
+llegue, queda crudo y se ve en Ajustes → Celular:
+
+- MACH: transferencia enviada, pago de la tarjeta, cashback depositado (este
+  se dejó crudo a propósito, hito 0014);
+- Tenpo: transferencia recibida, pago de la tarjeta;
+- BancoEstado: transferencia recibida, compras;
+- Copec Pay y Mercado Pago: todavía no mandaron ningún aviso de movimiento.
+
+Al sumar uno: lector y fixture (`lectores.js`, `tests/avisos.test.mjs`),
+desplegar la función y releer los crudos (punto 1).
+
+Fintual sigue por correo (sus avisos no traen el monto).
+
+## 4. Probar las cartolas de septiembre en la página publicada
 
 Los estados de cuenta de las tarjetas MACH y Tenpo ya se probaron contra los
 PDF reales de `estados-de-cuenta/` (cuadran al peso). Faltan las dos
@@ -18,36 +76,14 @@ En Agregar → Subir una cartola, subirlas y revisar:
 Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
 (`?demo`). Para repetir la prueba automática, dejarlas en `cartolas/`.
 
-## 2. Comprobar los lectores de avisos con una compra real (hito 0014)
+## 5. Más adelante
 
-La migración 0007 y la función `notificacion` (versión 4) ya están desplegadas
-(2026-10-14). Falta verlas funcionar:
-
-1. Hacer una compra chica con MACH o Tenpo, o recibir una transferencia en MACH.
-2. En la página debe aparecer como movimiento a los segundos, con su categoría.
-3. Cuando llegue el correo (hasta 30 min), **no** debe aparecer una segunda
-   fila: la existente se completa con el comercio y las cuotas.
-4. Pedirle a Claude que revise en la base el aviso y el movimiento
-   (`notificaciones.estado`, `movimientos.origen`).
-
-Si un aviso queda `cruda`, es un formato que aún no se lee: dejar su texto
-como fixture en `tests/avisos.test.mjs` y sumar el lector.
-
-## 2b. Más formatos de aviso
-
-Faltan las transferencias enviadas de MACH, Copec Pay, Mercado Pago y
-BancoEstado; hace falta un aviso real de cada uno. También el cashback
-depositado de MACH, que se dejó crudo a propósito (hito 0014).
-
-## 3. Más adelante
-
-- **Salir del todo de Apps Script**, por fases y cuando la anterior esté probada:
-  1. los avisos cubren compras y transferencias (hecho, falta verlo con datos reales);
-  2. Fintual, precios (Yahoo) y alertas pasan a funciones de Supabase con
-     programación (`pg_cron`);
-  3. apagar los disparadores y el correo.
+- **Salir de Apps Script salvo para Fintual.** Con los bancos por aviso, al
+  trabajador le quedan los correos de Fintual, los precios (Yahoo) y las
+  alertas. Precios y alertas podrían pasar a funciones de Supabase con
+  `pg_cron`; Fintual sigue necesitando leer Gmail.
 - **No guardar los códigos de validación** que llegan en avisos (Tenpo): hoy
-  quedan crudos en `notificaciones`.
+  quedan en `notificaciones`, marcados ignorados.
 - **Otras cartolas** vistas en el correo: Santander, Prex y Tenpo Inversiones.
   Dejar el PDF en `cartolas/` y su clave en `.env`, y pedir que se agregue
   el formato (skill `agregar-banco`).

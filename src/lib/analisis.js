@@ -353,3 +353,24 @@ export function timbrePorMes(movs, mes, n = 6) {
     return { mes: clave, etiqueta: MESES[Number(clave.slice(5)) - 1], impuesto: r.impuesto, n: r.compras.length }
   })
 }
+
+/* ¿Qué bancos ya llegan por el celular? Sirve para decidir cuáles pasar a
+   «bancos por aviso» en Config (migración 0008). Cuenta, desde `desde`
+   (AAAA-MM-DD), lo que trajo el correo o un aviso:
+   - aviso: vino por aviso, o el correo completó uno (su id está en `avisados`);
+   - soloCorreo: lo trajo el correo y ningún aviso lo reconoció.
+   Lo manual y lo de cartolas no dice nada de los avisos: no cuenta. */
+export function coberturaAvisos(movs, avisados, desde) {
+  const con = new Set(avisados || [])
+  const por = new Map()
+  for (const m of movs || []) {
+    if (String(m.fecha).slice(0, 10) < desde) continue
+    if (m.origen !== 'correo' && m.origen !== 'notificacion') continue
+    const banco = m.banco || '—'
+    const f = por.get(banco) || { banco, aviso: 0, soloCorreo: 0 }
+    if (m.origen === 'notificacion' || con.has(m.id)) f.aviso++
+    else f.soloCorreo++
+    por.set(banco, f)
+  }
+  return [...por.values()].sort((a, b) => b.aviso + b.soloCorreo - (a.aviso + a.soloCorreo) || a.banco.localeCompare(b.banco))
+}

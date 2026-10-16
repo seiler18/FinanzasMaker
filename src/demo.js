@@ -88,6 +88,10 @@ function generar() {
         { id: 1, paquete: 'cl.bancoestado.app', titulo: 'Transferencia recibida', texto: 'Recibiste $20.000 de Mario Demo', recibida: new Date(Date.now() - 864e5).toISOString(), estado: 'cruda' },
       ],
       total: 3,
+      // Dos de cada tres movimientos «llegaron también por aviso»: que la
+      // cobertura por banco tenga algo que mostrar.
+      avisados: movs.filter((_, i) => i % 3).map((m) => m.id),
+      desde: new Date(Date.now() - 30 * 864e5).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }),
     },
   }
 }

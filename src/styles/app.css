@@ -184,6 +184,12 @@ tbody th { font-weight: 500; }
 .vincular { margin: 4px 0 12px; padding: 12px 14px; border: 1px solid var(--borde); border-radius: var(--radio); font-size: var(--txt-menudo); }
 .vincular p { margin: 0 0 8px; }
 
+/* ----- Qué llega por el celular (Ajustes → Celular) ----- */
+.subtitulo { margin: 18px 0 6px; font-size: var(--txt-menudo); font-weight: 600; }
+.tabla-cobertura td:not(:first-child), .tabla-cobertura th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.tabla-cobertura .falta { color: var(--aviso); font-weight: 600; }
+.tabla-cobertura .etiqueta { margin-left: 6px; padding: 1px 8px; border-radius: var(--radio-pildora); background: var(--aviso-tenue); color: var(--aviso); font-size: var(--txt-micro); font-weight: 600; }
+
 /* ----- Diálogo ----- */
 .dialogo { border: 0; border-radius: var(--radio); padding: 0; width: min(100% - 32px, 480px); background: var(--surface); color: var(--texto); box-shadow: var(--sombra); }
 .dialogo::backdrop { background: var(--velo-modal); }

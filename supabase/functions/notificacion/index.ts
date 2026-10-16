@@ -40,15 +40,17 @@ const rpc = (nombre: string, args: Record<string, unknown>) =>
    reenviara. Tampoco registra el contenido en los logs. */
 async function tramitar(clave: string, d: ReturnType<typeof leerCuerpo>): Promise<string> {
   try {
-    const leido = leerAviso({ ...d, recibida: Date.now() })
+    // El contexto va primero: el lector necesita el titular para reconocer
+    // una transferencia a ti mismo (0008).
+    const c = await rpc('contexto_aviso', { _clave: clave })
+    if (!c.ok) throw new Error(`contexto ${c.status}`)
+    const { reglas, titular, externas } = await c.json()
+    const leido = leerAviso({ ...d, recibida: Date.now() }, { titular, externas })
     if (leido === null) return 'cruda'
     let args: Record<string, unknown> = { _clave: clave, _paquete: d.paquete, _titulo: d.titulo, _texto: d.texto }
     if ('ignorar' in leido) {
       args = { ...args, _estado: 'ignorada' }
     } else {
-      const c = await rpc('contexto_aviso', { _clave: clave })
-      if (!c.ok) throw new Error(`contexto ${c.status}`)
-      const { reglas } = await c.json()
       args = { ...args, _estado: 'registrada', _mov: categorizar({ ...leido.mov }, reglas) }
     }
     const r = await rpc('aplicar_aviso', args)

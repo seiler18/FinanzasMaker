@@ -19,8 +19,15 @@ La v2 (hitos 0010 y 0011) tiene tres piezas:
   Escribe con una clave secreta (se salta la RLS) y filtra él por usuario.
 - **Celular: la app FinanzasMaker para Android** (repo privado
   `seiler18/FinanzasMaker-android`, carpeta `../FinanzasMaker-android/`)
-  manda las notificaciones de los bancos a la función `notificacion`;
-  reemplaza a MacroDroid. Por ahora se guardan crudas (relevamiento).
+  manda las notificaciones de los bancos a la función `notificacion`, que las
+  convierte en movimientos (hitos 0014 y 0015). Además muestra **esta misma
+  página** dentro de la app (Trusted Web Activity): lo visual se cambia aquí
+  y llega al celular al publicar, sin otra versión de la app.
+
+**Hacia dónde va (hito 0015): el correo solo para Fintual.** Los bancos pasan
+uno a uno a `bancos_por_aviso` (Config) cuando su cobertura por aviso lo
+permite (Ajustes → Celular). Para esos, el correo ya no crea movimientos: solo
+completa lo que trajo el aviso, y lo que llegue sin aviso va a «Por revisar».
 
 Además, la página lee **cartolas y estados de cuenta en PDF** (Agregar →
 Subir una cartola), en el navegador, para lo que ningún aviso trajo (hito 0012).
@@ -34,8 +41,12 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 |---|---|
 | Esquema: blindaje y registro cerrado, notificaciones, finanzas, inversiones | `supabase/migrations/NNNN_*.sql` |
 | Recepción de notificaciones del celular; lector del cuerpo | `supabase/functions/notificacion/{index.ts,cuerpo.js}` |
-| Avisos del celular → movimientos (lectores por banco; `reglas.js` es copia de `src/lib/reglas.js`) | `supabase/functions/notificacion/{lectores.js,reglas.js}`, tests en `tests/avisos.test.mjs` |
-| Un mismo movimiento por aviso y por correo: `aplicar_aviso` y el trigger `absorber_aviso` | `supabase/migrations/0007_movimientos_desde_avisos.sql` |
+| Avisos del celular → movimientos (lectores por banco, publicidad, Fintual ignorado; `reglas.js` es copia de `src/lib/reglas.js`) | `supabase/functions/notificacion/{lectores.js,reglas.js}`, tests en `tests/avisos.test.mjs` |
+| Un mismo movimiento por aviso y por correo: `aplicar_aviso` → `tramitar_aviso` y el trigger `absorber_aviso` | `supabase/migrations/0007_movimientos_desde_avisos.sql`, redefinidas en `0008_bancos_por_aviso.sql` |
+| Las dos patas de una transferencia entre tus cuentas (`emparejar_aviso`); el correo de un banco en `bancos_por_aviso` va a `revisar` | `supabase/migrations/0008_bancos_por_aviso.sql` |
+| Releer los avisos crudos tras sumar un lector (ensayo por defecto) | `scripts/releer-avisos.mjs` |
+| Qué bancos ya llegan por aviso (Ajustes → Celular) | `coberturaAvisos` en `src/lib/analisis.js`, acción `celular` en `src/lib/datos.js` |
+| ¿La página está dentro de la app Android? (enlace «Estado de la app») | `src/lib/app-android.js` |
 | Ingreso con Google y registro cerrado (lo que sube `config push`) | `supabase/config.toml` (`[auth]`, `[auth.external.google]`) |
 | Trabajador: pasada de correos, disparadores, «Revisar correos ahora», identidad | `backend/Code.gs` (`procesar_`, `borrarDecididos_`, `ACCIONES`, `identidad_`) |
 | Lectores de correos (uno por formato) y red genérica; reglas base | `backend/Lectores.gs` |
@@ -87,6 +98,9 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
    `revisar` y se queda en Gmail hasta que el dueño decide en la página. La
    página **marca** (`borrar_correo`); el trabajador borra en su próxima
    pasada (`borrarDecididos_`). Gmail lo toca solo el trabajador.
+   El correo de un banco en `bancos_por_aviso` que llega sin su aviso sí va a
+   la papelera: no es dudoso, lo leyó un lector, y su movimiento quedó entero
+   en `revisar` (lo desvía la base, `absorber_aviso`, 0008).
 3. **Transferencias entre cuentas propias no suman** (tipo `interna`), ni el
    pago de la tarjeta (`pago_tarjeta`). Se reconocen por `titular`.
    **Excepción: las cuentas externas** (`cuentas_externas`, por defecto
@@ -124,6 +138,8 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
    - Una columna nueva va también en `COLUMNAS`: si no, no se escribe.
 10. **Gemelas que deben calzar** (cada par tiene su prueba):
     - `src/lib/reglas.js` ↔ `categorizar_` ↔ `supabase/functions/notificacion/reglas.js` (copia idéntica: la función no puede importar de `src/`);
+    - `esPropio` (lectores.js) ↔ `esPropio_` (Lectores.gs): el aviso y el
+      correo reconocen al titular igual;
     - `config-base.js` ↔ `CONFIG_BASE`;
     - `src/inversiones/lib/cartera.js` ↔ `costoMovilAcciones_`. El costo
       promedio es **móvil**, el que tenías el día de cada venta;

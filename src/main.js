@@ -12,6 +12,7 @@ import { html, crudo, pintar, $, $$, aviso } from './lib/dom.js'
 import { llamar, modoDemo, onSesionCaducada } from './lib/api.js'
 import { botonIngreso, haySesion, salir } from './lib/sesion.js'
 import { rango, mover, hoyISO } from './lib/analisis.js'
+import { enLaApp } from './lib/app-android.js'
 import { resumen } from './vistas/resumen.js'
 import { movimientos } from './vistas/movimientos.js'
 import { revisar } from './vistas/revisar.js'
@@ -314,6 +315,10 @@ onSesionCaducada(() => {
   aviso('Tu sesión venció, entra de nuevo')
   pantallaIngreso()
 })
+
+// El referrer que deja la app Android solo está en la primera carga: se
+// anota ya, antes de que un ingreso con Google recargue la página.
+enLaApp()
 
 // La sesión de Supabase se lee de sessionStorage (y se renueva si venció):
 // es asíncrono, por eso el arranque espera.

@@ -614,3 +614,138 @@ test('avisos: un movimiento inválido lo rechaza la tabla y el aviso queda crudo
     assert.equal((await sql.query('select estado from notificaciones where usuario = $1', [uid])).rows[0].estado, 'cruda')
   })
 })
+
+// ---------------------------------------------------------------------------
+// Transferencias entre tus cuentas y bancos por aviso (0008)
+// ---------------------------------------------------------------------------
+
+const pata = (banco, tipo, extra = {}) => ({
+  fecha: '2026-10-15 16:55', banco, producto: 'Cuenta', tipo, monto: 180840, contraparte: '', categoria: tipo === 'ingreso' ? 'Ingresos' : 'Otros', cuotas: null, detalle: '', ...extra,
+})
+const movsDe = async (uid) => (await sql.query('select banco, tipo, contraparte, categoria, detalle from movimientos where usuario = $1 order by banco', [uid])).rows
+
+test('contexto_aviso: devuelve el titular y las cuentas externas de Config, o vacío', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    let c = (await sql.query('select contexto_aviso($1) as c', [clave])).rows[0].c
+    assert.deepEqual(c, { reglas: [], titular: '', externas: '' })
+    await sql.query("insert into config (usuario, clave, valor) values ($1, 'titular', 'Ana Demo'), ($1, 'cuentas_externas', 'Mercado Pago')", [uid])
+    c = (await sql.query('select contexto_aviso($1) as c', [clave])).rows[0].c
+    assert.equal(c.titular, 'Ana Demo')
+    assert.equal(c.externas, 'Mercado Pago')
+  })
+})
+
+test('emparejar: la interna «Hacia MACH» de BancoEstado vuelve interna el ingreso sin remitente de MACH, en cualquier orden', async () => {
+  for (const orden of [['sale', 'entra'], ['entra', 'sale']]) {
+    const { uid, clave } = await celular()
+    await como('servicio', async () => {
+      for (const p of orden) {
+        if (p === 'sale') await aviso(clave, 'be', pata('BancoEstado', 'interna', { contraparte: 'Ana Demo', categoria: 'Entre mis cuentas', detalle: 'Hacia MACH' }))
+        else await aviso(clave, 'mach', pata('MACH', 'ingreso', { fecha: '2026-10-15 16:56' }))
+      }
+      assert.deepEqual(await movsDe(uid), [
+        { banco: 'BancoEstado', tipo: 'interna', contraparte: 'Ana Demo', categoria: 'Entre mis cuentas', detalle: 'Hacia MACH' },
+        { banco: 'MACH', tipo: 'interna', contraparte: 'Entre mis cuentas', categoria: 'Entre mis cuentas', detalle: 'Desde BancoEstado' },
+      ], orden.join(' → '))
+    })
+  }
+})
+
+test('emparejar: un gasto sin destinatario y un ingreso sin remitente en otro banco son la misma transferencia', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await aviso(clave, 'tenpo', pata('Tenpo', 'gasto'))
+    await aviso(clave, 'mach', pata('MACH', 'ingreso', { fecha: '2026-10-15 17:01' }))
+    assert.deepEqual((await movsDe(uid)).map((m) => [m.banco, m.tipo, m.detalle]), [['MACH', 'interna', 'Desde Tenpo'], ['Tenpo', 'interna', 'Hacia MACH']])
+  })
+})
+
+test('emparejar: mismo banco, otro monto, con destinatario o a más de 10 minutos, no se juntan', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await aviso(clave, 'a', pata('Tenpo', 'gasto'))
+    await aviso(clave, 'b', pata('Tenpo', 'ingreso'))
+    await aviso(clave, 'c', pata('MACH', 'ingreso', { monto: 180841 }))
+    await aviso(clave, 'd', pata('MACH', 'ingreso', { fecha: '2026-10-15 17:06' }))
+    await aviso(clave, 'e', pata('Copec Pay', 'gasto', { contraparte: 'Mario Demo', fecha: '2026-10-15 17:05' }))
+    const tipos = (await sql.query('select tipo from movimientos where usuario = $1', [uid])).rows.map((r) => r.tipo)
+    assert.ok(!tipos.includes('interna'), tipos.join(','))
+  })
+})
+
+test('emparejar: una interna ya emparejada no se usa dos veces, ni toca lo que vino por correo', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await aviso(clave, 'be', pata('BancoEstado', 'interna', { contraparte: 'Ana Demo', detalle: 'Hacia MACH' }))
+    await aviso(clave, 'mach 1', pata('MACH', 'ingreso'))
+    await aviso(clave, 'mach 2', pata('MACH', 'ingreso', { fecha: '2026-10-15 16:57' }))
+    const mach = (await sql.query("select tipo from movimientos where usuario = $1 and banco = 'MACH' order by fecha", [uid])).rows.map((r) => r.tipo)
+    assert.deepEqual(mach, ['interna', 'ingreso'])
+
+    // Un ingreso por correo sin contraparte no se empareja: el correo ya decidió.
+    await filaCorreo(uid, { banco: 'Tenpo', producto: 'Cuenta', tipo: 'ingreso', monto: 5000, contraparte: '', categoria: 'Ingresos', cuotas: null, fecha: '2026-10-15 18:00', gmail_id: 'g9' })
+    await aviso(clave, 'mach 3', pata('MACH', 'gasto', { monto: 5000, fecha: '2026-10-15 18:01' }))
+    assert.equal((await sql.query("select tipo from movimientos where usuario = $1 and banco = 'Tenpo'", [uid])).rows[0].tipo, 'ingreso')
+  })
+})
+
+test('avisos: el correo completa una interna que vino por aviso, sin duplicarla', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await aviso(clave, 'be', pata('BancoEstado', 'interna', { contraparte: 'Ana Demo', detalle: 'Hacia MACH' }))
+    await filaCorreo(uid, { fecha: '2026-10-15 16:55', banco: 'BancoEstado', producto: 'Cuenta', tipo: 'interna', monto: 180840, contraparte: 'Ana Demo Pérez', categoria: 'Entre mis cuentas', cuotas: null })
+    const { rows } = await sql.query('select origen, contraparte from movimientos where usuario = $1', [uid])
+    assert.deepEqual(rows, [{ origen: 'correo', contraparte: 'Ana Demo Pérez' }])
+  })
+})
+
+test('bancos_por_aviso: el correo sin aviso va a «Por revisar»; con aviso lo completa; otro banco entra igual', async () => {
+  const { uid, clave } = await celular()
+  await sql.query("insert into config (usuario, clave, valor) values ($1, 'bancos_por_aviso', ' mach , Tenpo')", [uid])
+  await como('servicio', async () => {
+    // Con su aviso: lo completa, como siempre.
+    await aviso(clave, 'compra 1', MACH_COMPRA)
+    await filaCorreo(uid, { gmail_id: 'g1' })
+    // Sin aviso: no entra; queda para decidir.
+    await filaCorreo(uid, { gmail_id: 'g2', monto: 1990, contraparte: 'KIOSCO', categoria: 'Otros', cuotas: 3 })
+    // Un banco que no está en la lista entra como siempre.
+    await filaCorreo(uid, { gmail_id: 'g3', banco: 'Copec Pay', producto: 'Cuenta', cuotas: null })
+
+    const movs = (await sql.query('select banco, origen, gmail_id from movimientos where usuario = $1 order by gmail_id', [uid])).rows
+    assert.deepEqual(movs, [{ banco: 'MACH', origen: 'correo', gmail_id: 'g1' }, { banco: 'Copec Pay', origen: 'correo', gmail_id: 'g3' }])
+    const rev = (await sql.query('select gmail_id, monto, estado, asunto, extracto from revisar where usuario = $1', [uid])).rows
+    assert.equal(rev.length, 1)
+    assert.equal(rev[0].gmail_id, 'g2')
+    assert.equal(rev[0].monto, '1990')
+    assert.equal(rev[0].estado, 'pendiente')
+    assert.equal(rev[0].asunto, 'MACH · KIOSCO')
+    assert.match(rev[0].extracto, /3 cuotas/)
+  })
+})
+
+test('bancos_por_aviso: lo que el dueño registra desde «Por revisar» sí entra', async () => {
+  const uid = await crearUsuario()
+  await sql.query("insert into config (usuario, clave, valor) values ($1, 'bancos_por_aviso', 'MACH')", [uid])
+  await sql.query("insert into revisar (usuario, gmail_id, fecha) values ($1, 'g1', '2026-10-15 12:00')", [uid])
+  await como(uid, async () => {
+    const m = { fecha: '2026-10-15 12:00', tipo: 'gasto', monto: 1990, contraparte: 'KIOSCO', categoria: 'Otros', banco: 'MACH' }
+    const { rows: [{ id }] } = await sql.query("select decidir_revisar('g1', 'registrar', $1) as id", [m])
+    assert.equal((await sql.query('select origen from movimientos where id = $1', [id])).rows[0].origen, 'correo')
+  })
+})
+
+test('tramitar_aviso: solo la clave de servicio; tramita por id solo lo crudo', async () => {
+  const { uid, clave } = await celular()
+  await como(uid, async () => {
+    assert.equal((await falla("select tramitar_aviso(1, 'ignorada')"))?.code, '42501')
+    assert.equal((await falla("select emparejar_aviso('x')"))?.code, '42501')
+  })
+  await como('servicio', async () => {
+    assert.equal((await falla("select emparejar_aviso('x')"))?.code, '42501')
+    await sql.query('select registrar_notificacion($1, $2, $3, $4, $5)', [clave, 'cl.bci.sismo.mach', 'MACHBANK', 'vieja', ''])
+    const id = (await sql.query('select id from notificaciones where usuario = $1', [uid])).rows[0].id
+    assert.equal((await sql.query('select tramitar_aviso($1, $2, $3) as r', [id, 'registrada', JSON.stringify(MACH_COMPRA)])).rows[0].r, 'nueva')
+    assert.equal((await sql.query('select tramitar_aviso($1, $2) as r', [id, 'ignorada'])).rows[0].r, 'sin-aviso', 'ya no está cruda')
+  })
+})

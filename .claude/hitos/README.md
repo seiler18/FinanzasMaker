@@ -13,7 +13,8 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
-| [0014](0014-movimientos-desde-los-avisos.md) | 2026-10-14 | Los avisos del celular ya son movimientos | desplegado el 2026-10-14; falta verlo con una compra real |
+| [0015](0015-bancos-por-aviso-y-la-app-muestra-la-pagina.md) | 2026-10-16 | Bancos por aviso, transferencias entre tus cuentas y la página dentro de la app | escrito y probado; falta desplegar la 0008 y publicar la app v0.2.0 |
+| [0014](0014-movimientos-desde-los-avisos.md) | 2026-10-14 | Los avisos del celular ya son movimientos | desplegado; comprobado con compras reales el 2026-10-16 (hito 0015) |
 | [0013](0013-despliegue-de-la-0006-y-app-en-uso.md) | 2026-10-14 | La 0006 desplegada y la app Android en uso | completado; faltan las cartolas de cuenta y los lectores |
 | [0012](0012-cartolas-y-app-android.md) | 2026-10-14 | Cartolas en PDF, la hora del aviso y la app Android | completado en el 0013 |
 | [0011](0011-v2-supabase-inversiones-y-trabajador.md) | 2026-10-12 | La v2 completa: la página en Supabase, Inversiones adentro y el trabajador | migrado y publicado |
