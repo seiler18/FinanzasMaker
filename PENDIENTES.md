@@ -27,12 +27,13 @@ como «entre mis cuentas» en los dos bancos. Los crudos viejos de MACH y Tenpo
 el trabajador no la usa, así que se puede pegar en la próxima pasada de
 `desplegar-backend`, sin apuro.
 
-## 2. Publicar la app v0.2.0 (la página dentro de la app)
+## 2. Instalar la app v0.2.0 (la página dentro de la app)
 
-1. Publicar el hub (`seiler18.github.io`) con `assetlinks.json` y comprobar que
-   `https://seiler18.github.io/.well-known/assetlinks.json` responde 200.
-2. En `FinanzasMaker-android`: skill `publicar-version` (tag `v0.2.0`).
-3. En el celular: instalar el APK **encima** desde Releases. Revisar:
+Publicada el 2026-10-16 (Release `v0.2.0`). `assetlinks.json` responde 200 y
+la API de Digital Asset Links de Google ya lista el paquete con la huella de
+la firma.
+
+En el celular: instalar el APK **encima** desde Releases. Revisar:
    - el ícono abre la página, sin barra de URL;
    - mantener presionado el ícono → «Avisos» abre la pantalla propia;
    - en la página, Ajustes → Celular → «Estado de la app» también;
