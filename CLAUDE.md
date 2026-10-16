@@ -44,7 +44,8 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 | Avisos del celular → movimientos (lectores por banco, publicidad, Fintual ignorado; `reglas.js` es copia de `src/lib/reglas.js`) | `supabase/functions/notificacion/{lectores.js,reglas.js}`, tests en `tests/avisos.test.mjs` |
 | Un mismo movimiento por aviso y por correo: `aplicar_aviso` → `tramitar_aviso` y el trigger `absorber_aviso` | `supabase/migrations/0007_movimientos_desde_avisos.sql`, redefinidas en `0008_bancos_por_aviso.sql` |
 | Las dos patas de una transferencia entre tus cuentas (`emparejar_aviso`); el correo de un banco en `bancos_por_aviso` va a `revisar` | `supabase/migrations/0008_bancos_por_aviso.sql` |
-| Releer los avisos crudos tras sumar un lector (ensayo por defecto) | `scripts/releer-avisos.mjs` |
+| La otra pata que trajo el correo (Copec Pay no avisa); el correo sin hora (00:00) se compara por día (`cerca`) | `supabase/migrations/0009_parejas_con_el_correo.sql` |
+| Releer los avisos crudos tras sumar un lector (ensayo por defecto; `--ignorar` lo que el correo ya trajo de otra forma) | `scripts/releer-avisos.mjs` |
 | Qué bancos ya llegan por aviso (Ajustes → Celular) | `coberturaAvisos` en `src/lib/analisis.js`, acción `celular` en `src/lib/datos.js` |
 | ¿La página está dentro de la app Android? (enlace «Estado de la app») | `src/lib/app-android.js` |
 | Ingreso con Google y registro cerrado (lo que sube `config push`) | `supabase/config.toml` (`[auth]`, `[auth.external.google]`) |

@@ -749,3 +749,70 @@ test('tramitar_aviso: solo la clave de servicio; tramita por id solo lo crudo', 
     assert.equal((await sql.query('select tramitar_aviso($1, $2) as r', [id, 'ignorada'])).rows[0].r, 'sin-aviso', 'ya no está cruda')
   })
 })
+
+// ---------------------------------------------------------------------------
+// La otra pata por correo y los correos sin hora (0009)
+// ---------------------------------------------------------------------------
+
+// Copec Pay no avisa al celular: su pata llega por correo, la de MACH por aviso.
+const correoCopec = (uid, extra = {}) => filaCorreo(uid, {
+  fecha: '2026-10-14 07:43', banco: 'Copec Pay', producto: 'Cuenta', tipo: 'interna', monto: 640,
+  contraparte: 'Ana Demo', categoria: 'Entre mis cuentas', cuotas: null, gmail_id: 'g640', ...extra,
+})
+
+test('emparejar con el correo: el ingreso de MACH por aviso es interna si el correo trajo la pata de Copec Pay, en los dos órdenes', async () => {
+  for (const primero of ['correo', 'aviso']) {
+    const { uid, clave } = await celular()
+    await como('servicio', async () => {
+      const av = () => aviso(clave, 'mach 640', pata('MACH', 'ingreso', { fecha: '2026-10-14 07:44', monto: 640 }))
+      if (primero === 'correo') { await correoCopec(uid); await av() } else { await av(); await correoCopec(uid) }
+      const filas = (await sql.query('select banco, tipo, contraparte, detalle, origen from movimientos where usuario = $1 order by banco', [uid])).rows
+      assert.deepEqual(filas, [
+        { banco: 'Copec Pay', tipo: 'interna', contraparte: 'Ana Demo', detalle: '', origen: 'correo' },
+        { banco: 'MACH', tipo: 'interna', contraparte: 'Entre mis cuentas', detalle: 'Desde Copec Pay', origen: 'notificacion' },
+      ], `primero el ${primero}`)
+    })
+  }
+})
+
+test('emparejar con el correo: una interna del correo sirve para un solo aviso, y otro monto no se toca', async () => {
+  const { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await correoCopec(uid)
+    await aviso(clave, 'mach 1', pata('MACH', 'ingreso', { fecha: '2026-10-14 07:43', monto: 640 }))
+    await aviso(clave, 'mach 2', pata('MACH', 'ingreso', { fecha: '2026-10-14 07:45', monto: 640 }))
+    await aviso(clave, 'mach 3', pata('MACH', 'ingreso', { fecha: '2026-10-14 07:44', monto: 641 }))
+    // Un aviso del MISMO banco que el correo es su gemelo (0007), no otra pata.
+    assert.equal(await aviso(clave, 'copec', pata('Copec Pay', 'ingreso', { fecha: '2026-10-14 07:44', monto: 640 })), 'ya-estaba')
+    const tipos = (await sql.query("select banco, monto, tipo from movimientos where usuario = $1 and origen = 'notificacion' order by fecha, banco", [uid])).rows
+      .map((r) => `${r.banco} ${r.monto} ${r.tipo}`)
+    assert.deepEqual(tipos, ['MACH 640 interna', 'MACH 641 ingreso', 'MACH 640 ingreso'])
+  })
+})
+
+test('correo sin hora (00:00): el aviso del mismo día lo reconoce en los dos órdenes; el de otro día no', async () => {
+  const transferencia = { fecha: '2026-10-14 00:00', banco: 'Tenpo', producto: 'Cuenta', tipo: 'interna', monto: 8000, contraparte: 'Ana Demo', categoria: 'Entre mis cuentas', cuotas: null }
+  const avisoTenpo = pata('Tenpo', 'gasto', { fecha: '2026-10-14 12:38', monto: 8000 })
+
+  let { uid, clave } = await celular()
+  await como('servicio', async () => {
+    await filaCorreo(uid, transferencia)
+    assert.equal(await aviso(clave, 'tenpo', avisoTenpo), 'ya-estaba')
+    assert.equal((await sql.query('select 1 from movimientos where usuario = $1', [uid])).rowCount, 1)
+  })
+
+  ;({ uid, clave } = await celular())
+  await como('servicio', async () => {
+    await aviso(clave, 'tenpo', avisoTenpo)
+    await filaCorreo(uid, transferencia)
+    const { rows } = await sql.query('select fecha, tipo, origen from movimientos where usuario = $1', [uid])
+    // Se queda con la hora del aviso: la del correo era solo el día.
+    assert.deepEqual(rows, [{ fecha: '2026-10-14 12:38', tipo: 'interna', origen: 'correo' }])
+  })
+
+  ;({ uid, clave } = await celular())
+  await como('servicio', async () => {
+    await filaCorreo(uid, { ...transferencia, fecha: '2026-10-13 00:00' })
+    assert.equal(await aviso(clave, 'tenpo', avisoTenpo), 'nueva')
+  })
+})

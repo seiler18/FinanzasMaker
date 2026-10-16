@@ -3,25 +3,30 @@
 Lo que queda por hacer a mano o por decidir (hitos 0013 a 0015). Se tacha y se
 borra cuando esté hecho. El repo es público: aquí no van claves.
 
-## 1. Desplegar la 0008 y la función (hito 0015)
+## 1. Desplegar la 0009 y releer los avisos crudos (hito 0016)
 
-En este orden (la función nueva pide a la base el titular, que da la 0008):
+La 0008 y la función ya están desplegadas (2026-10-16). Falta la 0009 (la
+función no cambia):
 
 ```
 npx supabase db push
-npx supabase functions deploy notificacion
 ```
 
-Después, releer los avisos crudos con los lectores nuevos:
+Después, releer los avisos crudos. El ensayo primero: los «nueva» se cruzan
+con lo que trajo el correo antes de aplicar.
 
 ```
-node scripts/releer-avisos.mjs             # ensayo: dice qué haría, no cambia nada
-node scripts/releer-avisos.mjs --aplicar
+node scripts/releer-avisos.mjs                         # ensayo
+node scripts/releer-avisos.mjs --aplicar --ignorar 11
 ```
 
-La transferencia BancoEstado → MACH del 2026-10-15 ($180.840) debe quedar
-como «entre mis cuentas» en los dos bancos. Los crudos viejos de MACH y Tenpo
-(del 12 al 14 de octubre) deberían salir «ya-estaba»: el correo ya los trajo.
+Lo esperado:
+- la transferencia BancoEstado → MACH del 2026-10-15 ($180.840) queda como
+  «entre mis cuentas» en los dos bancos;
+- MACH $319, $640 y $680 quedan como interna «Desde Copec Pay»;
+- Tenpo $8.000 sale «ya-estaba»;
+- la compra Tenpo de $14.748 del 14 de octubre entra (ningún correo la trajo);
+- el #11 (MACH $5.000) se ignora: el correo ya lo trajo como «Bci».
 
 `backend/Code.gs` cambió solo en `CONFIG_BASE` (la clave `bancos_por_aviso`):
 el trabajador no la usa, así que se puede pegar en la próxima pasada de
