@@ -16,8 +16,8 @@ el trabajador no la usa, así que se puede pegar en la próxima pasada de
 ## 2. La app v0.4.0: Agregar, Por revisar, Cuotas y editar (hito 0018)
 
 La v0.3.0 está publicada y en uso desde el 2026-10-17 (cliente OAuth Android
-creado ese día). La v0.4.0 está probada en el PC. Al publicarla, instalarla
-**encima** desde Releases y probar en el celular:
+creado ese día). La v0.4.0 está publicada (Release `v0.4.0`, misma firma):
+instalarla **encima** desde Releases y probar en el celular:
 
 - anotar un gasto en Agregar y verlo aquí, en Movimientos;
 - corregir una categoría con «Aplicar a todo lo de…» y ver la regla aquí;
