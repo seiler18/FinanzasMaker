@@ -13,18 +13,26 @@ de MACH (a propósito) y la prueba de conexión de la app.
 el trabajador no la usa, así que se puede pegar en la próxima pasada de
 `desplegar-backend`, sin apuro.
 
-## 2. Instalar la app v0.2.0 (la página dentro de la app)
+## 2. La app v0.3.0: pantallas propias (hito 0017)
 
-Publicada el 2026-10-16 (Release `v0.2.0`). `assetlinks.json` responde 200 y
-la API de Digital Asset Links de Google ya lista el paquete con la huella de
-la firma.
+Escrita y probada en el PC el 2026-10-17; no publicada. La v0.2.0 abría
+esta página en el navegador (Edge en el celular); la v0.3.0 entra con Google
+de forma nativa y dibuja el resumen, los movimientos y los consejos.
 
-En el celular: instalar el APK **encima** desde Releases. Revisar:
-   - el ícono abre la página, sin barra de URL;
-   - mantener presionado el ícono → «Avisos» abre la pantalla propia;
-   - en la página, Ajustes → Celular → «Estado de la app» también;
-   - atrás desde la página cierra la app;
-   - los avisos siguen llegando (Ajustes → Celular).
+1. **Google Cloud, una vez:** en el proyecto del cliente web, crear un «ID de
+   cliente de OAuth» tipo **Android**, paquete
+   `io.github.seiler18.finanzasmaker`, SHA-1
+   `04:17:6E:0E:31:FC:B1:6A:CF:D0:2B:24:F9:0D:52:BD:FD:14:93:CC` (la firma de
+   Releases). Sin esto la app no puede entrar. Detalle en el README de la app.
+2. Publicar la v0.3.0 (skill `publicar-version` de la app) e instalarla
+   **encima** desde Releases.
+3. En el celular:
+   - «Continuar con Google» abre la hoja de cuentas y entra;
+   - el resumen de octubre da las mismas cifras que esta página;
+   - Movimientos, Consejos y el detalle de cada tarjeta;
+   - Ajustes: los pasos en verde; si la clave falta, «Vincular este celular»;
+   - mantener presionado el ícono → «Avisos» abre Ajustes;
+   - los avisos siguen llegando (aquí, Ajustes → Celular).
 
 ## 3. Apagar el correo, banco por banco
 

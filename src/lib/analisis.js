@@ -10,7 +10,10 @@
    - inversion (aporte), rescate  → «Invertido neto», aparte: no es gastar
    - interna, pago_tarjeta        → no suman nada. Una transferencia entre
      tus cuentas no es plata que entra ni que sale, y el pago de la tarjeta
-     paga compras que ya se contaron el día que se hicieron. */
+     paga compras que ya se contaron el día que se hicieron.
+
+   Gemela: nucleo/Analisis.kt de la app Android (FinanzasMaker-android). Un
+   cambio aquí se copia allá con su caso en AnalisisTest (CLAUDE.md, regla 10). */
 
 export const TIPOS = {
   gasto: 'Gasto', ingreso: 'Ingreso', interna: 'Entre mis cuentas',

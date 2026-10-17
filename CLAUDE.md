@@ -20,9 +20,12 @@ La v2 (hitos 0010 y 0011) tiene tres piezas:
 - **Celular: la app FinanzasMaker para Android** (repo privado
   `seiler18/FinanzasMaker-android`, carpeta `../FinanzasMaker-android/`)
   manda las notificaciones de los bancos a la función `notificacion`, que las
-  convierte en movimientos (hitos 0014 y 0015). Además muestra **esta misma
-  página** dentro de la app (Trusted Web Activity): lo visual se cambia aquí
-  y llega al celular al publicar, sin otra versión de la app.
+  convierte en movimientos (hitos 0014 y 0015). Desde su v0.3.0 (hito 0017)
+  tiene **pantallas propias**: entra con Google de forma nativa, lee la base
+  con esa sesión (la misma RLS) y dibuja el resumen, los movimientos y los
+  consejos con sus propios cálculos, gemelos de los de aquí (regla 10). Lo
+  que escribe en la base (anotar, editar, revisar, cartolas) sigue solo en
+  la página.
 
 **Hacia dónde va (hito 0015): el correo solo para Fintual.** Los bancos pasan
 uno a uno a `bancos_por_aviso` (Config) cuando su cobertura por aviso lo
@@ -47,7 +50,7 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 | La otra pata que trajo el correo (Copec Pay no avisa); el correo sin hora (00:00) se compara por día (`cerca`) | `supabase/migrations/0009_parejas_con_el_correo.sql` |
 | Releer los avisos crudos tras sumar un lector (ensayo por defecto; `--ignorar` lo que el correo ya trajo de otra forma) | `scripts/releer-avisos.mjs` |
 | Qué bancos ya llegan por aviso (Ajustes → Celular) | `coberturaAvisos` en `src/lib/analisis.js`, acción `celular` en `src/lib/datos.js` |
-| ¿La página está dentro de la app Android? (enlace «Estado de la app») | `src/lib/app-android.js` |
+| ¿La página está dentro de la app Android? (enlace «Estado de la app»). Sin uso desde la app v0.3.0, que ya no abre la página | `src/lib/app-android.js` |
 | Ingreso con Google y registro cerrado (lo que sube `config push`) | `supabase/config.toml` (`[auth]`, `[auth.external.google]`) |
 | Trabajador: pasada de correos, disparadores, «Revisar correos ahora», identidad | `backend/Code.gs` (`procesar_`, `borrarDecididos_`, `ACCIONES`, `identidad_`) |
 | Lectores de correos (uno por formato) y red genérica; reglas base | `backend/Lectores.gs` |
@@ -144,6 +147,13 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
     - `config-base.js` ↔ `CONFIG_BASE`;
     - `src/inversiones/lib/cartera.js` ↔ `costoMovilAcciones_`. El costo
       promedio es **móvil**, el que tenías el día de cada venta;
+    - `src/lib/analisis.js`, `variacion` y `filasCabina` (resumen.js) y
+      `src/lib/formato.js` ↔ `nucleo/Analisis.kt`, `Cabina.kt` y
+      `Formato.kt` de la app Android (otro repo, `AnalisisTest` repite los
+      casos de `tests/analisis.test.mjs`). Un cambio en qué suma, qué es un
+      gasto grande o cuándo sale un consejo se copia allá; si no, la app y la
+      página muestran cifras distintas. Las columnas de `movimientos` que lee
+      la app están en `Movimiento.COLUMNAS`: renombrar una la rompe;
     - `src/demo.js` ↔ `datos.js`;
     - `src/inversiones/demo.js` ↔ el contrato v1.
 11. **No gastar las cuotas de Google.** Disparador de correos cada 30 min, 1,5

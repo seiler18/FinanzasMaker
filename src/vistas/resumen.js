@@ -16,7 +16,8 @@ const ANTERIOR = { dia: 'el día anterior', mes: 'el mes anterior', año: 'el a�
 /* Cuánto cambió una cifra frente al periodo anterior. `buenoSubiendo`: para
    los ingresos subir es bueno; para los gastos, malo. Sin base de
    comparación (el periodo anterior estaba en cero) no se inventa un
-   porcentaje infinito: simplemente no hay chip. */
+   porcentaje infinito: simplemente no hay chip.
+   Gemela, con filasCabina: nucleo/Cabina.kt de la app Android (CLAUDE.md, regla 10). */
 function variacion(actual, antes, buenoSubiendo) {
   if (!antes) return null
   const p = (actual - antes) / Math.abs(antes)

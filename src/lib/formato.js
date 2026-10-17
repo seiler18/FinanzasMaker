@@ -1,3 +1,4 @@
+// Gemela: nucleo/Formato.kt de la app Android (CLAUDE.md, regla 10).
 const PESOS = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
 
 export const clp = (n) => PESOS.format(Math.round(Number(n) || 0))
