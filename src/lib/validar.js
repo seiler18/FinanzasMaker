@@ -2,7 +2,8 @@
    backend/Code.gs (validarMov_, texto_, enteroPositivo_, fechaValida_) y la
    aplicaba el backend; ahora la página escribe directo en Supabase y valida
    aquí. La base repite lo esencial con CHECK (formato de fecha, tipo, monto),
-   así que un error aquí no deja entrar basura: solo da un mensaje peor. */
+   así que un error aquí no deja entrar basura: solo da un mensaje peor.
+   Gemela: nucleo/Validar.kt de la app Android (CLAUDE.md, regla 10). */
 import { TIPOS, categorizar } from './reglas.js'
 
 export class ErrorValidacion extends Error {}

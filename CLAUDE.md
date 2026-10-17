@@ -23,9 +23,10 @@ La v2 (hitos 0010 y 0011) tiene tres piezas:
   convierte en movimientos (hitos 0014 y 0015). Desde su v0.3.0 (hito 0017)
   tiene **pantallas propias**: entra con Google de forma nativa, lee la base
   con esa sesión (la misma RLS) y dibuja el resumen, los movimientos y los
-  consejos con sus propios cálculos, gemelos de los de aquí (regla 10). Lo
-  que escribe en la base (anotar, editar, revisar, cartolas) sigue solo en
-  la página.
+  consejos con sus propios cálculos, gemelos de los de aquí (regla 10).
+  Desde la v0.4.0 (hito 0018) también escribe: anotar, editar, eliminar y
+  decidir «Por revisar», con copias de `reglas.js` y `validar.js`. Las
+  cartolas, los presupuestos, Config e Inversiones siguen solo aquí.
 
 **Hacia dónde va (hito 0015): el correo solo para Fintual.** Los bancos pasan
 uno a uno a `bancos_por_aviso` (Config) cuando su cobertura por aviso lo
@@ -154,6 +155,10 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
       gasto grande o cuándo sale un consejo se copia allá; si no, la app y la
       página muestran cifras distintas. Las columnas de `movimientos` que lee
       la app están en `Movimiento.COLUMNAS`: renombrar una la rompe;
+    - `src/lib/reglas.js` y `src/lib/validar.js` ↔ `nucleo/Reglas.kt` y
+      `nucleo/Validar.kt` de la app (`EscrituraTest`), y `ACCIONES` de
+      `datos.js` (agregar, editar, eliminar, revisar) ↔ `Tablero.kt`: la app
+      escribe con la misma validación y las mismas reglas;
     - `src/demo.js` ↔ `datos.js`;
     - `src/inversiones/demo.js` ↔ el contrato v1.
 11. **No gastar las cuotas de Google.** Disparador de correos cada 30 min, 1,5
