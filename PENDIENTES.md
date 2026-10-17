@@ -15,7 +15,8 @@ el trabajador no la usa, así que se puede pegar en la próxima pasada de
 
 ## 2. La app v0.3.0: pantallas propias (hito 0017)
 
-Escrita y probada en el PC el 2026-10-17; no publicada. La v0.2.0 abría
+Publicada el 2026-10-17 (Release `v0.3.0`, misma firma que la v0.2.0: se
+instala encima). La v0.2.0 abría
 esta página en el navegador (Edge en el celular); la v0.3.0 entra con Google
 de forma nativa y dibuja el resumen, los movimientos y los consejos.
 
@@ -24,8 +25,7 @@ de forma nativa y dibuja el resumen, los movimientos y los consejos.
    `io.github.seiler18.finanzasmaker`, SHA-1
    `04:17:6E:0E:31:FC:B1:6A:CF:D0:2B:24:F9:0D:52:BD:FD:14:93:CC` (la firma de
    Releases). Sin esto la app no puede entrar. Detalle en el README de la app.
-2. Publicar la v0.3.0 (skill `publicar-version` de la app) e instalarla
-   **encima** desde Releases.
+2. Instalarla **encima** desde Releases (`FinanzasMaker-0.3.0.apk`).
 3. En el celular:
    - «Continuar con Google» abre la hoja de cuentas y entra;
    - el resumen de octubre da las mismas cifras que esta página;

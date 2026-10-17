@@ -13,7 +13,7 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
-| [0017](0017-la-app-android-con-pantallas-propias.md) | 2026-10-17 | La app Android deja de abrir la página: pantallas propias | app v0.3.0 probada en el PC; falta el cliente Android en Google Cloud y publicarla |
+| [0017](0017-la-app-android-con-pantallas-propias.md) | 2026-10-17 | La app Android deja de abrir la página: pantallas propias | app v0.3.0 publicada el 2026-10-17; falta el cliente Android en Google Cloud y verla en el celular |
 | [0016](0016-la-otra-pata-por-correo-y-correos-sin-hora.md) | 2026-10-16 | La otra pata por correo y los correos sin hora | desplegado y releído el 2026-10-16 |
 | [0015](0015-bancos-por-aviso-y-la-app-muestra-la-pagina.md) | 2026-10-16 | Bancos por aviso, transferencias entre tus cuentas y la página dentro de la app | desplegado el 2026-10-16 (0008, función, página, app v0.2.0) |
 | [0014](0014-movimientos-desde-los-avisos.md) | 2026-10-14 | Los avisos del celular ya son movimientos | desplegado; comprobado con compras reales el 2026-10-16 (hito 0015) |
