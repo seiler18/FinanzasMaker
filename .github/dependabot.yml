@@ -22,6 +22,12 @@ updates:
     groups:
       menores-y-parches:
         update-types: [minor, patch]
+    ignore:
+      # Las pruebas de `test:base` imitan a Supabase, que corre Postgres 17: con
+      # el embedded-postgres de otra mayor probarían contra una base distinta a la
+      # de producción. Se sube cuando Supabase suba.
+      - dependency-name: embedded-postgres
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
