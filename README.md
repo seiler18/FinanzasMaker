@@ -1,23 +1,31 @@
 # FinanzasMaker
 
 Tus gastos, ingresos e inversiones por día, mes y año, **leídos solos de lo que
-te avisan tus bancos**: los correos de aviso y, en el celular, las
-notificaciones de sus apps. No le das tus claves bancarias a nadie.
+te avisan tus bancos**: las notificaciones de sus apps en el celular y, para lo
+que aún no avisa así, los correos de aviso. No le das tus claves bancarias a
+nadie.
 
-Dos páginas, un proyecto:
+Tres piezas, un proyecto: dos páginas y una app.
 
 - **Finanzas** (`/FinanzasMaker/`): gastos, ingresos, presupuestos, cuotas y consejos.
 - **Inversiones** (`/FinanzasMaker/inversiones/`): la cartera de acciones de
   Fintual, con costo promedio móvil, resultado y dividendos. Era
   [gestor-acciones](https://github.com/seiler18/gestor-acciones).
 
-Sin sesión, las dos abren en **modo demo** con datos inventados.
+- **La app del celular** ([FinanzasMaker para Android](https://github.com/seiler18/FinanzasMaker-android),
+  repo privado): escucha las notificaciones de los bancos y las manda a la base,
+  y desde la v0.3.0 lleva tus finanzas en pantallas propias (resumen,
+  movimientos, consejos y cuotas); desde la v0.4.0 también anota, edita y decide
+  lo que queda por revisar. Es la entrada principal de datos.
+
+Sin sesión, las dos páginas abren en **modo demo** con datos inventados.
 
 ## Cómo está armado (v2)
 
 ```
-Gmail ───► trabajador (Apps Script: cada 30 min, 1 h y 4 h) ──┐
-Celular ─► MacroDroid ─► función «notificacion» (Supabase) ────┼─► Supabase (Postgres + RLS) ◄── las dos páginas
+Celular ─► app Android ─► función «notificacion» (Supabase) ──┐
+Gmail ───► trabajador (Apps Script: cada 30 min, 1 h y 4 h) ──┼─► Supabase (Postgres + RLS) ◄── las dos páginas
+                                                              │                              ◄── la app (pantallas propias)
 ```
 
 - **Base:** un proyecto de Supabase (plan gratis). La clave pública que va en la
@@ -25,13 +33,16 @@ Celular ─► MacroDroid ─► función «notificacion» (Supabase) ───�
   privilegios. Solo los correos de la tabla `permitidos` pueden crear cuenta.
 - **Página:** Vite sin framework en GitHub Pages. Entra con *Iniciar sesión con
   Google* y lee y escribe directo en la base.
+- **Celular:** la app Android manda cada notificación de los bancos a la función
+  `notificacion`, que la convierte en movimiento (ver abajo). Los bancos van
+  pasando uno a uno a `bancos_por_aviso` (Ajustes → Celular): para esos, el
+  correo ya no crea movimientos, solo completa lo que trajo el aviso.
 - **Trabajador:** un Google Apps Script dentro de una planilla, con tu cuenta.
-  Lee Gmail, registra cada movimiento en la base y SOLO DESPUÉS manda el correo
-  a la papelera. También lee las operaciones de Fintual, trae los precios de
-  Yahoo y avisa por correo las señales de la cartera. Es lo único que toca tu
-  Gmail.
-- **Celular:** MacroDroid manda cada notificación de los bancos a la base
-  (ver abajo). Por ahora se guardan crudas, para el relevamiento.
+  Lee Gmail y registra cada movimiento en la base —hoy, sobre todo, Fintual y
+  los bancos que aún no pasan a aviso— y SOLO DESPUÉS manda el correo a la
+  papelera. También lee las operaciones de Fintual, trae los precios de Yahoo y
+  avisa por correo las señales de la cartera. Es lo único que toca tu Gmail, y
+  va en retirada: el correo queda solo para Fintual.
 - **Costo:** $0.
 
 Historia y decisiones: `.claude/hitos/` (0010 y 0011 son la v2).
@@ -142,6 +153,14 @@ segundos. Pasarse no bloquea Gmail: solo detiene el script hasta el día siguien
 Sube a `main`: GitHub Actions corre el check, las pruebas y publica en
 `https://seiler18.github.io/FinanzasMaker/`.
 
+### 5. La app del celular
+
+Se instala desde el APK firmado de Releases de
+[FinanzasMaker-android](https://github.com/seiler18/FinanzasMaker-android) (repo
+privado). Para entrar con Google necesita un **ID de cliente de OAuth de tipo
+Android** en el mismo proyecto de Google Cloud del paso 2 (paquete y SHA-1 de la
+firma): el detalle está en el README de la app.
+
 ## Pasar de la v1 a la v2
 
 La v1 guardaba todo en dos planillas (FinanzasMaker y la de gestor-acciones).
@@ -168,19 +187,40 @@ El trabajador nuevo **no procesa nada hasta que se migra** (propiedades
 
 Las planillas no se tocan: quedan como respaldo.
 
-## Notificaciones del celular (v2, en relevamiento)
+## El celular: la app FinanzasMaker para Android
 
-La v2 deja de depender del correo: las apps de los bancos avisan cada
-movimiento con una notificación, y **MacroDroid** (Android) se la manda a la
-base de Supabase. Por ahora solo se guardan tal cual llegan; con una semana
-de avisos reales se escriben los lectores (hito 0010).
+Las apps de los bancos avisan cada movimiento con una notificación, y la app
+se la manda a la base de Supabase apenas llega. Allí la función `notificacion`
+la lee y la vuelve movimiento (hitos 0014 y 0015); si no la reconoce con
+seguridad, queda en **Por revisar**. Un mismo movimiento que llega por aviso y
+por correo se cuenta una sola vez.
 
-**Antes:** el celular tiene que estar dado de alta. La clave queda en `.env`
-y no se imprime:
+Además, desde la v0.3.0 la app **no es la página dentro de un navegador**: entra
+con Google de forma nativa, lee la base con tu sesión (la misma RLS) y dibuja
+el resumen, los movimientos, los consejos y las cuotas con sus propios
+cálculos, gemelos de `src/lib/analisis.js` (un cambio de cálculo va en los dos
+repos). Desde la v0.4.0 también escribe: anotar a mano, editar, eliminar y
+decidir lo que queda por revisar. En la web siguen las cartolas en PDF, los
+presupuestos, la configuración, Inversiones y revocar celulares.
 
-```bash
-node scripts/crear-dispositivo.mjs <tu-correo> "Celular Android"
-```
+**Instalar y configurar:** [README de la app](https://github.com/seiler18/FinanzasMaker-android)
+(repo privado): APK de Releases, ingreso con Google, vincular el celular
+(Ajustes → Pasos → «Vincular este celular»), acceso a notificaciones, batería
+sin restricciones y los bancos que escucha.
+
+La clave del celular lo identifica y no lee nada: con ella solo se pueden mandar
+avisos a tu cuenta. Si el celular se pierde, se revoca el dispositivo
+(`revocado` en `dispositivos`, o desde Ajustes → Celular en la web) y se crea otro. A mano,
+sin la app: `node scripts/crear-dispositivo.mjs <tu-correo> "Celular Android"`
+(la clave queda en `.env` y no se imprime).
+
+### Alternativa: la macro de MacroDroid
+
+Es lo que hacía la app antes de existir, y manda los mismos campos, así que los
+mismos lectores sirven. Hoy la app la reemplaza: no depende de una app de
+terceros con acceso a todas tus notificaciones, guarda en una cola lo que no pudo
+mandar y manda la hora real del aviso. Si la usas igual, apágala en cuanto la
+app mande avisos reales; con las dos prendidas cada aviso llega dos veces.
 
 **En el celular:**
 
@@ -211,11 +251,10 @@ node scripts/crear-dispositivo.mjs <tu-correo> "Celular Android"
 5. Guarda la macro. La próxima notificación de un banco debería aparecer en
    la tabla `notificaciones` (panel de Supabase → Table Editor).
 
-La clave identifica al celular, no lee nada: con ella solo se pueden mandar
-avisos a tu cuenta. Si el celular se pierde, se revoca el dispositivo
-(`revocado` en `dispositivos`) y se crea otro.
-
 ## Uso
+
+Todo esto está también en la app del celular, salvo lo que se dice arriba que
+sigue solo en la web.
 
 - **Resumen:** ingresos, gastos, ahorro e inversión del día, el mes o el año;
   gráfico mes a mes o día a día (toca una barra para abrirla), gasto por
@@ -229,7 +268,7 @@ avisos a tu cuenta. Si el celular se pierde, se revoca el dispositivo
 - **Cuotas** y **Consejos:** compras en cuotas con su impuesto de timbres;
   presupuestos excedidos, proyección del mes, cobros que se repiten, gastos hormiga.
 - **Ajustes:** *Revisar correos ahora*, lo que llegó del **celular** (para
-  comprobar la macro), la **configuración** (titular, cuentas externas,
+  comprobar la app), la **configuración** (titular, cuentas externas,
   vendedores cripto, umbrales de Inversiones…) y los presupuestos.
 - **Inversiones** (botón arriba): posiciones, resultado por activo,
   dividendos, dólares, alertas y movimientos de la cartera.
