@@ -1,6 +1,6 @@
 import { html, crudo, pintar, $, cerrarDialogo } from '../lib/dom.js'
 import { clp, compacto, porciento, fechaCorta, conSigno, sentidoDe, SENTIDO } from '../lib/formato.js'
-import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco, serie, hoyISO, ritmoGasto, proyeccionMes, TIPOS } from '../lib/analisis.js'
+import { rango, mover, enRango, totales, porCategoria, porContraparte, porBanco, serie, hoyISO, ritmoGasto, esperadoMes, TIPOS } from '../lib/analisis.js'
 import { barrasPareadas, pintarBarrasHorizontales } from '../lib/grafico.js'
 import { areaTendencia, anillo, dona, calor, sparkline, claseCat } from '../lib/tablero.js'
 import { contarCifras } from '../lib/cuenta.js'
@@ -27,11 +27,12 @@ function variacion(actual, antes, buenoSubiendo) {
 }
 
 /* Filas de la «cabina»: lo que dice cómo va el periodo además del ahorro.
-   Cada fila solo aparece si tiene sentido (no se proyecta un mes que ya
-   terminó, ni se promedia por día un día suelto). */
+   Cada fila solo aparece si tiene sentido (no se espera nada de un mes que
+   ya terminó, ni se promedia por día un día suelto). */
 function filasCabina({ movs, escala, ref, r, t, antes }) {
-  const filas = []
   const hoy = hoyISO()
+  const filas = []
+  let comparado = false
   if (escala !== 'dia') {
     // El «por día» no cuenta los gastos grandes (arriendo, abonos, cuotas): un
     // solo pago de esos disparaba la cifra a algo que nunca se gasta en un día.
@@ -40,15 +41,22 @@ function filasCabina({ movs, escala, ref, r, t, antes }) {
       const nota = g.grandes ? ` · sin ${g.grandes} gasto${g.grandes > 1 ? 's' : ''} grande${g.grandes > 1 ? 's' : ''} (${clp(g.grandesTotal)})` : ''
       filas.push(['Gastas por día', clp(g.porDia) + nota])
     }
+    // El mes en curso se compara con el mismo día de los meses anteriores:
+    // frente al mes pasado ENTERO, un mes a medias siempre «gastaba menos».
     if (escala === 'mes' && hoy >= r.desde && hoy < r.hasta) {
-      const pr = proyeccionMes(movs, ref.slice(0, 7), hoy)
-      if (pr && (Number(hoy.slice(8, 10)) >= 3 || pr.ritmo > 0)) {
-        filas.push(['Proyección a fin de mes', clp(pr.proy) + (t.ingresos > 0 ? ` · ${porciento(pr.proy / t.ingresos)} de lo que entró` : '')])
+      const es = esperadoMes(movs, ref.slice(0, 7), hoy)
+      if (es) {
+        comparado = true
+        const dia = Number(hoy.slice(8, 10))
+        const v = variacion(es.gastado, es.aEstaAltura, false)
+        const cambio = v && v.clase !== 'igual' ? v : null
+        filas.push([es.meses === 1 ? `Al día ${dia} del mes pasado llevabas` : `Al día ${dia} solías llevar`, `${clp(es.aEstaAltura)}${cambio ? ` · hoy vas ${cambio.texto}` : ''}`, cambio?.clase])
+        filas.push(['Esperado a fin de mes', `${clp(es.esperado)} · ${es.meses === 1 ? 'el mes pasado' : `promedio de ${es.meses} meses`}: ${clp(es.promedio)}`])
       }
     }
   }
   const v = variacion(t.gastos, antes.gastos, false)
-  if (v && v.clase !== 'igual') filas.push([`Gasto vs ${ANTERIOR[escala]}`, `${v.texto} (${clp(antes.gastos)})`, v.clase])
+  if (!comparado && v && v.clase !== 'igual') filas.push([`Gasto vs ${ANTERIOR[escala]}`, `${v.texto} (${clp(antes.gastos)})`, v.clase])
   return filas
 }
 

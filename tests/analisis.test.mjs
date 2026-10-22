@@ -1,6 +1,6 @@
 // Pruebas de src/lib/analisis.js (totales, periodos, series y consejos).
 import assert from 'node:assert/strict'
-import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos, ritmoGasto, proyeccionMes, coberturaAvisos } from '../src/lib/analisis.js'
+import { rango, mover, enRango, diaContable, timbreCuotas, comprasEnCuotas, timbrePorMes, totales, porCategoria, porContraparte, serie, suscripciones, consejos, ritmoGasto, esperadoMes, coberturaAvisos } from '../src/lib/analisis.js'
 import { conSigno, sentidoDe, SENTIDO } from '../src/lib/formato.js'
 
 let ok = 0
@@ -105,10 +105,10 @@ prueba('consejos: gastos hormiga, cuotas y efectivo', () => {
   assert.ok(t.some((x) => /efectivo/.test(x)))
 })
 
-prueba('consejos: proyección solo para el mes en curso', () => {
-  const movs = [m('2026-09-02', 'gasto', 100000)]
-  assert.ok(consejos(movs, [], '2026-09', '2026-09-10').some((x) => x.titulo === 'Proyección del mes'))
-  assert.ok(!consejos(movs, [], '2026-09', '2026-10-10').some((x) => x.titulo === 'Proyección del mes'))
+prueba('consejos: «Cómo va el mes» solo para el mes en curso', () => {
+  const movs = [m('2026-08-02', 'gasto', 80000), m('2026-09-02', 'gasto', 100000)]
+  assert.ok(consejos(movs, [], '2026-09', '2026-09-10').some((x) => x.titulo === 'Cómo va el mes'))
+  assert.ok(!consejos(movs, [], '2026-09', '2026-10-10').some((x) => x.titulo === 'Cómo va el mes'))
 })
 
 prueba('fecha contable: el depósito del 30 de septiembre cuenta en octubre', () => {
@@ -172,11 +172,9 @@ prueba('compras en cuotas: solo gastos del mes contable', () => {
   assert.equal(seis[0].impuesto, 0)
 })
 
-console.log(`analisis: ${ok} pruebas ok`)
-if (fallos.length) { console.error(fallos.join('\n')); process.exit(1) }
 
-prueba('proyección: un gasto grande al inicio del mes no se multiplica por los días', () => {
-  // Caso real: ~$690.000 en 5 días daba «$137.630 por día» y una proyección de $4,2 millones.
+prueba('por día: un gasto grande al inicio del mes no se multiplica por los días', () => {
+  // Caso real: ~$690.000 en 5 días daba «$137.630 por día».
   const movs = [
     m('2026-10-01', 'gasto', 500000), // arriendo / abono: puntual
     ...[3000, 4000, 2500, 5000, 3500, 4500, 2000, 6000, 3000, 4000].map((n, i) => m(`2026-09-${10 + i}`, 'gasto', n)),
@@ -185,10 +183,37 @@ prueba('proyección: un gasto grande al inicio del mes no se multiplica por los 
   const g = ritmoGasto(movs, '2026-10-01', '2026-10-31', '2026-10-05')
   assert.equal(g.grandes, 1)
   assert.ok(g.porDia < 10000, `por día ${g.porDia}`)
-  const p = proyeccionMes(movs, '2026-10', '2026-10-05')
-  assert.ok(p.proy < 800000, `proyección ${p.proy}`)
-  assert.ok(p.proy > 500000 + 25000)
-  assert.equal(proyeccionMes(movs, '2026-09', '2026-10-05'), null)
+})
+
+prueba('esperado del mes: lo que llevas más lo que solías gastar del mismo día al fin de mes', () => {
+  const movs = [
+    // julio, agosto y septiembre: 100.000 hasta el día 10 y 200.000 después (300.000 al mes)
+    ...['07', '08', '09'].flatMap((mm) => [m(`2026-${mm}-05`, 'gasto', 100000), m(`2026-${mm}-20`, 'gasto', 200000)]),
+    m('2026-06-10', 'gasto', 999999), // un cuarto mes atrás no cuenta
+    m('2026-10-02', 'gasto', 150000),
+    m('2026-10-03', 'ingreso', 900000), m('2026-10-04', 'interna', 50000), // no son gastos
+    m('2026-10-15', 'gasto', 70000), // después de hoy: no se cuenta aún
+  ]
+  assert.deepEqual(esperadoMes(movs, '2026-10', '2026-10-10'), { esperado: 350000, promedio: 300000, aEstaAltura: 100000, gastado: 150000, meses: 3 })
+  // Un mes pasado con un solo gasto grande el día 1: el resto del mes se esperaba en 0.
+  assert.equal(esperadoMes([m('2026-09-01', 'gasto', 500000), m('2026-10-02', 'gasto', 1000)], '2026-10', '2026-10-05').esperado, 1000)
+  // Sin meses anteriores no se inventa nada; tampoco para otro mes ni el último día.
+  assert.equal(esperadoMes([m('2026-10-02', 'gasto', 1000)], '2026-10', '2026-10-05'), null)
+  assert.equal(esperadoMes(movs, '2026-09', '2026-10-05'), null)
+  assert.equal(esperadoMes(movs, '2026-10', '2026-10-31'), null)
+  // El 30 de octubre se compara con el 30 de septiembre y con todo agosto hasta el 30.
+  assert.equal(esperadoMes([m('2026-09-30', 'gasto', 40000), m('2026-08-31', 'gasto', 10000)], '2026-10', '2026-10-30').aEstaAltura, 20000)
+})
+
+prueba('consejo «Cómo va el mes»: frente al mismo día de los meses anteriores', () => {
+  const movs = [
+    ...['07', '08', '09'].flatMap((mm) => [m(`2026-${mm}-05`, 'gasto', 100000), m(`2026-${mm}-20`, 'gasto', 200000)]),
+    m('2026-10-02', 'gasto', 250000),
+  ]
+  const c = consejos(movs, [], '2026-10', '2026-10-10').find((x) => x.titulo === 'Cómo va el mes')
+  assert.equal(c.nivel, 'atencion') // 250.000 + 200.000 = 450.000 > 300.000 × 1,1
+  assert.match(c.texto, /\$450\.000/)
+  assert.equal(consejos(movs, [], '2026-10', '2026-10-04').find((x) => x.titulo === 'Cómo va el mes'), undefined)
 })
 
 prueba('cobertura de los avisos: por aviso, el correo que completó un aviso, y lo que solo trajo el correo', () => {
@@ -206,3 +231,6 @@ prueba('cobertura de los avisos: por aviso, el correo que completó un aviso, y 
     { banco: 'Copec Pay', aviso: 0, soloCorreo: 1 },
   ])
 })
+
+console.log(`analisis: ${ok} pruebas ok`)
+if (fallos.length) { console.error(fallos.join('\n')); process.exit(1) }

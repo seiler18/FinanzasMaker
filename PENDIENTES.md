@@ -13,11 +13,17 @@ de MACH (a propósito) y la prueba de conexión de la app.
 el trabajador no la usa, así que se puede pegar en la próxima pasada de
 `desplegar-backend`, sin apuro.
 
-## 2. La app v0.4.0: Agregar, Por revisar, Cuotas y editar (hito 0018)
+## 2. La app v0.4.1 en el celular (hitos 0018 y 0019)
 
-La v0.3.0 está publicada y en uso desde el 2026-10-17 (cliente OAuth Android
-creado ese día). La v0.4.0 está publicada (Release `v0.4.0`, misma firma):
-instalarla **encima** desde Releases y probar en el celular:
+La v0.4.1 está publicada (Release `v0.4.1`, misma firma): instalarla
+**encima** desde Releases. Lo nuevo (hito 0019):
+
+- el Resumen del mes en curso: «Al día N solías llevar» y «Esperado a fin de
+  mes» en vez de «Proyección a fin de mes», con las mismas cifras que la
+  página;
+- las cuatro tarjetas del Resumen del mismo alto («Invertido neto» incluida).
+
+Lo de la v0.4.0, si no se probó todavía:
 
 - anotar un gasto en Agregar y verlo aquí, en Movimientos;
 - corregir una categoría con «Aplicar a todo lo de…» y ver la regla aquí;
@@ -48,13 +54,19 @@ desplegar la función y releer los crudos (punto 1).
 
 Fintual sigue por correo (sus avisos no traen el monto).
 
-## 4. Probar las cartolas de septiembre en la página publicada
+## 4. Probar las cartolas en la página publicada
 
-Los estados de cuenta de las tarjetas MACH y Tenpo ya se probaron contra los
-PDF reales de `estados-de-cuenta/` (cuadran al peso). Faltan las dos
-**cartolas de cuenta** (MACH y Copec Pay), que no están en este PC.
+**El estado de cuenta con clave (hito 0019).** El campo de la clave ya no lo
+rellena Chrome solo. Subir el estado de cuenta de la tarjeta que falló y ver
+que abre con la clave (con o sin puntos, guion y dígito verificador). Si
+Chrome igual ofrece una contraseña guardada, ignorarla. Si abre pero dice
+«No reconozco…», es un formato nuevo: dejar el PDF en `cartolas/` y pedir
+que se agregue (skill `agregar-banco`).
 
-En Agregar → Subir una cartola, subirlas y revisar:
+Los estados de cuenta de septiembre de las tarjetas MACH y Tenpo y las
+cartolas de cuenta MACH y Copec Pay ya cuadran al peso contra los PDF reales
+de `cartolas/` (en el PC de la oficina). En la página publicada, Agregar →
+Subir una cartola, subirlas y revisar:
 
 - que diga «Cuadra al peso»;
 - que lo marcado como faltante de verdad falte;
@@ -75,7 +87,9 @@ Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
   Dejar el PDF en `cartolas/` y su clave en `.env`, y pedir que se agregue
   el formato (skill `agregar-banco`).
 - **Gradle 9.x de la app, junto con AGP 9.** La app ya está en Gradle 8.14.6
-  (la última de la línea 8). La 9.6 o posterior no funciona con AGP 8.x, y el
+  (la última de la línea 8). Si Android Studio ofrece «actualizar Gradle»,
+  decir que no: el 2026-10-21 lo hizo solo (9.7.1) y dejó el wrapper
+  modificado sin versionar; se deshizo el 2026-10-22. La 9.6 o posterior no funciona con AGP 8.x, y el
   plugin de Kotlin actual solo declara compatibilidad hasta Gradle 9.0: se suben
   juntos y verificando, en un cambio aparte.
 - **Play Protect** bloquea la app (firma propia, fuera de Play Store). Hoy está

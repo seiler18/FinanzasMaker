@@ -16,22 +16,39 @@ export class ClavePdf extends Error {
   }
 }
 
+/* Las formas de escribir la misma clave. Los bancos suelen usar el RUT, y
+   cada uno a su modo (con o sin dígito verificador, nunca con puntos): se
+   prueba lo escrito tal cual, sin espacios, sin puntos ni guion, y sin el
+   dígito verificador. Sin repetidos ni vacíos. */
+export function variantesClave(clave) {
+  const tal = String(clave ?? '')
+  const limpia = tal.trim()
+  const pelada = limpia.replace(/[.\s-]/g, '')
+  const salida = [tal, limpia, pelada]
+  if (/^\d{7,8}[\dkK]$/.test(pelada)) salida.push(pelada.slice(0, -1), pelada.toUpperCase(), pelada.toLowerCase())
+  return [...new Set(salida.filter(Boolean))]
+}
+
 /* bytes: ArrayBuffer del archivo. Lanza ClavePdf si falta la clave o no es esa. */
 export async function trozosDelPdf(bytes, clave) {
   const pdfjs = await import('pdfjs-dist')
   const { default: worker } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = worker
+  const intentos = clave ? variantesClave(clave) : [undefined]
   let doc
-  try {
-    // pdf.js se queda con el búfer que recibe (lo pasa al worker): se le da una copia
-    // para poder reintentar con otra clave.
-    doc = await pdfjs.getDocument({
-      data: new Uint8Array(bytes.slice(0)), password: clave || undefined,
-      isEvalSupported: false, disableFontFace: true, verbosity: 0,
-    }).promise
-  } catch (e) {
-    if (e?.name === 'PasswordException') throw new ClavePdf(e.code === pdfjs.PasswordResponses.INCORRECT_PASSWORD)
-    throw new Error('No se pudo abrir el PDF')
+  for (const password of intentos) {
+    try {
+      // pdf.js se queda con el búfer que recibe (lo pasa al worker): se le da una copia
+      // para poder reintentar con otra clave.
+      doc = await pdfjs.getDocument({
+        data: new Uint8Array(bytes.slice(0)), password,
+        isEvalSupported: false, disableFontFace: true, verbosity: 0,
+      }).promise
+      break
+    } catch (e) {
+      if (e?.name !== 'PasswordException') throw new Error('No se pudo abrir el PDF')
+      if (password === intentos.at(-1)) throw new ClavePdf(e.code === pdfjs.PasswordResponses.INCORRECT_PASSWORD)
+    }
   }
   try {
     return await trozos(doc)

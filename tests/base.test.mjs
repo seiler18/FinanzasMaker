@@ -44,7 +44,8 @@ before(async () => {
     await pgEmb.initialise()
     await pgEmb.start()
     conexion = { host: 'localhost', port, user: 'postgres', password: 'postgres' }
-    detener = async () => { await pgEmb.stop(); rmSync(dir, { recursive: true, force: true }) }
+    // En Windows, Postgres suelta sus archivos un rato después de parar (EBUSY): se reintenta.
+    detener = async () => { await pgEmb.stop(); rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }) }
   }
 
   const admin = new pg.Client({ ...conexion, database: 'postgres' })

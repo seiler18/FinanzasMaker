@@ -10,6 +10,7 @@ import { monto, fecha, lineas, columnaDe } from '../src/lib/cartolas/tabla.js'
 import { leerCartola, ErrorCartola } from '../src/lib/cartolas/formatos.js'
 import { clasificar, esPropio, comercio } from '../src/lib/cartolas/clasificar.js'
 import { cruzar } from '../src/lib/cartolas/cruzar.js'
+import { variantesClave } from '../src/lib/cartolas/pdf.js'
 
 let ok = 0
 const fallos = []
@@ -214,6 +215,13 @@ prueba('cruzar: a más de 3 días ya no calza, y cada registrado se usa una vez'
   ]
   const { movs } = cruzar(c, cand, ex)
   assert.deepEqual(movs.map((m) => m.estado), ['registrado', 'nuevo', 'nuevo'])
+})
+
+prueba('la clave del PDF: se prueba como se escribió y como suelen pedirla los bancos', () => {
+  // Un RUT inventado: con puntos y guion también abre el PDF que pide solo los números.
+  assert.deepEqual(variantesClave(' 12.345.678-k '), [' 12.345.678-k ', '12.345.678-k', '12345678k', '12345678', '12345678K'])
+  assert.deepEqual(variantesClave('clave'), ['clave'])
+  assert.deepEqual(variantesClave(''), [])
 })
 
 if (fallos.length) {

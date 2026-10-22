@@ -166,6 +166,8 @@ tbody th { font-weight: 500; }
 .mov-interna .mov-monto b, .mov-pago_tarjeta .mov-monto b { color: var(--texto-tenue); font-weight: 500; }
 
 /* ----- Subir una cartola (src/vistas/cartola.js) ----- */
+/* La clave del PDF: un campo de texto que se ve con puntos (ver pedirClave). */
+.clave-pdf { -webkit-text-security: disc; }
 .cartola-resumen { margin: 12px 0 4px; font-size: var(--txt-menudo); }
 .cartola-resumen p { margin: 0 0 8px; }
 .cartola-resumen select { font: inherit; }

@@ -13,6 +13,7 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
+| [0019](0019-esperado-del-mes-y-clave-del-pdf.md) | 2026-10-22 | Lo esperado del mes en vez de la proyección, y la clave del PDF | página y app v0.4.1 publicadas el 2026-10-22; falta probarlas |
 | [0018](0018-la-app-android-escribe.md) | 2026-10-17 | La app Android también escribe: Agregar, Por revisar, editar | app v0.4.0 publicada el 2026-10-17; falta probarla en el celular |
 | [0017](0017-la-app-android-con-pantallas-propias.md) | 2026-10-17 | La app Android deja de abrir la página: pantallas propias | app v0.3.0 publicada y en uso el 2026-10-17 |
 | [0016](0016-la-otra-pata-por-correo-y-correos-sin-hora.md) | 2026-10-16 | La otra pata por correo y los correos sin hora | desplegado y releído el 2026-10-16 |

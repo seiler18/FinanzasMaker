@@ -45,19 +45,26 @@ export function panelCartola(el, app) {
     }
   }
 
+  /* El campo NO es type="password": Chrome lo rellenaba solo con una
+     contraseña guardada para seiler18.github.io (ignora autocomplete="off" en
+     esos campos), y lo que el dueño escribía quedaba pegado a esa clave. Es
+     un texto que se ve con puntos (.clave-pdf) y que ningún gestor reconoce. */
   function pedirClave(incorrecta) {
     pintar(paso, html`
-      <form id="cartola-clave" class="rejilla-campos">
+      <form id="cartola-clave" class="rejilla-campos" autocomplete="off">
         <label class="campo"><span>${incorrecta ? 'Esa no es la clave. Prueba otra vez' : 'El PDF tiene clave'}</span>
-          <input type="password" name="clave" autocomplete="off" required></label>
+          <input type="text" name="clave-pdf" class="clave-pdf" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore required></label>
         <div class="acciones"><button class="btn btn-primario">Abrir</button></div>
+        <p class="tenue">Suele ser tu RUT: puedes escribirlo con o sin puntos, guion y dígito verificador.</p>
       </form>`)
     const form = $('#cartola-clave', paso)
-    form.clave.focus()
+    const campo = form.elements['clave-pdf']
+    campo.value = ''
+    campo.focus()
     form.addEventListener('submit', (e) => {
       e.preventDefault()
       // La clave vive solo en esta llamada: no se guarda en ningún lado.
-      abrir(form.clave.value)
+      abrir(campo.value)
     })
   }
 
