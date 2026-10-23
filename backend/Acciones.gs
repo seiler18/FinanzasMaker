@@ -66,10 +66,7 @@ function leerCorreosAcciones_() {
   const props = PropertiesService.getScriptProperties();
   const avisados = JSON.parse(props.getProperty('ACCIONES_AVISADOS') || '[]');
   const ya = new Set(avisados);
-  for (let i = 0; i < msgs.length; i += 100) {
-    const ids = msgs.slice(i, i + 100).map((m) => m.getId());
-    leerPagina_('acciones_operaciones', 'select=gmail_id&' + sbIn_('gmail_id', ids)).forEach((f) => ya.add(String(f.gmail_id)));
-  }
+  leerEn_('acciones_operaciones', 'select=gmail_id', 'gmail_id', msgs.map((m) => m.getId())).forEach((f) => ya.add(String(f.gmail_id)));
 
   const mapa = mapaAcciones_();
   const ops = [];

@@ -40,6 +40,18 @@ prueba('compra de acciones: monto y cantidad con coma decimal, ticker del mapa',
   assert.match(e.filas('acciones_alertas')[0].detalle, /1 movimiento/)
   assert.match(e.filas('estado_trabajador')[0].ultima_acciones, /^\d{4}-/)
 })
+prueba('con muchos correos de Fintual la consulta por ids no pasa los 2 kB de UrlFetchApp', () => {
+  // Ids del largo de los de Gmail (16 hex): con 76 se pasaba (hito 0020).
+  const id = (n) => (0x1a15000000000000n + BigInt(n)).toString(16)
+  for (let n = 0; n < 99; n++) e.correo('hola@fintual.com', 'Invertimos tu plata en tu objetivo', 'Hola Jesus', '2026-09-01T12:00:00Z', { id: id(n) })
+  e.correo('hola@fintual.com', 'Invertiste US$ 120,50 dólares en 0,2 acciones de Vanguard S&P 500 ETF', 'Monto invertido US$ 120,50\nAcciones compradas 0,2\n', '2026-09-18T15:00:00Z', { id: id(99) })
+  e.G.actualizarAcciones()
+  assert.equal(ops().length, 1)
+  assert.equal(ops()[0].gmail_id, id(99))
+  assert.match(e.filas('estado_trabajador')[0].ultima_acciones, /^\d{4}-/)
+  e.G.actualizarAcciones()
+  assert.equal(ops().length, 1, 'la segunda corrida la reconoce como ya leída')
+})
 prueba('venta, dividendo y dólares', () => {
   fintual('Vendiste 0,1 acciones de Vanguard S&P 500 ETF', 'Cantidad de acciones 0,1\nRecibiste US$ 65,00\n', '2026-09-19T15:00:00Z')
   fintual('Recibiste un dividendo de VOO por 1,50 dólares', 'Recibiste un dividendo de Vanguard S&P 500 ETF por US$ 1,50', '2026-09-20T15:00:00Z')

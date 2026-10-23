@@ -1,38 +1,28 @@
 # Pendientes
 
-Lo que queda por hacer a mano o por decidir (hitos 0013 a 0015). Se tacha y se
+Lo que queda por hacer a mano o por decidir (hitos 0013 a 0020). Se tacha y se
 borra cuando esté hecho. El repo es público: aquí no van claves.
 
-## 1. Al pegar el Apps Script la próxima vez
+## 1. Pegar el Apps Script ahora: Inversiones está parada (hito 0020)
+
+Desde el 2026-10-19 21:06 los precios y las operaciones de Fintual no se
+actualizan: la consulta por ids pasó el tope de 2 kB de URL de Apps Script y
+`actualizarAcciones` se cae en cada corrida. Ya está corregido en el repo.
+
+1. Skill `desplegar-backend`: pegar **`Supabase.gs`, `Acciones.gs` y
+   `Code.gs`** en el editor (los tres cambiaron) e implementar como versión
+   nueva de la misma implementación.
+2. Correr **`actualizarAcciones`** a mano y ver en Inversiones «Precios
+   recién actualizados». Después sigue sola cada hora.
+
+De paso entra el cambio de `CONFIG_BASE` en `Code.gs` (la clave
+`bancos_por_aviso`), que el trabajador no usa.
 
 La 0008, la 0009 y la función están desplegadas, y los avisos crudos se
 releyeron (2026-10-16, hito 0016). Solo quedan crudos el cashback depositado
 de MACH (a propósito) y la prueba de conexión de la app.
 
-`backend/Code.gs` cambió solo en `CONFIG_BASE` (la clave `bancos_por_aviso`):
-el trabajador no la usa, así que se puede pegar en la próxima pasada de
-`desplegar-backend`, sin apuro.
-
-## 2. La app v0.4.1 en el celular (hitos 0018 y 0019)
-
-La v0.4.1 está publicada (Release `v0.4.1`, misma firma): instalarla
-**encima** desde Releases. Lo nuevo (hito 0019):
-
-- el Resumen del mes en curso: «Al día N solías llevar» y «Esperado a fin de
-  mes» en vez de «Proyección a fin de mes», con las mismas cifras que la
-  página;
-- las cuatro tarjetas del Resumen del mismo alto («Invertido neto» incluida).
-
-Lo de la v0.4.0, si no se probó todavía:
-
-- anotar un gasto en Agregar y verlo aquí, en Movimientos;
-- corregir una categoría con «Aplicar a todo lo de…» y ver la regla aquí;
-- «Contar en el día» → «Mes siguiente» en un ingreso;
-- eliminar un movimiento de prueba;
-- registrar y descartar un «Por revisar» (si hay alguno);
-- Más → Cuotas da lo mismo que la pestaña Cuotas de aquí.
-
-## 3. Apagar el correo, banco por banco
+## 2. Apagar el correo, banco por banco
 
 En Ajustes → Celular, «Qué llega por el celular» dice por banco cuánto llegó
 por aviso y cuánto solo por correo. Cuando un banco lleve un tiempo sin nada
@@ -54,7 +44,7 @@ desplegar la función y releer los crudos (punto 1).
 
 Fintual sigue por correo (sus avisos no traen el monto).
 
-## 4. Probar las cartolas en la página publicada
+## 3. Probar las cartolas en la página publicada
 
 **El estado de cuenta con clave (hito 0019).** El campo de la clave ya no lo
 rellena Chrome solo. Subir el estado de cuenta de la tarjeta que falló y ver
@@ -75,7 +65,7 @@ Subir una cartola, subirlas y revisar:
 Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
 (`?demo`). Para repetir la prueba automática, dejarlas en `cartolas/`.
 
-## 5. Más adelante
+## 4. Más adelante
 
 - **Salir de Apps Script salvo para Fintual.** Con los bancos por aviso, al
   trabajador le quedan los correos de Fintual, los precios (Yahoo) y las

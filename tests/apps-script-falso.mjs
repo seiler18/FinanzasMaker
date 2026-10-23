@@ -201,6 +201,9 @@ export function crearEntorno() {
     },
     UrlFetchApp: {
       fetch: (url, op) => {
+        // El tope de Apps Script, medido como si la URL fuera la del proyecto
+        // real (40 caracteres, la de aquí es más corta).
+        if (url.length - URL_SB.length + 40 > 2048) throw new Error('Limit Exceeded: URLFetch URL Length.')
         if (url.startsWith(URL_SB + '/rest/v1/')) return e.supabase.fetch(url, op)
         if (url.startsWith('https://oauth2.googleapis.com/tokeninfo')) {
           e.fetchesGoogle++

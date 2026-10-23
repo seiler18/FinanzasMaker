@@ -94,6 +94,20 @@ function sbIn_(col, valores) {
   return col + '=in.' + encodeURIComponent('(' + lista + ')');
 }
 
+/* Las filas cuyo `col` está en `valores`, de a IN_POR_URL. UrlFetchApp no
+   manda una URL de más de 2 kB («Limit Exceeded: URLFetch URL Length») y un
+   id de Gmail ocupa 25 caracteres ya codificado: con 76 ids la consulta de
+   Fintual se pasaba y actualizarAcciones se caía en cada corrida (hito 0020). */
+const IN_POR_URL = 50;
+function leerEn_(tabla, consulta, col, valores) {
+  const out = [];
+  for (let i = 0; i < valores.length; i += IN_POR_URL) {
+    const filas = sbPedir_('get', tabla, sbConsulta_(tabla, consulta + '&' + sbIn_(col, valores.slice(i, i + IN_POR_URL)))) || [];
+    Array.prototype.push.apply(out, filas);
+  }
+  return out;
+}
+
 /* Todas las filas que calzan, de a 1000 (el tope de PostgREST por respuesta). */
 function sbLeer_(tabla, consulta) {
   const out = [];

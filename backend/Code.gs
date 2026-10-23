@@ -243,7 +243,7 @@ function procesar_(op) {
       hilos.forEach((hilo) => hilo.getMessages().forEach((msg) => mensajes.push(msg)));
 
       const nuevos = mensajes.map((m) => m.getId()).filter((id) => !vistos.has(id) && !ignorados.has(id));
-      if (nuevos.length) leerPagina_('correos', 'select=gmail_id&' + sbIn_('gmail_id', nuevos)).forEach((f) => vistos.add(String(f.gmail_id)));
+      leerEn_('correos', 'select=gmail_id', 'gmail_id', nuevos).forEach((f) => vistos.add(String(f.gmail_id)));
 
       mensajes.forEach((msg) => {
         const id = msg.getId();
