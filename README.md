@@ -9,14 +9,16 @@ Tres piezas, un proyecto: dos páginas y una app.
 
 - **Finanzas** (`/FinanzasMaker/`): gastos, ingresos, presupuestos, cuotas y consejos.
 - **Inversiones** (`/FinanzasMaker/inversiones/`): la cartera de acciones de
-  Fintual, con costo promedio móvil, resultado y dividendos. Era
-  [gestor-acciones](https://github.com/seiler18/gestor-acciones).
+  Fintual, con costo promedio móvil, resultado, dividendos y sugerencias de
+  vender y recomprar. Era el proyecto gestor-acciones, ya retirado: su
+  contrato de datos vive en `docs/contrato-inversiones.md`.
 
 - **La app del celular** ([FinanzasMaker para Android](https://github.com/seiler18/FinanzasMaker-android),
   repo privado): escucha las notificaciones de los bancos y las manda a la base,
   y desde la v0.3.0 lleva tus finanzas en pantallas propias (resumen,
   movimientos, consejos y cuotas); desde la v0.4.0 también anota, edita y decide
-  lo que queda por revisar. Es la entrada principal de datos.
+  lo que queda por revisar, y desde la v0.5.0 muestra Inversiones. Es la
+  entrada principal de datos.
 
 Sin sesión, las dos páginas abren en **modo demo** con datos inventados.
 

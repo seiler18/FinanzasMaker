@@ -4,7 +4,7 @@ import { supa } from '../../lib/supa.js'
 /* Los datos de Inversiones, desde Supabase (migración 0005).
 
    Arma exactamente el «contrato v1» que entregaba el Api.gs de
-   gestor-acciones (docs/contrato.md de ese repo): así el resto de esta página
+   gestor-acciones (docs/contrato-inversiones.md): así el resto de esta página
    (main.js, cartera.js) no cambió al mudarse a FinanzasMaker, y la demo sigue
    teniendo la misma forma (tests/inversiones-contrato.test.mjs).
 

@@ -13,6 +13,7 @@ No se duplica información entre ellos. Para añadir un hito, ver la skill
 
 | # | Fecha | Título | Estado |
 |---|---|---|---|
+| [0023](0023-estado-al-23-de-octubre-y-retiro-de-gestor-acciones.md) | 2026-10-23 | Dónde quedó todo al 2026-10-23, y gestor-acciones retirado | completado; falta borrar la carpeta de gestor-acciones |
 | [0022](0022-inversiones-en-la-app-android.md) | 2026-10-23 | Inversiones también en la app Android | app v0.5.0 publicada; falta verla en el celular |
 | [0021](0021-sugerencias-de-inversiones-y-precios-cada-5-min.md) | 2026-10-23 | Sugerencias en Inversiones, precio por acción y precios cada 5 min | página publicada; falta pegar los .gs y programarDisparador() |
 | [0020](0020-inversiones-sin-precios-por-el-largo-de-la-url.md) | 2026-10-23 | Inversiones dejó de actualizarse: la URL de la consulta pasó los 2 kB | corregido y pegado el 2026-10-23 |

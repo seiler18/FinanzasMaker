@@ -1,6 +1,6 @@
 # Pendientes
 
-Lo que queda por hacer a mano o por decidir (hitos 0013 a 0022). Se tacha y se
+Lo que queda por hacer a mano o por decidir (hitos 0013 a 0023). Se tacha y se
 borra cuando esté hecho. El repo es público: aquí no van claves.
 
 ## 1. Pegar el Apps Script: precios cada 5 min (hito 0021)
@@ -79,6 +79,11 @@ Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
 (`?demo`). Para repetir la prueba automática, dejarlas en `cartolas/`.
 
 ## 5. Más adelante
+
+- **Borrar `../gestor-acciones/`** en los dos PC (hito 0023): ya no hace
+  falta nada de ahí. El repo de GitHub está archivado; borrarlo también apaga
+  su página vieja. La hoja «Fintual - Monitoreo en vivo» quedó sin
+  disparadores y también se puede borrar.
 
 - **Salir de Apps Script salvo para Fintual.** Con los bancos por aviso, al
   trabajador le quedan los correos de Fintual, los precios (Yahoo) y las

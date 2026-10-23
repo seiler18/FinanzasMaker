@@ -271,7 +271,7 @@ function actualizarPreciosAcciones_() {
 
    Es la misma cuenta que src/inversiones/lib/cartera.js:
    tests/inversiones-cartera.test.mjs ejecuta esta función en Node y compara.
-   Si cambias una, cambia la otra (hito 0004 de gestor-acciones). */
+   Si cambias una, cambia la otra (hito 0004 de gestor-acciones, en .claude/hitos/gestor-acciones/). */
 function costoMovilAcciones_(ops) {
   const evs = [];
   ops.forEach((o, i) => {

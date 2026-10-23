@@ -1,4 +1,4 @@
-/* Cálculo de la cartera a partir de los hechos del contrato (docs/contrato.md).
+/* Cálculo de la cartera a partir de los hechos del contrato (docs/contrato-inversiones.md).
 
    Es la MISMA aritmética que las hojas Posiciones y Resultados de la planilla
    (backend/Code.gs, costoPromedioMovil_): costo promedio MÓVIL, el que tenías

@@ -68,6 +68,7 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 | Vistas de Finanzas | `src/vistas/{resumen,movimientos,revisar,agregar,cuotas,consejos,ajustes}.js` |
 | Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
 | Sugerencias de Inversiones: vender sobre el costo, recomprar bajo la última venta; precio por acción | `src/inversiones/lib/sugerencias.js`, tests en `tests/inversiones-sugerencias.test.mjs` |
+| Contrato de datos de Inversiones (lo que arma `cartera()` y leen la página, la demo y la app) | `docs/contrato-inversiones.md` |
 | Página Inversiones (su propio CSS, libs y demo) | `inversiones/index.html`, `src/inversiones/` (`main.js`, `lib/cartera.js`, `lib/api.js` arma el contrato v1) |
 | Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |
 | Efectos (se apagan con `prefers-reduced-motion`) | `src/lib/{efectos,fondo-dotField,cuenta}.js`, `src/styles/efectos.css` — de React Bits (MIT + Commons Clause: se usan aquí, **no se redistribuyen**) |
@@ -94,6 +95,7 @@ algo con sustancia, registra el hito.
 | Dejar constancia de lo hecho | `registrar-hito` |
 
 Qué se hizo antes y por qué: `.claude/hitos/` (empieza por su `README.md`).
+La historia de gestor-acciones, que pasó a ser Inversiones: `.claude/hitos/gestor-acciones/`.
 Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
 
 ## Reglas

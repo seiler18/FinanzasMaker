@@ -1,8 +1,8 @@
 /* Datos de DEMOSTRACIÓN — inventados. Es lo que ve quien entra sin sesión.
 
-   Tienen la forma exacta del contrato (docs/contrato.md), así el dashboard
-   se ejercita entero sin backend. Si el contrato cambia, esto cambia con él
-   (lo comprueba tests/contrato.test.mjs).
+   Tienen la forma exacta del contrato (docs/contrato-inversiones.md), así el
+   dashboard se ejercita entero sin backend. Si el contrato cambia, esto
+   cambia con él (lo comprueba tests/inversiones-contrato.test.mjs).
 
    Tickers reales para que el ejemplo se lea natural; cantidades, montos y
    precios no corresponden a ninguna cartera. */
@@ -64,7 +64,7 @@ const PRECIOS = [
 ]
 
 export function datosDemo(ahora = new Date()) {
-  // Hora local sin zona, como la manda la hoja (docs/contrato.md): con
+  // Hora local sin zona, como la manda el contrato (docs/contrato-inversiones.md): con
   // toISOString() la demo decía «precios de hace 3 h» recién cargada.
   const dos = (n) => String(n).padStart(2, '0')
   const iso = `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}T${dos(ahora.getHours())}:${dos(ahora.getMinutes())}:${dos(ahora.getSeconds())}`
