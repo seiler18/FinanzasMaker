@@ -8,6 +8,7 @@ import { html, pintar, crudo, $, $$, aviso } from './lib/dom.js'
 import { hayBackend, cartera as pedirCartera, ErrorApi } from './lib/api.js'
 import { botonIngreso, haySesion, salir } from '../lib/sesion.js'
 import { calcularCartera, evolucion } from './lib/cartera.js'
+import { sugerencias, precioPorAccion } from './lib/sugerencias.js'
 import { datosDemo } from './demo.js'
 import { areaEvolucion, anillo, dona, calorMeses, sparkline, claseCat } from './lib/tablero.js'
 import { barras, divergentes, columnas, aplicarMedidas, activarTooltip } from './lib/graficos.js'
@@ -43,6 +44,10 @@ const FILTROS = [
   ['dolares', 'Dólares'],
 ]
 const FILAS_INICIALES = 20
+// Cada cuánto se vuelven a pedir los datos con la página a la vista. El
+// trabajador trae los precios cada 5 min con la bolsa de Nueva York abierta
+// (actualizarPrecios en Acciones.gs).
+const REFRESCO_MS = 5 * 60 * 1000
 const pasaFiltro = (m, f) => f === 'todos' || (f === 'dolares' ? m.ticker === 'USD' : m.tipo === f)
 
 // Íconos de trazo (estilo Lucide) escritos aquí: sin librería ni peticiones.
@@ -60,6 +65,7 @@ async function iniciar() {
   conectarTema()
   conectarNavegacion()
   conectarDetalle()
+  conectarRefresco()
   const demo = new URLSearchParams(location.search).has('demo')
   // Volver a Finanzas sin salir de la demo.
   if (demo) $('.volver')?.setAttribute('href', '../?demo')
@@ -71,6 +77,7 @@ async function cargarReal() {
   pintarEstado('cargando')
   try {
     mostrar('real', await pedirCartera())
+    ultimoRefresco = Date.now()
     return true
   } catch (e) {
     if (e instanceof ErrorApi && e.sesion) await salir()
@@ -81,14 +88,40 @@ async function cargarReal() {
   }
 }
 
-function mostrar(modo, datos) {
+function mostrar(modo, datos, { refresco = false } = {}) {
   estado.modo = modo
   estado.datos = datos
   estado.calculo = calcularCartera(datos)
   estado.serie = evolucion(datos.movimientos || [])
-  estado.mesDiv = null
+  if (!refresco) estado.mesDiv = null
   pintarEstado()
-  pintarTodo()
+  pintarTodo({ refresco })
+}
+
+/* Los datos se vuelven a pedir cada REFRESCO_MS mientras la página está a la
+   vista, y al volver a ella. Se repinta sin animar y en la misma posición;
+   no se toca si hay un diálogo abierto o se está escribiendo en la búsqueda
+   (se reintenta al minuto). Un error se calla: la hora del chip ya dice que
+   los datos no están al día. */
+let ultimoRefresco = 0
+function conectarRefresco() {
+  setInterval(refrescar, 60 * 1000)
+  document.addEventListener('visibilitychange', refrescar)
+}
+
+async function refrescar() {
+  if (estado.modo !== 'real' || document.visibilityState !== 'visible') return
+  if (Date.now() - ultimoRefresco < REFRESCO_MS) return
+  const escribiendo = app.contains(document.activeElement) && document.activeElement.matches('input')
+  if (document.querySelector('dialog[open]') || escribiendo) return
+  ultimoRefresco = Date.now()
+  try {
+    const datos = await pedirCartera()
+    if (estado.modo !== 'real') return
+    const y = scrollY
+    mostrar('real', datos, { refresco: true })
+    scrollTo(0, y)
+  } catch { /* se reintenta en el próximo turno */ }
 }
 
 /* ===== cabecera, tema y acceso ===== */
@@ -169,12 +202,13 @@ function cerrarDialogo(dlg) {
 
 /* ===== secciones ===== */
 
-function pintarTodo() {
+function pintarTodo({ refresco = false } = {}) {
   const c = estado.calculo
   pintar(app, html`
     ${estado.modo === 'demo' ? avisoDemo() : ''}
     ${resumen(c)}
     ${tablero(c)}
+    ${seccionSugerencias(c)}
     ${carteraActual(c)}
     ${resultadoPorActivo(c)}
     ${dividendos(c)}
@@ -191,7 +225,7 @@ function pintarTodo() {
   pintarTablero()
   conectarMovimientos()
   conectarSecciones()
-  revelarAlVer(app)
+  revelarAlVer(app, { sinAnimar: refresco })
   montarFondoHero(app)
   vigilarSecciones()
 }
@@ -232,8 +266,8 @@ const PARTES = {
 }
 
 // «hace 3 h»: qué tan viejo es el precio. El trabajador lo trae de Yahoo Finance
-// cada vez que corre (cada hora por defecto), y por eso puede no calzar con
-// el que ves en Fintual en este minuto.
+// cada 5 min con la bolsa abierta (y cada hora fuera de ella), y por eso puede
+// no calzar con el que ves en Fintual en este minuto.
 function edadPrecios(precios) {
   const t = (precios || []).map((p) => p.actualizado).filter(Boolean).sort().pop()
   if (!t) return ''
@@ -269,7 +303,7 @@ function resumen(c) {
       <div class="hero-puntos" aria-hidden="true"></div>
       <div class="hero-cab">
         <h2 id="h-resumen" class="hero-etq">Resultado total de la cartera</h2>
-        ${edad ? html`<p class="hero-precios" title="El trabajador trae los precios de Yahoo Finance cada hora; Fintual puede mostrar uno más reciente"><span class="punto" aria-hidden="true"></span>${edad}</p>` : ''}
+        ${edad ? html`<p class="hero-precios" title="El trabajador trae los precios de Yahoo Finance cada 5 minutos con la bolsa abierta; Fintual puede mostrar uno más reciente"><span class="punto" aria-hidden="true"></span>${edad}</p>` : ''}
       </div>
       <p class="hero-cifra ${dir(t.resultado)}" data-cuenta="${t.resultado}" data-formato="usdSigno">${fUsdSigno(t.resultado)}</p>
       <p class="hero-sub">
@@ -400,6 +434,46 @@ document.addEventListener('pointermove', (e) => {
   t.style.setProperty('--mx', `${e.clientX - r.left}px`)
   t.style.setProperty('--my', `${e.clientY - r.top}px`)
 }, { passive: true })
+
+/* ===== sugerencias: vender sobre el costo, recomprar bajo la venta ===== */
+
+function seccionSugerencias(c) {
+  // En la demo las ventas tienen fecha fija: «últimamente» se cuenta desde su
+  // último movimiento, para que la sección no quede vacía con el tiempo.
+  const movs = estado.datos.movimientos || []
+  const hoy = estado.modo === 'demo' && movs.length ? new Date(movs[movs.length - 1].fecha + 'T12:00:00Z') : new Date()
+  const s = sugerencias(estado.datos, c, { hoy })
+  const item = (x, cuerpo) => html`<li><button type="button" class="sug" data-ticker="${x.ticker}">
+    <span class="sug-cab"><b>${x.ticker}</b> <small>${x.nombre}</small></span>
+    ${cuerpo}
+  </button></li>`
+  const grupo = (titulo, nota, lista, pintarUno, vacio) => html`<div class="sug-grupo">
+    <h3>${titulo} <small>${lista.length}</small></h3>
+    <p class="sug-nota">${nota}</p>
+    ${lista.length ? html`<ul class="sug-lista">${lista.map(pintarUno)}</ul>` : html`<p class="vacio">${vacio}</p>`}
+  </div>`
+  return html`<section class="panel revela" aria-labelledby="h-sug">
+    <header class="panel-cab">
+      <h2 id="h-sug">Sugerencias</h2>
+      <p>Con el precio de hoy: vender lo que vale más de lo que te costó y recomprar lo que vendiste en los últimos ${s.dias} días si ahora está más barato. Se actualiza cada 5 minutos con la bolsa abierta. Son reglas simples, no una asesoría</p>
+    </header>
+    <div class="sug-grupos">
+      ${grupo('Podrías vender', 'El precio de hoy supera tu costo promedio', s.vender, (x) => item(x, html`
+        <span class="sug-linea">Costó ${fUsd(x.costoProm)} · hoy ${fUsd(x.precio)} <b class="sube">${fPctSigno(x.pct)}</b></span>
+        <span class="sug-linea">Si vendes tus ${fAcciones(x.tenencia)} acc. ganas <b class="sube">${fUsdSigno(x.ganancia)}</b></span>
+        ${x.sobreUmbral ? html`<span class="chip chip-senal">Pasa tu umbral de ${fPct(s.umbralPct)}</span>` : ''}`),
+        'Ninguna posición abierta vale hoy más de lo que te costó.')}
+      ${grupo('Podrías recomprar', 'Hoy está más barato que cuando lo vendiste', s.comprar, (x) => item(x, html`
+        <span class="sug-linea">La vendiste a ${fUsd(x.precioVenta)} el ${fFecha(x.fecha)} · hoy ${fUsd(x.precio)} <b class="baja">${fPctSigno(x.pct)}</b></span>
+        <span class="sug-linea">Con los ${fUsd(x.recibido)} que recibiste compras ${fAcciones(x.accionesHoy)} acc., <b class="sube">${fAcciones(x.extra)} más</b> de las que vendiste</span>`),
+        `Nada de lo que vendiste en los últimos ${s.dias} días está hoy más barato.`)}
+      ${grupo('En espera', 'Lo vendiste hace poco y sigue sobre tu precio de venta', s.espera, (x) => item(x, html`
+        <span class="sug-linea">La vendiste a ${fUsd(x.precioVenta)} el ${fFecha(x.fecha)} · hoy ${fUsd(x.precio)} <b class="${dir(x.pct)}">${fPctSigno(x.pct)}</b></span>
+        <span class="sug-linea">Pasa a «Podrías recomprar» bajo ${fUsd(x.precioVenta)}</span>`),
+        'Sin ventas recientes por vigilar.')}
+    </div>
+  </section>`
+}
 
 function carteraActual(c) {
   if (!c.abiertas.length) {
@@ -628,7 +702,7 @@ function pintarMovimientos() {
       <table class="anima-filas">
         <thead><tr>
           <th scope="col">Fecha</th><th scope="col">Tipo</th><th scope="col">Activo</th>
-          <th scope="col" class="num">Cantidad</th><th scope="col" class="num">Monto USD</th><th scope="col" class="num">Monto CLP</th>
+          <th scope="col" class="num">Cantidad</th><th scope="col" class="num">Precio por acción</th><th scope="col" class="num">Monto USD</th><th scope="col" class="num">Monto CLP</th>
         </tr></thead>
         <tbody>
           ${visibles.map((m) => html`<tr ${m.ticker !== 'USD' ? html`class="fila-activo" data-ticker="${m.ticker}" tabindex="0"` : ''}>
@@ -636,6 +710,7 @@ function pintarMovimientos() {
             <td><span class="tipo tipo-${m.tipo}">${TIPOS[m.tipo] || m.tipo}</span></td>
             <td><b>${m.ticker}</b> <small>${m.ticker === 'USD' ? '' : m.activo}</small></td>
             <td class="num">${m.tipo === 'dividendo' ? '—' : m.ticker === 'USD' ? fUsd(m.cantidad) : fAcciones(m.cantidad)}</td>
+            <td class="num">${fUsd(precioPorAccion(m))}</td>
             <td class="num">${fUsd(m.usd)}</td>
             <td class="num">${m.clp ? fClp(m.clp) : '—'}</td>
           </tr>`)}
@@ -831,7 +906,7 @@ function abrirActivo(ticker) {
     <h3 class="det-sub-tit">Movimientos de ${p.ticker} <small>${movs.length}</small></h3>
     <ol class="det-movs">${movs.slice(0, 40).map((m) => html`<li>
       <span><span class="tipo tipo-${m.tipo}">${TIPOS[m.tipo] || m.tipo}</span> <small>${fFecha(m.fecha)}</small></span>
-      <span class="num">${m.tipo === 'dividendo' ? '' : html`<small>${fAcciones(m.cantidad)} acc. · </small>`}<b class="${m.tipo === 'venta' || m.tipo === 'dividendo' ? 'sube' : ''}">${m.tipo === 'compra' ? '−' : '+'}${fUsd(m.usd)}</b></span>
+      <span class="num">${m.tipo === 'dividendo' ? '' : html`<small>${fAcciones(m.cantidad)} acc. a ${fUsd(precioPorAccion(m))} · </small>`}<b class="${m.tipo === 'venta' || m.tipo === 'dividendo' ? 'sube' : ''}">${m.tipo === 'compra' ? '−' : '+'}${fUsd(m.usd)}</b></span>
     </li>`)}</ol>
   </div>`)
   aplicarMedidas(dlg)

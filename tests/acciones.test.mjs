@@ -132,6 +132,27 @@ prueba('precios: Yahoo para cada ticker y el dólar; lo que falla conserva el an
   assert.ok(!('usuario' in p.VOO), 'los precios son de todos: sin usuario')
 })
 
+prueba('cada 5 min: solo con la bolsa de Nueva York abierta (hito 0021)', () => {
+  const abierta = (iso) => e.G.bolsaAbierta_(new Date(iso))
+  assert.equal(abierta('2026-10-23T13:29:00Z'), false, 'viernes 9:29 en Nueva York (EDT)')
+  assert.equal(abierta('2026-10-23T13:30:00Z'), true, 'viernes 9:30')
+  assert.equal(abierta('2026-10-23T20:05:00Z'), true, '16:05, el último después del cierre')
+  assert.equal(abierta('2026-10-23T20:10:00Z'), false, '16:10')
+  assert.equal(abierta('2026-10-24T15:00:00Z'), false, 'sábado')
+  assert.equal(abierta('2026-12-07T14:45:00Z'), true, 'lunes 9:45 en invierno (EST)')
+  assert.equal(abierta('2026-12-07T14:15:00Z'), false, 'lunes 9:15 en invierno')
+
+  ops().push({ id: 1, usuario: USUARIO, fecha: '2026-06-03', tipo: 'compra', ticker: 'VOO', activo: 'Vanguard S&P 500 ETF', cantidad: 1, usd: 500 })
+  e.yahoo.VOO = [606, 600]
+  e.G.bolsaAbierta_ = () => false
+  e.G.actualizarPrecios()
+  assert.equal(e.filas('acciones_precios').length, 0, 'con la bolsa cerrada no pide nada')
+  e.G.bolsaAbierta_ = () => true
+  e.G.actualizarPrecios()
+  assert.equal(e.filas('acciones_precios').find((p) => p.ticker === 'VOO').precio, 606)
+  assert.equal(e.filas('estado_trabajador').length, 0, 'ultima_acciones sigue siendo de actualizarAcciones')
+})
+
 /* ---------- alertas ---------- */
 prueba('alertas: ganancia sobre el umbral y caída del día, sin repetir el mismo aviso', () => {
   ops().push({ id: 1, usuario: USUARIO, fecha: '2026-06-03', tipo: 'compra', ticker: 'VOO', cantidad: 1, usd: 500 },

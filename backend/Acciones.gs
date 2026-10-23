@@ -4,6 +4,7 @@
    Tres tareas, cada una con su disparador (programarDisparador en Code.gs):
    · actualizarAcciones, cada 1 h: lee los correos de operaciones de Fintual
      (compras, ventas, dividendos, dólares) y actualiza los precios de Yahoo.
+   · actualizarPrecios, cada 5 min con la bolsa abierta: solo los precios.
    · alertasAcciones, cada 4 h: avisa por correo si una posición superó el
      umbral de ganancia o si un activo cae fuerte en el día.
    La base guarda HECHOS (operaciones, precios, alertas); las posiciones y los
@@ -31,6 +32,25 @@ function actualizarAcciones() {
   const precios = actualizarPreciosAcciones_();
   guardarEstado_({ ultima_acciones: new Date().toISOString() });
   console.log('Acciones: ' + nuevas + ' operación(es) nueva(s), ' + precios + ' precio(s) al día');
+}
+
+/* Solo los precios, cada 5 min, para las sugerencias de la página (hito
+   0021). Fuera del horario de la bolsa de Nueva York sale enseguida: el
+   precio de Yahoo no cambia y así no se gastan las cuotas (regla 11). La
+   hora de los precios la marca cada fila; ultima_acciones sigue siendo la
+   de actualizarAcciones (correos + precios). */
+function actualizarPrecios() {
+  if (!migradoAcciones_() || !bolsaAbierta_(new Date())) return;
+  console.log('Precios: ' + actualizarPreciosAcciones_() + ' al día');
+}
+
+/* Lunes a viernes de 9:30 a 16:05 en Nueva York (los 5 min de más alcanzan
+   el cierre). Los feriados no se miran: ese día solo se repite el precio. */
+function bolsaAbierta_(fecha) {
+  const t = Utilities.formatDate(fecha, 'America/New_York', 'yyyy-MM-dd HH:mm');
+  const dia = new Date(t.slice(0, 10) + 'T12:00:00Z').getUTCDay();
+  const hm = t.slice(11);
+  return dia >= 1 && dia <= 5 && hm >= '09:30' && hm <= '16:05';
 }
 
 function alertasAcciones() {

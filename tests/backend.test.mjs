@@ -32,12 +32,12 @@ function prueba(nombre, fn) {
 }
 
 /* ---------- instalación ---------- */
-prueba('instalar siembra la configuración y las reglas base en la base, y deja los tres disparadores', () => {
+prueba('instalar siembra la configuración y las reglas base en la base, y deja los cuatro disparadores', () => {
   assert.equal(e.props.get('PROPIETARIO'), 'duenio@gmail.com')
   assert.ok(e.filas('reglas').length > 50)
   assert.equal(e.filas('config').find((c) => c.clave === 'borrar_correos').valor, 'si')
   assert.ok(e.filas('config').every((c) => c.usuario === USUARIO))
-  assert.deepEqual(e.disparadores, ['procesarCorreos cada 30 min', 'actualizarAcciones cada 1 h', 'alertasAcciones cada 4 h'])
+  assert.deepEqual(e.disparadores, ['procesarCorreos cada 30 min', 'actualizarAcciones cada 1 h', 'actualizarPrecios cada 5 min', 'alertasAcciones cada 4 h'])
 })
 prueba('instalar dos veces no duplica la configuración ni las reglas', () => {
   const n = e.filas('reglas').length

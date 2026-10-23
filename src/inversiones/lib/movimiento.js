@@ -27,9 +27,15 @@ export function contar(el) {
   requestAnimationFrame(paso)
 }
 
+// sinAnimar: el repintado periódico (main.js, refrescar) muestra todo ya en su
+// lugar y con la cifra final, sin volver a contar.
 let observador
-export function revelarAlVer(raiz) {
+export function revelarAlVer(raiz, { sinAnimar = false } = {}) {
   const piezas = raiz.querySelectorAll('.revela')
+  if (sinAnimar) {
+    observador?.disconnect()
+    return piezas.forEach((el) => el.classList.add('visible', 'sin-animar'))
+  }
   const mostrar = (el) => {
     el.classList.add('visible')
     el.querySelectorAll('[data-cuenta]').forEach(contar)

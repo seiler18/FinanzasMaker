@@ -43,6 +43,6 @@ y cuántos correos bancarios devuelve).
 | «Sin conexión con el Apps Script» al revisar correos | `API_URL` en `src/config.js` no es la URL `/exec` vigente, o la implementación no está en «Cualquier usuario» |
 | «cierra sesión y vuelve a entrar» al revisar correos | El token de Google dura 1 h; o falta `CLIENT_ID` en las propiedades, o `PROPIETARIO` no es el correo con que entras (`instalar()` con la cuenta correcta) |
 | «Error interno» | Ver **Ejecuciones** en el editor: ahí está la traza |
-| No entran correos nuevos | **Activadores**: deben estar `procesarCorreos` (30 min), `actualizarAcciones` (1 h) y `alertasAcciones` (4 h); si no, `programarDisparador()`. «Tope diario … alcanzado» es el freno de cuota (sigue al otro día) |
+| No entran correos nuevos | **Activadores**: deben estar `procesarCorreos` (30 min), `actualizarAcciones` (1 h), `actualizarPrecios` (5 min) y `alertasAcciones` (4 h); si no, `programarDisparador()`. «Tope diario … alcanzado» es el freno de cuota (sigue al otro día) |
 | Entra todo a «Por revisar» | Un banco cambió su plantilla: skill `agregar-banco` |
 | Inversiones no se actualiza | `actualizarAcciones` a mano: si dice «Falta correr migrarAccionesASupabase()», migrar (o `empezarAccionesDeCero()`) |

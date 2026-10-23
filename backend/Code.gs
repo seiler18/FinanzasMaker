@@ -80,6 +80,7 @@ function instalar() {
 function programarDisparador() {
   const tareas = [['procesarCorreos', (t) => t.everyMinutes(CADA_MIN), 'cada ' + CADA_MIN + ' minutos'],
                   ['actualizarAcciones', (t) => t.everyHours(1), 'cada 1 hora'],
+                  ['actualizarPrecios', (t) => t.everyMinutes(5), 'cada 5 minutos (solo con la bolsa abierta)'],
                   ['alertasAcciones', (t) => t.everyHours(4), 'cada 4 horas']];
   const nombres = tareas.map((t) => t[0]);
   ScriptApp.getProjectTriggers()

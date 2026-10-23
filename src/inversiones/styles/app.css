@@ -216,6 +216,24 @@ tbody th { font-weight: 400; }
 .chip-senal { background: var(--primario-tenue); }
 .chip-revisar { background: var(--critico-tenue); }
 
+/* ----- sugerencias ----- */
+.sug-grupos { display: grid; gap: var(--e-5); grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr)); }
+.sug-grupo { display: grid; align-content: start; gap: var(--e-2); min-width: 0; }
+.sug-grupo h3 { font-size: var(--t-base); font-weight: 650; }
+.sug-grupo h3 small, .sug-nota { color: var(--texto-tenue); font-size: var(--t-xs); font-weight: 400; }
+.sug-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--e-2); }
+.sug {
+  display: grid; gap: var(--e-1); justify-items: start;
+  width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--borde); border-radius: var(--radio);
+  padding: var(--e-3);
+}
+.sug-cab small { color: var(--texto-2); }
+.sug-linea { font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+
+/* El repintado periódico no vuelve a animar la entrada (movimiento.js). */
+.revela.sin-animar, .revela.sin-animar * { transition: none !important; animation: none !important; }
+
 /* ----- dólares ----- */
 .pares { margin: 0; display: grid; gap: var(--e-3); }
 .pares div { display: grid; gap: 2px; }

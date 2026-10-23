@@ -14,7 +14,8 @@ La v2 (hitos 0010 y 0011) tiene tres piezas:
   Lo que necesita Google:
   - lee Gmail cada 30 min, escribe en la base y después manda el correo a la
     papelera;
-  - cada hora lee las operaciones de Fintual y los precios de Yahoo;
+  - cada hora lee las operaciones de Fintual y los precios de Yahoo, y
+    cada 5 min solo los precios, con la bolsa de Nueva York abierta;
   - cada 4 h avisa las señales de la cartera.
   Escribe con una clave secreta (se salta la RLS) y filtra él por usuario.
 - **Celular: la app FinanzasMaker para Android** (repo privado
@@ -64,6 +65,7 @@ Actions). Instalación y migración: `README.md`. Seguridad: `SECURITY.md`.
 | Totales, series, consejos, fecha contable, timbres de las cuotas | `src/lib/analisis.js` |
 | Vistas de Finanzas | `src/vistas/{resumen,movimientos,revisar,agregar,cuotas,consejos,ajustes}.js` |
 | Router y periodo (día/mes/año) | `src/main.js` (`VISTAS`) |
+| Sugerencias de Inversiones: vender sobre el costo, recomprar bajo la última venta; precio por acción | `src/inversiones/lib/sugerencias.js`, tests en `tests/inversiones-sugerencias.test.mjs` |
 | Página Inversiones (su propio CSS, libs y demo) | `inversiones/index.html`, `src/inversiones/` (`main.js`, `lib/cartera.js`, `lib/api.js` arma el contrato v1) |
 | Signo y color de un monto (+ verde / − rojo) | `SENTIDO` y `conSigno` en `src/lib/formato.js` |
 | Efectos (se apagan con `prefers-reduced-motion`) | `src/lib/{efectos,fondo-dotField,cuenta}.js`, `src/styles/efectos.css` — de React Bits (MIT + Commons Clause: se usan aquí, **no se redistribuyen**) |
@@ -163,7 +165,8 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
     - `src/inversiones/demo.js` ↔ el contrato v1.
 11. **No gastar las cuotas de Google.** Disparador de correos cada 30 min, 1,5
     min por pasada, tope diario de 60 min, lo ignorado recordado 6 h
-    (constantes al inicio de `Code.gs`). Acciones: cada 1 h y cada 4 h.
+    (constantes al inicio de `Code.gs`). Acciones: cada 1 h y cada 4 h; los
+    precios cada 5 min solo con la bolsa abierta (`bolsaAbierta_`).
 12. **Ningún secreto sale de `.env`.** La clave de la base y la de cada celular
     viven ahí; los scripts las leen sin imprimirlas. La clave secreta del
     trabajador vive solo en Supabase y en las propiedades del Apps Script.

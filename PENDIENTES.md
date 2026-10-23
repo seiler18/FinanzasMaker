@@ -3,20 +3,18 @@
 Lo que queda por hacer a mano o por decidir (hitos 0013 a 0020). Se tacha y se
 borra cuando esté hecho. El repo es público: aquí no van claves.
 
-## 1. Pegar el Apps Script ahora: Inversiones está parada (hito 0020)
+## 1. Pegar el Apps Script: precios cada 5 min (hito 0021)
 
-Desde el 2026-10-19 21:06 los precios y las operaciones de Fintual no se
-actualizan: la consulta por ids pasó el tope de 2 kB de URL de Apps Script y
-`actualizarAcciones` se cae en cada corrida. Ya está corregido en el repo.
+El arreglo del hito 0020 ya está pegado y los precios volvieron (2026-10-23).
+Para las Sugerencias de Inversiones con precios cada 5 minutos:
 
-1. Skill `desplegar-backend`: pegar **`Supabase.gs`, `Acciones.gs` y
-   `Code.gs`** en el editor (los tres cambiaron) e implementar como versión
-   nueva de la misma implementación.
-2. Correr **`actualizarAcciones`** a mano y ver en Inversiones «Precios
-   recién actualizados». Después sigue sola cada hora.
-
-De paso entra el cambio de `CONFIG_BASE` en `Code.gs` (la clave
-`bancos_por_aviso`), que el trabajador no usa.
+1. Skill `desplegar-backend`: pegar **`Acciones.gs` y `Code.gs`** e
+   implementar como versión nueva de la misma implementación.
+2. Correr **`programarDisparador()`** una vez: crea el disparador nuevo
+   `actualizarPrecios` (5 min) y rehace los otros tres. En **Activadores**
+   deben quedar cuatro.
+3. Con la bolsa abierta (lunes a viernes, 10:30 a 17:00 en Chile en esta
+   época), Inversiones debe decir «Precios de hace N min» con N ≤ 5.
 
 La 0008, la 0009 y la función están desplegadas, y los avisos crudos se
 releyeron (2026-10-16, hito 0016). Solo quedan crudos el cashback depositado
