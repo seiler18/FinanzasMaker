@@ -26,8 +26,10 @@ La v2 (hitos 0010 y 0011) tiene tres piezas:
   con esa sesión (la misma RLS) y dibuja el resumen, los movimientos y los
   consejos con sus propios cálculos, gemelos de los de aquí (regla 10).
   Desde la v0.4.0 (hito 0018) también escribe: anotar, editar, eliminar y
-  decidir «Por revisar», con copias de `reglas.js` y `validar.js`. Las
-  cartolas, los presupuestos, Config e Inversiones siguen solo aquí.
+  decidir «Por revisar», con copias de `reglas.js` y `validar.js`. Desde la
+  v0.5.0 (hito 0022) muestra también Inversiones, con copias de
+  `cartera.js`, `sugerencias.js` y el `formato.js` de Inversiones. Las
+  cartolas, los presupuestos y Config siguen solo aquí.
 
 **Hacia dónde va (hito 0015): el correo solo para Fintual.** Los bancos pasan
 uno a uno a `bancos_por_aviso` (Config) cuando su cobertura por aviso lo
@@ -162,7 +164,12 @@ Lo que queda por hacer a mano (desplegar, instalar, respaldar): `PENDIENTES.md`.
       `datos.js` (agregar, editar, eliminar, revisar) ↔ `Tablero.kt`: la app
       escribe con la misma validación y las mismas reglas;
     - `src/demo.js` ↔ `datos.js`;
-    - `src/inversiones/demo.js` ↔ el contrato v1.
+    - `src/inversiones/demo.js` ↔ el contrato v1;
+    - `src/inversiones/lib/cartera.js`, `sugerencias.js` y `formato.js` ↔
+      `nucleo/Cartera.kt`, `Sugerencias.kt` y `FormatoInv.kt` de la app
+      (`CarteraTest`, `SugerenciasTest`, `FormatoInvTest`), y `cartera()` de
+      `lib/api.js` ↔ `Tablero.inversiones`: la app lee las mismas tablas y
+      calcula lo mismo. Una regla nueva de sugerencias se copia allá.
 11. **No gastar las cuotas de Google.** Disparador de correos cada 30 min, 1,5
     min por pasada, tope diario de 60 min, lo ignorado recordado 6 h
     (constantes al inicio de `Code.gs`). Acciones: cada 1 h y cada 4 h; los

@@ -1,6 +1,6 @@
 # Pendientes
 
-Lo que queda por hacer a mano o por decidir (hitos 0013 a 0020). Se tacha y se
+Lo que queda por hacer a mano o por decidir (hitos 0013 a 0022). Se tacha y se
 borra cuando esté hecho. El repo es público: aquí no van claves.
 
 ## 1. Pegar el Apps Script: precios cada 5 min (hito 0021)
@@ -20,7 +20,22 @@ La 0008, la 0009 y la función están desplegadas, y los avisos crudos se
 releyeron (2026-10-16, hito 0016). Solo quedan crudos el cashback depositado
 de MACH (a propósito) y la prueba de conexión de la app.
 
-## 2. Apagar el correo, banco por banco
+## 2. La app v0.5.0 en el celular: Inversiones (hito 0022)
+
+La v0.5.0 (Release `v0.5.0` de FinanzasMaker-android, misma firma) trae
+Inversiones: instalarla **encima** desde Releases y abrir Más → Inversiones.
+Mirar:
+
+- que el resultado total, el valor de la cartera y las sugerencias digan lo
+  mismo que la página de Inversiones;
+- las cuatro vistas (Resumen, Ideas, Cartera, Movimientos), tocar una parte
+  del resultado y un activo (se abren hojas de detalle);
+- los gráficos al tocarlos (lo puesto y lo recuperado, dividendos por mes,
+  actividad por mes);
+- con la bolsa abierta, que «Precios de hace N min» no pase de 5 a 10 min
+  sin tocar nada.
+
+## 3. Apagar el correo, banco por banco
 
 En Ajustes → Celular, «Qué llega por el celular» dice por banco cuánto llegó
 por aviso y cuánto solo por correo. Cuando un banco lleve un tiempo sin nada
@@ -42,7 +57,7 @@ desplegar la función y releer los crudos (punto 1).
 
 Fintual sigue por correo (sus avisos no traen el monto).
 
-## 3. Probar las cartolas en la página publicada
+## 4. Probar las cartolas en la página publicada
 
 **El estado de cuenta con clave (hito 0019).** El campo de la clave ya no lo
 rellena Chrome solo. Subir el estado de cuenta de la tarjeta que falló y ver
@@ -63,7 +78,7 @@ Subir una cartola, subirlas y revisar:
 Lo marcado se agrega a la base de verdad: se puede ensayar antes en la demo
 (`?demo`). Para repetir la prueba automática, dejarlas en `cartolas/`.
 
-## 4. Más adelante
+## 5. Más adelante
 
 - **Salir de Apps Script salvo para Fintual.** Con los bancos por aviso, al
   trabajador le quedan los correos de Fintual, los precios (Yahoo) y las
